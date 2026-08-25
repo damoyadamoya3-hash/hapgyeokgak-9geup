@@ -10,6 +10,7 @@ window.QB_PACKS = [
   'theory/law-t-03-suit',
   'theory/law-t-04-proc',
   'theory/edu-t-01-adm',
+  'theory/edu-t-02-core',
 
   /* ── 문제 ── */
   'questions/edu-01-phil',
