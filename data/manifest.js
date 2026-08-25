@@ -8,6 +8,7 @@ window.QB_PACKS = [
   'theory/law-t-01-gen',
   'theory/law-t-02-act',
   'theory/law-t-03-suit',
+  'theory/law-t-04-proc',
   'theory/edu-t-01-adm',
 
   /* ── 문제 ── */
@@ -18,6 +19,7 @@ window.QB_PACKS = [
   'questions/edu-05-eval',
   'questions/edu-06-adm',
   'questions/edu-07-soc',
+  'questions/edu-08-law',
 
   /* ── 한국사(한능검) ── */
   'questions/his-01-pre',
