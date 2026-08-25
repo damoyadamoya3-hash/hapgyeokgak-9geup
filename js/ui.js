@@ -307,7 +307,7 @@ const UI = (() => {
     }else{
       Sfx.wrong();
       $('#q-card').classList.add('shake');
-      Fx.flash('rgba(224,67,90,.35)');
+      Fx.flash('rgba(208,47,60,.32)');
     }
     fb.classList.remove('hidden');
   }

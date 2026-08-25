@@ -209,14 +209,14 @@
 
     Sfx.levelup();
     Fx.burstAt($('#tetris-cvs'), ['🧱','✨','💥','⭐'], 10 + n * 8);
-    Fx.flash(n >= 4 ? 'rgba(255,183,77,.45)' : 'rgba(120,220,255,.30)');
+    Fx.flash(n >= 4 ? 'rgba(242,194,0,.45)' : 'rgba(107,155,255,.28)');
 
     // 라인 클리어 보상 — 도파민 + 실이익
     const xp = n * 8, coin = n * 3;
     if(S){ S.xp += xp; S.coin += coin; }
     else { Store.addXp(xp); Store.addCoin(coin); }
     const r = $('#tetris-cvs').getBoundingClientRect();
-    Fx.floatText(r.left + r.width/2 - 22, r.top + 30, '+' + xp, '#7ee0ff');
+    Fx.floatText(r.left + r.width/2 - 22, r.top + 30, '+' + xp, '#6b9bff');
     if(n >= 4) Fx.toast('★ TETRIS! 4줄 소거 +' + xp + ' XP', true, 2000);
   }
 

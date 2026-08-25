@@ -5,15 +5,15 @@
 window.QB = {
   /* 과목 정의 ------------------------------------------------ */
   SUBJECTS: [
-    { id: 'kor',   name: '국어',        emoji: '📖', color: '#e0435a',
+    { id: 'kor',   name: '국어',        emoji: '📖', color: '#d02f3c',
       desc: '문법·어문규정·독해·문학·한자성어' },
-    { id: 'eng',   name: '영어',        emoji: '🔤', color: '#3d5a80',
+    { id: 'eng',   name: '영어',        emoji: '🔤', color: '#2f5fbf',
       desc: '어휘·생활영어·문법·독해' },
-    { id: 'his',   name: '한국사(한능검)', emoji: '🏯', color: '#7b5ea7',
+    { id: 'his',   name: '한국사(한능검)', emoji: '🏯', color: '#6b4fb8',
       desc: '한국사능력검정시험 심화 대비 · 선사~현대' },
-    { id: 'edu',   name: '교육학개론',   emoji: '🎓', color: '#2e9e6b',
+    { id: 'edu',   name: '교육학개론',   emoji: '🎓', color: '#1e9e62',
       desc: '교육철학·교육사·교육심리·교육과정·교육행정·교육평가' },
-    { id: 'law',   name: '행정법총론',   emoji: '⚖️', color: '#f4b942',
+    { id: 'law',   name: '행정법총론',   emoji: '⚖️', color: '#c8930a',
       desc: '행정법통론·행정작용법·행정구제법·행정절차·정보공개' }
   ],
 

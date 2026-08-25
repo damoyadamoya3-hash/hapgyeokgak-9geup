@@ -231,7 +231,7 @@ const Tetris = (() => {
     for(let i = 0; i < n; i++){
       grid.shift();
       const hole = (Math.random() * COLS) | 0;
-      const row = Array.from({length:COLS}, (_, x) => x === hole ? null : '#6b6155');
+      const row = Array.from({length:COLS}, (_, x) => x === hole ? null : '#7d8676');
       grid.push(row);
     }
     shakeT = 0.5;
@@ -243,7 +243,7 @@ const Tetris = (() => {
     if(!running) return 0;
     for(let y = ROWS - 2; y < ROWS; y++)
       for(let x = 0; x < COLS; x++)
-        if(!grid[y][x]) grid[y][x] = '#ffb74d';
+        if(!grid[y][x]) grid[y][x] = '#f2c200';
     shakeT = 0.7;
     return detonate();
   }
@@ -303,7 +303,7 @@ const Tetris = (() => {
     }
     // 배경
     const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-    ctx.fillStyle = dark ? '#15131a' : '#efe9dc';
+    ctx.fillStyle = dark ? '#181b22' : '#e7ece0';
     ctx.fillRect(-12, -12, W + 24, H + 24);
     // 격자
     ctx.strokeStyle = dark ? 'rgba(255,255,255,.045)' : 'rgba(0,0,0,.05)';
