@@ -248,7 +248,7 @@ const UI = (() => {
     const pas = $('#q-passage');
     if(q.passage){ pas.textContent = q.passage; pas.classList.remove('hidden'); }
     else pas.classList.add('hidden');
-    $('#q-text').innerHTML = esc(q.q).replace(/\n/g, '<br>');
+    $('#q-text').innerHTML = md(q.q).replace(/\n/g, '<br>');
 
     // 선택지
     const box = $('#q-choices');
@@ -261,7 +261,7 @@ const UI = (() => {
       box.className = 'q-choices';
       box.innerHTML = q.choices.map((c, i) =>
         `<button class="choice" data-ans="${i}">
-           <span class="ci">${'①②③④⑤'[i] || (i+1)}</span><span>${esc(c)}</span>
+           <span class="ci">${'①②③④⑤'[i] || (i+1)}</span><span>${md(c)}</span>
          </button>`).join('');
     }
     Array.from(box.children).forEach(b =>
@@ -292,9 +292,9 @@ const UI = (() => {
     let exp = q.exp || '';
     if(!res.ok && q.type === 'ox') exp = `정답은 ${q.a ? 'O' : 'X'}. ` + exp;
     if(!res.ok && q.type === 'mcq') exp = `정답은 ${'①②③④⑤'[q.a]}번. ` + exp;
-    $('#fb-exp').textContent = exp;
+    $('#fb-exp').innerHTML = md(exp).replace(/\n/g, '<br>');
     const tip = $('#fb-tip');
-    if(q.tip){ tip.innerHTML = '💡 ' + esc(q.tip); tip.classList.remove('hidden'); }
+    if(q.tip){ tip.innerHTML = '💡 ' + md(q.tip); tip.classList.remove('hidden'); }
     else tip.classList.add('hidden');
     $('#btn-next').textContent = (S.i + 1 >= S.queue.length && S.mode !== 'ox') ? '결과 보기 →' : '다음 →';
 
@@ -350,7 +350,7 @@ const UI = (() => {
       ? `<h3 style="font-size:15px;margin:0 0 4px">📌 다시 볼 문제 ${S.wrongList.length}개</h3>` +
         S.wrongList.slice(0, 8).map(q => `
           <div class="rev-item">
-            <div class="rq">${esc(q.q.length > 90 ? q.q.slice(0,90) + '…' : q.q)}</div>
+            <div class="rq">${md(q.q.length > 90 ? q.q.slice(0,90) + '…' : q.q)}</div>
             <div class="ra">정답: ${q.type === 'ox' ? (q.a ? 'O' : 'X') : ('①②③④⑤'[q.a] + ' ' + esc(q.choices[q.a]||''))}</div>
           </div>`).join('')
       : `<div class="sel-note" style="text-align:center">틀린 문제 없음! 완벽합니다 ✨</div>`;

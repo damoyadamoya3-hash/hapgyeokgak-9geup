@@ -22,7 +22,22 @@ window.QB_PACKS = [
   /* ── 한국사(한능검) ── */
   'questions/his-01-pre',
   'questions/his-02-goryeo',
-  'questions/his-03-joseon1'
+  'questions/his-03-joseon1',
+  'questions/his-04-joseon2',
+  'questions/his-05-modern',
+  'questions/his-06-japan',
+  'questions/his-07-contemp',
+
+  /* ── 행정법총론 ── */
+  'questions/law-01-gen',
+  'questions/law-02-remedy',
+
+  /* ── 국어 ── */
+  'questions/kor-01-gram',
+  'questions/kor-02-word',
+
+  /* ── 영어 ── */
+  'questions/eng-01-core'
 ];
 
 (function(){
