@@ -312,6 +312,19 @@ const UI = (() => {
     fb.classList.remove('hidden');
   }
 
+  /* 보너스 XP를 피드백 패널 수치에 즉시 반영하고 튀어오르게 한다 */
+  function bumpXp(amount, note){
+    if(!amount) return;
+    const el = $('#fb-xp');
+    const cur = parseInt((el.textContent.match(/\d+/) || [0])[0], 10);
+    el.textContent = '+' + (cur + amount) + ' XP' + (note ? ' ' + note : '');
+    el.style.transition = 'none'; el.style.transform = 'scale(1.35)';
+    requestAnimationFrame(() => {
+      el.style.transition = 'transform .3s cubic-bezier(.2,1.6,.4,1)';
+      el.style.transform = 'none';
+    });
+  }
+
   /* ── 결과 ──────────────────────────────────────────── */
   function result(S, fin){
     const win = S.mode === 'boss' ? S.reason === 'kill' : fin.acc >= 60;
@@ -356,5 +369,5 @@ const UI = (() => {
 
   return { $, $$, esc, show, back, hud, home, daily, subjects, achievements,
            modeTags, selectSubject, selectUnit, question, reveal, result,
-           codexList, cardDetail };
+           codexList, cardDetail, bumpXp };
 })();

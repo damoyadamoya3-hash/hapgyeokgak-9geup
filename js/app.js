@@ -8,6 +8,7 @@
   let lastPlay = null;       // 다시하기용 {mode, opt}
   let locked = false;        // 중복 입력 방지
   let paused = false;        // 해설 열람 중 — 타이머·테트리스 정지
+  let pauseStart = 0;        // 해설을 열어둔 시각(FEVER 시간 보정용)
 
   /* ── 부팅 ──────────────────────────────────────────── */
   const BOOT_MSGS = [
@@ -78,6 +79,7 @@
     UI.show('scr-play');
     render();
     tetrisStart();
+    Hype.Bgm.start();
   }
   function fmt(s){ return s >= 60 ? `${(s/60)|0}:${String(s%60).padStart(2,'0')}` : s; }
   function stopTimer(){ if(timerId){ clearInterval(timerId); timerId = null; } }
@@ -92,6 +94,7 @@
     if(locked || !S) return;
     locked = true;
     paused = true;                 // ⏸ 해설을 다 읽을 때까지 모든 것을 멈춘다
+    pauseStart = Date.now();
     $('#pb-timer').classList.add('paused');
     const res = Engine.submit(S, ans);
     UI.reveal(S, res, btn);
@@ -131,6 +134,26 @@
         Fx.burstAt(sp, ['💥','⚔️','✨'], 12);
       }
     }
+    /* ── 도파민 레이어 ── */
+    if(res.ok){
+      // FEVER 진입 (8콤보)
+      if(Hype.maybeFever(res.combo)) Tetris.setSpeed(950);
+      else if(Hype.feverOn) Hype.extendFever(1500);
+
+      // 잭팟 릴 — 확률적으로만 돌아간다(변동비율 강화)
+      Hype.jackpot(res.combo, mult => {
+        const bonus = res.gain * (mult - 1);
+        if(S){ S.xp += bonus; S.coin += mult; }
+        UI.bumpXp(bonus);
+      });
+
+      // FEVER 중에는 획득 XP 2배
+      if(Hype.feverOn && S){
+        S.xp += res.gain;
+        UI.bumpXp(res.gain, '🔥 FEVER ×2');
+      }
+    }
+
     // 테트리스 낙하도 멈춰 두고, 폭발 연출만 마저 보여준다
     setTimeout(() => { if(paused) Tetris.pause(); }, 900);
   }
@@ -138,6 +161,9 @@
   function next(){
     if(!S) return;
     locked = false;
+    // 해설을 읽은 시간만큼 FEVER 시간을 되돌려준다
+    if(pauseStart) Hype.holdFever(Date.now() - pauseStart);
+    pauseStart = 0;
     paused = false;                // ▶ 재개
     $('#pb-timer').classList.remove('paused');
     Tetris.resume();
@@ -153,6 +179,8 @@
     if(!S) return;
     stopTimer();
     Tetris.stop();
+    Hype.stopFever();
+    Hype.Bgm.stop();
     S.over = true;
     if(S.mode === 'cloze' && S.opt.card) Store.markDrill(S.opt.card);
     const fin = Engine.finish(S);
@@ -175,7 +203,7 @@
     $('#tp-shout').textContent = '';
     requestAnimationFrame(() => {
       Tetris.init($('#tetris-cvs'), {
-        dropMs: 1500,
+        dropMs: Hype.feverOn ? 950 : 1500,
         onLine: onTetrisLine,
         onPending: onTetrisPending,
         onDanger: onTetrisDanger
@@ -297,6 +325,7 @@
       $('#set-sound').checked = st.sound; $('#set-haptic').checked = st.haptic;
       $('#set-dark').checked = st.dark;   $('#set-autoexp').checked = st.autoexp;
       $('#set-tetris').checked = st.tetris !== false;
+      $('#set-bgm').checked = st.bgm !== false;
       modal.classList.remove('hidden');
     });
     $('#btn-close-settings').addEventListener('click', () => modal.classList.add('hidden'));
@@ -306,6 +335,9 @@
     });
     bind('#set-sound','sound'); bind('#set-haptic','haptic');
     bind('#set-dark','dark', applyTheme); bind('#set-autoexp','autoexp');
+    bind('#set-bgm','bgm', () => {
+      if(Store.s.settings.bgm){ if(S) Hype.Bgm.start(); } else Hype.Bgm.stop();
+    });
     bind('#set-tetris','tetris', () => {
       if(!tetrisOn()){ Tetris.stop(); $('#tetris-panel').classList.add('hidden'); }
       else if(S) tetrisStart();

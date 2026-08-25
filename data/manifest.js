@@ -17,7 +17,12 @@ window.QB_PACKS = [
   'questions/edu-04-meth',
   'questions/edu-05-eval',
   'questions/edu-06-adm',
-  'questions/edu-07-soc'
+  'questions/edu-07-soc',
+
+  /* ── 한국사(한능검) ── */
+  'questions/his-01-pre',
+  'questions/his-02-goryeo',
+  'questions/his-03-joseon1'
 ];
 
 (function(){

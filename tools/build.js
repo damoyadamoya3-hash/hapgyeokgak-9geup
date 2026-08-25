@@ -61,7 +61,7 @@ function build(){
   );
 
   /* ── 4. 나머지 JS 인라인 ── */
-  const jsFiles = ['js/store.js','js/audio.js','js/fx.js','js/tetris.js',
+  const jsFiles = ['js/store.js','js/audio.js','js/fx.js','js/tetris.js','js/hype.js',
                    'js/engine.js','js/ui.js','js/app.js'];
   for(const f of jsFiles){
     html = html.replace(
