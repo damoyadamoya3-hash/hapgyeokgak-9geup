@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>합격각 9급 · 교육행정직 RPG</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Jua&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+</head>
+<body>
+
+<div id="fx-layer"></div>
+<div id="toast-layer"></div>
+
+<!-- ═══════════ 로딩 ═══════════ -->
+<section id="scr-boot" class="screen active">
+  <div class="boot-box">
+    <div class="boot-logo">🎓</div>
+    <h1 class="boot-title">합격각 9급</h1>
+    <p class="boot-sub">교육행정직 공략 RPG</p>
+    <div class="boot-bar"><i id="boot-fill"></i></div>
+    <p id="boot-msg" class="boot-msg">문제 은행 여는 중…</p>
+  </div>
+</section>
+
+<!-- ═══════════ 홈 ═══════════ -->
+<section id="scr-home" class="screen">
+  <header class="topbar">
+    <div class="tb-left">
+      <div class="avatar" id="hud-avatar">🐣</div>
+      <div class="tb-meta">
+        <div class="tb-name"><span id="hud-title">9급 지망생</span> <b id="hud-lv">Lv.1</b></div>
+        <div class="xpbar"><i id="hud-xpfill"></i><span id="hud-xptext">0 / 100</span></div>
+      </div>
+    </div>
+    <div class="tb-right">
+      <div class="stat-chip" title="연속 학습일"><span>🔥</span><b id="hud-streak">0</b></div>
+      <div class="stat-chip" title="코인"><span>🪙</span><b id="hud-coin">0</b></div>
+      <button class="icon-btn" id="btn-settings" title="설정">⚙️</button>
+    </div>
+  </header>
+
+  <main class="home-wrap">
+    <div id="daily-card" class="daily-card">
+      <div class="dc-head"><span class="dc-icon">📅</span><div><h3>오늘의 임무</h3><p id="dc-date">—</p></div><div id="dc-progress" class="dc-prog">0 / 3</div></div>
+      <ul id="dc-list" class="dc-list"></ul>
+    </div>
+
+    <h2 class="sec-title">⚔️ 모드 선택</h2>
+    <div class="mode-grid">
+      <button class="mode-card m-quest" data-mode="quest">
+        <span class="mc-emoji">🗺️</span><h3>스토리 퀘스트</h3><p>과목별 스테이지를 격파하며 진도 클리어</p>
+        <span class="mc-tag" id="mc-quest-tag">진행도 0%</span>
+      </button>
+      <button class="mode-card m-ox" data-mode="ox">
+        <span class="mc-emoji">⚡</span><h3>OX 스피드런</h3><p>60초 안에 최대한 많이! 콤보 터뜨리기</p>
+        <span class="mc-tag" id="mc-ox-tag">최고 0문제</span>
+      </button>
+      <button class="mode-card m-boss" data-mode="boss">
+        <span class="mc-emoji">👹</span><h3>보스 레이드</h3><p>과목 보스와 HP 대결. 오답 = 피해</p>
+        <span class="mc-tag" id="mc-boss-tag">격파 0마리</span>
+      </button>
+      <button class="mode-card m-srs" data-mode="srs">
+        <span class="mc-emoji">🔁</span><h3>망각곡선 복습</h3><p>틀린 문제·복습 시점 도래 문제만 집중</p>
+        <span class="mc-tag" id="mc-srs-tag">대기 0문제</span>
+      </button>
+      <button class="mode-card m-exam" data-mode="exam">
+        <span class="mc-emoji">📝</span><h3>실전 모의고사</h3><p>과목당 20문항 · 시간제한 실전 감각</p>
+        <span class="mc-tag" id="mc-exam-tag">응시 0회</span>
+      </button>
+      <button class="mode-card m-wrong" data-mode="wrong">
+        <span class="mc-emoji">💀</span><h3>오답 지옥</h3><p>틀린 문제만 모아 무한 반복 처형</p>
+        <span class="mc-tag" id="mc-wrong-tag">0문제 수감</span>
+      </button>
+    </div>
+
+    <h2 class="sec-title">📚 과목 현황</h2>
+    <div id="subject-grid" class="subject-grid"></div>
+
+    <h2 class="sec-title">🏅 업적</h2>
+    <div id="ach-grid" class="ach-grid"></div>
+  </main>
+</section>
+
+<!-- ═══════════ 과목/스테이지 선택 ═══════════ -->
+<section id="scr-select" class="screen">
+  <header class="subbar"><button class="back-btn" data-back>←</button><h2 id="sel-title">과목 선택</h2><span></span></header>
+  <main class="sel-wrap"><div id="sel-body"></div></main>
+</section>
+
+<!-- ═══════════ 플레이 ═══════════ -->
+<section id="scr-play" class="screen">
+  <header class="playbar">
+    <button class="back-btn" id="btn-quit">✕</button>
+    <div class="pb-center">
+      <div class="pb-progress"><i id="pb-fill"></i></div>
+      <div class="pb-info"><span id="pb-count">1 / 10</span><span id="pb-mode">퀘스트</span></div>
+    </div>
+    <div class="pb-right">
+      <div id="pb-timer" class="pb-timer hidden">⏱ <b>60</b></div>
+      <div id="pb-hearts" class="pb-hearts"></div>
+    </div>
+  </header>
+
+  <div id="boss-stage" class="boss-stage hidden">
+    <div class="boss-hp-wrap"><span id="boss-name">보스</span><div class="boss-hp"><i id="boss-hp-fill"></i></div></div>
+    <div id="boss-sprite" class="boss-sprite">👹</div>
+  </div>
+
+  <main class="play-wrap">
+    <div id="combo-badge" class="combo-badge hidden"><b id="combo-n">2</b> COMBO</div>
+    <div class="q-card" id="q-card">
+      <div class="q-meta"><span id="q-subject" class="q-tag">과목</span><span id="q-source" class="q-src">출처</span></div>
+      <div id="q-passage" class="q-passage hidden"></div>
+      <h2 id="q-text" class="q-text">문제</h2>
+      <div id="q-choices" class="q-choices"></div>
+    </div>
+    <div id="feedback" class="feedback hidden">
+      <div class="fb-head"><span id="fb-icon">✅</span><b id="fb-title">정답!</b><span id="fb-xp" class="fb-xp">+10 XP</span></div>
+      <p id="fb-exp" class="fb-exp"></p>
+      <div id="fb-tip" class="fb-tip hidden"></div>
+      <button class="btn-primary" id="btn-next">다음 →</button>
+    </div>
+  </main>
+</section>
+
+<!-- ═══════════ 결과 ═══════════ -->
+<section id="scr-result" class="screen">
+  <main class="result-wrap">
+    <div id="res-emoji" class="res-emoji">🎉</div>
+    <h2 id="res-title">스테이지 클리어!</h2>
+    <p id="res-sub" class="res-sub"></p>
+    <div class="res-stats">
+      <div class="rs"><b id="res-correct">0</b><span>정답</span></div>
+      <div class="rs"><b id="res-wrong">0</b><span>오답</span></div>
+      <div class="rs"><b id="res-acc">0%</b><span>정답률</span></div>
+      <div class="rs"><b id="res-combo">0</b><span>최대콤보</span></div>
+    </div>
+    <div class="res-rewards"><span id="res-xp">+0 XP</span><span id="res-coin">+0 🪙</span></div>
+    <div id="res-review" class="res-review"></div>
+    <div class="res-btns">
+      <button class="btn-ghost" id="btn-res-home">홈으로</button>
+      <button class="btn-primary" id="btn-res-again">한 판 더</button>
+    </div>
+  </main>
+</section>
+
+<!-- ═══════════ 설정 모달 ═══════════ -->
+<div id="modal-settings" class="modal hidden">
+  <div class="modal-box">
+    <h3>⚙️ 설정</h3>
+    <label class="sw"><span>효과음</span><input type="checkbox" id="set-sound" checked></label>
+    <label class="sw"><span>진동 (모바일)</span><input type="checkbox" id="set-haptic" checked></label>
+    <label class="sw"><span>다크 모드</span><input type="checkbox" id="set-dark"></label>
+    <label class="sw"><span>해설 자동 표시</span><input type="checkbox" id="set-autoexp" checked></label>
+    <div class="modal-danger">
+      <button class="btn-ghost" id="btn-export">📤 진행도 내보내기</button>
+      <button class="btn-ghost" id="btn-import">📥 불러오기</button>
+      <button class="btn-danger" id="btn-reset">전체 초기화</button>
+    </div>
+    <button class="btn-primary" id="btn-close-settings">닫기</button>
+  </div>
+</div>
+
+<script src="data/index.js"></script>
+<script src="data/manifest.js"></script>
+<script src="js/store.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/fx.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
