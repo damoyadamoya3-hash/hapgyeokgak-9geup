@@ -7,6 +7,7 @@
   let timerId = null;
   let lastPlay = null;       // 다시하기용 {mode, opt}
   let locked = false;        // 중복 입력 방지
+  let paused = false;        // 해설 열람 중 — 타이머·테트리스 정지
 
   /* ── 부팅 ──────────────────────────────────────────── */
   const BOOT_MSGS = [
@@ -15,6 +16,7 @@
   ];
   function boot(){
     applyTheme();
+    QB.buildClozeQuestions();     // 이론 카드의 빈칸 → 실제 문항으로 편입
     let p = 0;
     const fill = $('#boot-fill'), msg = $('#boot-msg');
     const iv = setInterval(() => {
@@ -41,7 +43,8 @@
              : '아직 이 범위의 문항이 준비 중이에요');
       return;
     }
-    S = sess; lastPlay = { mode, opt }; locked = false;
+    S = sess; lastPlay = { mode, opt }; locked = false; paused = false;
+    $('#pb-timer').classList.remove('paused');
 
     // 보스 무대
     const bs = $('#boss-stage');
@@ -63,6 +66,7 @@
       tEl.classList.remove('hidden');
       tEl.querySelector('b').textContent = fmt(left);
       timerId = setInterval(() => {
+        if(paused) return;                     // 해설 읽는 동안 시간 정지
         left--;
         tEl.querySelector('b').textContent = fmt(left);
         tEl.classList.toggle('warn', left <= 10);
@@ -73,6 +77,7 @@
 
     UI.show('scr-play');
     render();
+    tetrisStart();
   }
   function fmt(s){ return s >= 60 ? `${(s/60)|0}:${String(s%60).padStart(2,'0')}` : s; }
   function stopTimer(){ if(timerId){ clearInterval(timerId); timerId = null; } }
@@ -86,8 +91,36 @@
   function onAnswer(ans, btn){
     if(locked || !S) return;
     locked = true;
+    paused = true;                 // ⏸ 해설을 다 읽을 때까지 모든 것을 멈춘다
+    $('#pb-timer').classList.add('paused');
     const res = Engine.submit(S, ans);
     UI.reveal(S, res, btn);
+
+    /* ── 테트리스 연동: 정답이 곧 소거 스위치 ── */
+    if(tetrisOn() && Tetris.running){
+      if(res.ok){
+        const cleared = Tetris.detonate();
+        if(!cleared){
+          // 터뜨릴 줄이 없으면 보상으로 블록을 더 떨어뜨려 다음 줄을 앞당긴다
+          Tetris.drop(res.combo >= 3 ? 2 : 1);
+          const sh = $('#tp-shout');
+          sh.textContent = '⚡ 블록 보너스 투하';
+          sh.classList.remove('pop'); void sh.offsetWidth; sh.classList.add('pop');
+        }
+        // 5콤보마다 폭탄: 바닥 2줄을 메워 강제 소거
+        if(res.combo > 0 && res.combo % 5 === 0){
+          setTimeout(() => {
+            const n = Tetris.bomb();
+            if(n) Fx.toast('💣 콤보 폭탄! ' + n + '줄 소거', true, 1800);
+          }, 420);
+        }
+      }else{
+        Tetris.garbage(1);
+        const sh = $('#tp-shout');
+        sh.textContent = '🧱 쓰레기 줄 +1';
+        sh.classList.remove('pop'); void sh.offsetWidth; sh.classList.add('pop');
+      }
+    }
 
     if(S.mode === 'boss'){
       $('#boss-hp-fill').style.width = (S.bossHp / S.bossMax * 100) + '%';
@@ -98,15 +131,16 @@
         Fx.burstAt(sp, ['💥','⚔️','✨'], 12);
       }
     }
-    // OX 스피드런은 자동 진행
-    if(S.mode === 'ox'){
-      setTimeout(() => { if(S && !S.over) next(); }, res.ok ? 520 : 1600);
-    }
+    // 테트리스 낙하도 멈춰 두고, 폭발 연출만 마저 보여준다
+    setTimeout(() => { if(paused) Tetris.pause(); }, 900);
   }
 
   function next(){
     if(!S) return;
     locked = false;
+    paused = false;                // ▶ 재개
+    $('#pb-timer').classList.remove('paused');
+    Tetris.resume();
     // OX 스피드런은 큐가 떨어지면 재보충
     if(S.mode === 'ox' && S.i + 1 >= S.queue.length){
       S.queue = S.queue.concat(Engine.shuffle(S.queue));
@@ -118,13 +152,86 @@
   function end(){
     if(!S) return;
     stopTimer();
+    Tetris.stop();
     S.over = true;
+    if(S.mode === 'cloze' && S.opt.card) Store.markDrill(S.opt.card);
     const fin = Engine.finish(S);
     UI.hud();
     UI.result(S, fin);
     const done = S;
     S = null;
     return done;
+  }
+
+  /* ── 테트리스 사이드패널 ───────────────────────────── */
+  const LINE_SHOUT = [null, 'NICE!', 'DOUBLE!', 'TRIPLE!', '★ TETRIS ★'];
+  function tetrisOn(){ return Store.s.settings.tetris !== false; }
+
+  function tetrisStart(){
+    const panel = $('#tetris-panel');
+    if(!tetrisOn()){ panel.classList.add('hidden'); Tetris.stop(); return; }
+    panel.classList.remove('hidden');
+    $('#tp-lines').textContent = '0 LINES';
+    $('#tp-shout').textContent = '';
+    requestAnimationFrame(() => {
+      Tetris.init($('#tetris-cvs'), {
+        dropMs: 1500,
+        onLine: onTetrisLine,
+        onPending: onTetrisPending,
+        onDanger: onTetrisDanger
+      });
+      Tetris.drop(2);                      // 시작하자마자 두 개 깔아주기
+    });
+  }
+
+  /* 대기 줄이 생기면 "맞히면 터진다"고 알려준다 */
+  function onTetrisPending(n){
+    const sh = $('#tp-shout');
+    if(n > 0){
+      sh.textContent = `💥 ${n}줄 대기 — 정답 시 소거!`;
+      sh.classList.remove('pop'); void sh.offsetWidth; sh.classList.add('pop');
+      if(n >= 2) Sfx.tick();
+    } else if(!sh.textContent.includes('LINE')) sh.textContent = '';
+  }
+  function onTetrisDanger(state){
+    if(state === 'overflow'){
+      Fx.toast('🧱 판이 넘쳤어요! 스택을 압축합니다', false, 1800);
+      Sfx.wrong();
+    }
+    $('#tetris-panel').style.borderColor = state === true ? 'var(--bad)' : 'var(--line)';
+  }
+
+  function onTetrisLine(n, total){
+    $('#tp-lines').textContent = total + ' LINES';
+    const sh = $('#tp-shout');
+    sh.textContent = LINE_SHOUT[Math.min(n, 4)] || 'NICE!';
+    sh.classList.remove('pop'); void sh.offsetWidth; sh.classList.add('pop');
+
+    Sfx.levelup();
+    Fx.burstAt($('#tetris-cvs'), ['🧱','✨','💥','⭐'], 10 + n * 8);
+    Fx.flash(n >= 4 ? 'rgba(255,183,77,.45)' : 'rgba(120,220,255,.30)');
+
+    // 라인 클리어 보상 — 도파민 + 실이익
+    const xp = n * 8, coin = n * 3;
+    if(S){ S.xp += xp; S.coin += coin; }
+    else { Store.addXp(xp); Store.addCoin(coin); }
+    const r = $('#tetris-cvs').getBoundingClientRect();
+    Fx.floatText(r.left + r.width/2 - 22, r.top + 30, '+' + xp, '#7ee0ff');
+    if(n >= 4) Fx.toast('★ TETRIS! 4줄 소거 +' + xp + ' XP', true, 2000);
+  }
+
+  /* ── 이론 도감 ─────────────────────────────────────── */
+  function openCodex(){
+    UI.selectSubject('📜 이론 도감 · 과목 선택',
+      '기본이론과 판례를 카드로 읽고, 바로 <b>세뇌 암기</b>(빈칸 채우기)로 굳히세요. 처음 여는 카드마다 +15 XP.',
+      sid => openCodexList(sid));
+  }
+  function openCodexList(sid){
+    UI.codexList(sid,
+      cid  => UI.cardDetail(cid,
+                c => start('cloze', { card: c }),
+                (unit, subject) => start('quest', { unit, subject })),
+      uid  => start('cloze', { unit: uid }));
   }
 
   /* ── 이벤트 배선 ───────────────────────────────────── */
@@ -145,6 +252,8 @@
       } else if(m === 'ox'){
         UI.selectSubject('⚡ OX 스피드런 범위', '60초 안에 최대한 많이! 자동으로 다음 문제가 나옵니다.',
           sid => start('ox', { subject: sid }));
+      } else if(m === 'codex'){
+        openCodex();
       } else {
         start(m, {});
       }
@@ -187,6 +296,7 @@
       const st = Store.s.settings;
       $('#set-sound').checked = st.sound; $('#set-haptic').checked = st.haptic;
       $('#set-dark').checked = st.dark;   $('#set-autoexp').checked = st.autoexp;
+      $('#set-tetris').checked = st.tetris !== false;
       modal.classList.remove('hidden');
     });
     $('#btn-close-settings').addEventListener('click', () => modal.classList.add('hidden'));
@@ -196,6 +306,11 @@
     });
     bind('#set-sound','sound'); bind('#set-haptic','haptic');
     bind('#set-dark','dark', applyTheme); bind('#set-autoexp','autoexp');
+    bind('#set-tetris','tetris', () => {
+      if(!tetrisOn()){ Tetris.stop(); $('#tetris-panel').classList.add('hidden'); }
+      else if(S) tetrisStart();
+    });
+    window.addEventListener('resize', () => { if(Tetris.running) Tetris.resize(); });
 
     $('#btn-export').addEventListener('click', () => {
       const code = Store.exportData();

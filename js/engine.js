@@ -36,7 +36,8 @@ const Engine = (() => {
     boss:  { label:'보스 레이드',   hearts:3, timer:0,  n:999 },
     srs:   { label:'망각곡선 복습', hearts:0, timer:0,  n:15 },
     exam:  { label:'실전 모의고사', hearts:0, timer:1200, n:20 },
-    wrong: { label:'오답 지옥',     hearts:0, timer:0,  n:15 }
+    wrong: { label:'오답 지옥',     hearts:0, timer:0,  n:15 },
+    cloze: { label:'세뇌 암기',     hearts:0, timer:0,  n:30 }
   };
 
   function build(mode, opt = {}){
@@ -67,6 +68,14 @@ const Engine = (() => {
     else if(mode === 'wrong'){
       const ids = Store.wrongCards();
       pool = shuffle(ids.map(id => QB.byId(id)).filter(Boolean)).slice(0, cfg.n);
+    }
+    else if(mode === 'cloze'){
+      // 특정 카드 / 단원 / 과목의 빈칸 문항만 모아 반복 암기
+      pool = QB.items.filter(q => q.cloze &&
+        (opt.card    ? q.cardId  === opt.card    : true) &&
+        (opt.unit    ? q.unit    === opt.unit    : true) &&
+        (opt.subject ? q.subject === opt.subject : true));
+      pool = shuffle(pool).slice(0, cfg.n);
     }
     else if(mode === 'exam'){
       pool = shuffle(QB.bySubject(opt.subject)).slice(0, cfg.n);

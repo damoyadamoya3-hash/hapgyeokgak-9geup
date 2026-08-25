@@ -75,6 +75,10 @@
         <span class="mc-emoji">💀</span><h3>오답 지옥</h3><p>틀린 문제만 모아 무한 반복 처형</p>
         <span class="mc-tag" id="mc-wrong-tag">0문제 수감</span>
       </button>
+      <button class="mode-card m-codex" data-mode="codex">
+        <span class="mc-emoji">📜</span><h3>이론 도감</h3><p>기본이론·판례를 카드로 수집하고 세뇌 암기</p>
+        <span class="mc-tag" id="mc-codex-tag">수집 0장</span>
+      </button>
     </div>
 
     <h2 class="sec-title">📚 과목 현황</h2>
@@ -89,6 +93,12 @@
 <section id="scr-select" class="screen">
   <header class="subbar"><button class="back-btn" data-back>←</button><h2 id="sel-title">과목 선택</h2><span></span></header>
   <main class="sel-wrap"><div id="sel-body"></div></main>
+</section>
+
+<!-- ═══════════ 이론 도감: 카드 상세 ═══════════ -->
+<section id="scr-card" class="screen">
+  <header class="subbar"><button class="back-btn" data-back>←</button><h2 id="card-title">이론 카드</h2><span></span></header>
+  <main class="card-wrap"><div id="card-body"></div></main>
 </section>
 
 <!-- ═══════════ 플레이 ═══════════ -->
@@ -110,6 +120,14 @@
     <div id="boss-sprite" class="boss-sprite">👹</div>
   </div>
 
+  <div id="play-split" class="play-split">
+  <aside id="tetris-panel" class="tetris-panel hidden">
+    <div class="tp-head"><span>🧱 TETRIS</span><b id="tp-lines">0 LINES</b></div>
+    <canvas id="tetris-cvs"></canvas>
+    <div id="tp-shout" class="tp-shout"></div>
+    <div class="tp-legend">AI가 계속 쌓습니다. <b>꽉 찬 줄은 정답을 맞혀야 터집니다!</b><br>5콤보 ▸ 💣폭탄 · 오답 ▸ 쓰레기줄</div>
+  </aside>
+
   <main class="play-wrap">
     <div id="combo-badge" class="combo-badge hidden"><b id="combo-n">2</b> COMBO</div>
     <div class="q-card" id="q-card">
@@ -125,6 +143,7 @@
       <button class="btn-primary" id="btn-next">다음 →</button>
     </div>
   </main>
+  </div>
 </section>
 
 <!-- ═══════════ 결과 ═══════════ -->
@@ -156,6 +175,7 @@
     <label class="sw"><span>진동 (모바일)</span><input type="checkbox" id="set-haptic" checked></label>
     <label class="sw"><span>다크 모드</span><input type="checkbox" id="set-dark"></label>
     <label class="sw"><span>해설 자동 표시</span><input type="checkbox" id="set-autoexp" checked></label>
+    <label class="sw"><span>🧱 테트리스 사이드패널</span><input type="checkbox" id="set-tetris" checked></label>
     <div class="modal-danger">
       <button class="btn-ghost" id="btn-export">📤 진행도 내보내기</button>
       <button class="btn-ghost" id="btn-import">📥 불러오기</button>
@@ -170,6 +190,7 @@
 <script src="js/store.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/fx.js"></script>
+<script src="js/tetris.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/app.js"></script>

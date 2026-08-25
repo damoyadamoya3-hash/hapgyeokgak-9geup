@@ -13,6 +13,8 @@ const Store = (() => {
     cards: {},
     // 단원별 클리어: { [unitId]: {stars, best} }
     units: {},
+    // 이론 도감 열람 기록: { [cardId]: {read:날짜, drill:세뇌횟수} }
+    readCards: {},
     ach: {},
     daily: { date: null, tasks: [] },
     settings: { sound: true, haptic: true, dark: false, autoexp: true }
@@ -126,6 +128,24 @@ const Store = (() => {
     return QB.bySubject(sid).filter(q => S.cards[q.id]).length;
   }
 
+  /* ── 이론 도감 ──────────────────────────────────────── */
+  function markRead(cardId){
+    const r = S.readCards[cardId] || { read:null, drill:0 };
+    const first = !r.read;
+    r.read = today();
+    S.readCards[cardId] = r; save();
+    return first;                       // 최초 열람이면 true (보상 지급용)
+  }
+  function markDrill(cardId){
+    const r = S.readCards[cardId] || { read:today(), drill:0 };
+    r.drill++; S.readCards[cardId] = r; save();
+    return r.drill;
+  }
+  function readCount(sid){
+    const list = sid ? QB.theoryBySubject(sid) : QB.theory;
+    return list.filter(c => S.readCards[c.id] && S.readCards[c.id].read).length;
+  }
+
   /* ── 연속 학습일(streak) ────────────────────────────── */
   function touchStreak(){
     const t = today();
@@ -192,7 +212,10 @@ const Store = (() => {
     { id:'lv10',    e:'⭐', n:'레벨 10',        chk:s => levelInfo().lv >= 10 },
     { id:'lv25',    e:'🌟', n:'레벨 25',        chk:s => levelInfo().lv >= 25 },
     { id:'exam5',   e:'📝', n:'모의고사 5회',   chk:s => s.examCount >= 5 },
-    { id:'perfect', e:'✨', n:'만점 클리어',    chk:s => s.hadPerfect === true }
+    { id:'perfect', e:'✨', n:'만점 클리어',    chk:s => s.hadPerfect === true },
+    { id:'codex10', e:'📜', n:'도감 10장',      chk:s => readCount() >= 10 },
+    { id:'codex30', e:'📚', n:'도감 30장',      chk:s => readCount() >= 30 },
+    { id:'codexall',e:'🗝️', n:'도감 완성',      chk:s => QB.theory.length > 0 && readCount() >= QB.theory.length }
   ];
   function checkAch(){
     const newly = [];
@@ -216,6 +239,7 @@ const Store = (() => {
   return {
     get s(){ return S; }, save, levelInfo, title, addXp, addCoin,
     record, dueCards, wrongCards, unitResult, subjectProgress,
+    markRead, markDrill, readCount,
     subjectAccuracy, subjectSeen, touchStreak, daily, progressTask,
     checkAch, ACHS, exportData, importData, reset, today
   };

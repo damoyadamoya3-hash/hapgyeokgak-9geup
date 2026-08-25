@@ -57,6 +57,8 @@ const UI = (() => {
     $('#mc-srs-tag').textContent   = `대기 ${Store.dueCards().length}문제`;
     $('#mc-exam-tag').textContent  = `응시 ${s.examCount}회`;
     $('#mc-wrong-tag').textContent = `${Store.wrongCards().length}문제 수감`;
+    const ct = $('#mc-codex-tag');
+    if(ct) ct.textContent = `수집 ${Store.readCount()}/${QB.theory.length}장`;
   }
 
   /* ── 과목 현황 ─────────────────────────────────────── */
@@ -124,6 +126,96 @@ const UI = (() => {
     $$('#sel-body [data-unit]').forEach(b =>
       b.addEventListener('click', () => { Sfx.tap(); cb(b.dataset.unit); }));
     show('scr-select');
+  }
+
+  /* ══════════ 이론 도감 ══════════ */
+
+  /* 굵게: **텍스트** → <b> */
+  function md(s){ return esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>'); }
+
+  function codexList(sid, onOpen, onDrillUnit){
+    const sub = QB.subject(sid);
+    const cards = QB.theoryBySubject(sid);
+    $('#sel-title').textContent = '📜 ' + sub.name + ' 이론 도감';
+    const read = Store.readCount(sid);
+    const pct = cards.length ? Math.round(read / cards.length * 100) : 0;
+
+    // 단원별로 묶어서 표시
+    const units = (QB.UNITS[sid] || []).filter(u => QB.theoryByUnit(u.id).length);
+    $('#sel-body').innerHTML = `
+      <div class="codex-stat">
+        <span>📖 수집률</span><span class="cs-bar"><i style="width:${pct}%"></i></span>
+        <b style="font-family:var(--f-round);color:var(--brand)">${read}/${cards.length}</b>
+      </div>
+      ${cards.length ? '' : '<div class="sel-note">이 과목의 이론 카드는 준비 중입니다.</div>'}
+      ${units.map(u => `
+        <h3 style="font-size:16px;margin:20px 0 10px">${u.emoji} ${esc(u.name)}
+          <button class="btn-ghost" data-drill-unit="${u.id}"
+            style="float:right;padding:4px 12px;font-size:12px">🧠 단원 세뇌</button></h3>
+        <div class="codex-grid">${QB.theoryByUnit(u.id).map(c => {
+          const r = Store.s.readCards[c.id];
+          return `<button class="tcard ${r && r.read ? 'read' : ''}" data-card="${c.id}">
+            <span class="tier tier-${c.tier}">${c.tier}</span>
+            <h4>${esc(c.title)}</h4>
+            <p>${esc((c.summary||'').slice(0,58))}${(c.summary||'').length>58?'…':''}</p>
+            <span class="tfoot">
+              <span>${r && r.read ? '✅ 열람' : '🔒 미열람'}</span>
+              ${c.cloze.length ? `<span>🧠 빈칸 ${c.cloze.length}</span>` : ''}
+              ${c.cases.length ? `<span>⚖️ 판례 ${c.cases.length}</span>` : ''}
+            </span></button>`;
+        }).join('')}</div>`).join('')}`;
+
+    $$('#sel-body [data-card]').forEach(b =>
+      b.addEventListener('click', () => { Sfx.tap(); onOpen(b.dataset.card); }));
+    $$('#sel-body [data-drill-unit]').forEach(b =>
+      b.addEventListener('click', e => { e.stopPropagation(); Sfx.tap(); onDrillUnit(b.dataset.drillUnit); }));
+    show('scr-select');
+  }
+
+  function cardDetail(cid, onDrill, onQuiz){
+    const c = QB.theoryById(cid);
+    if(!c) return;
+    const first = Store.markRead(cid);
+    const sub = QB.subject(c.subject);
+
+    $('#card-title').textContent = sub.emoji + ' ' + sub.name;
+    $('#card-body').innerHTML = `
+      <div class="tc-head">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+          <span class="tier tier-${c.tier}" style="position:static">${c.tier}</span>
+          <span style="font-size:11.5px;color:var(--ink2)">${esc((QB.unit(c.unit)||{}).name || '')}</span>
+        </div>
+        <h3>${esc(c.title)}</h3>
+        <p class="tc-sum">${md(c.summary || '')}</p>
+      </div>
+      ${c.tip ? `<div class="tc-tip">💡 <b>암기 팁</b> — ${md(c.tip)}</div>` : ''}
+      ${c.blocks.map(b => `
+        <div class="tc-block">
+          ${b.h ? `<h4>${esc(b.h)}</h4>` : ''}
+          ${b.items ? `<ul>${b.items.map(i => `<li>${md(i)}</li>`).join('')}</ul>` : ''}
+          ${b.table ? `<table class="tc-table">
+            <thead><tr>${b.table[0].map(h => `<th>${md(h)}</th>`).join('')}</tr></thead>
+            <tbody>${b.table.slice(1).map(r => `<tr>${r.map(d => `<td>${md(d)}</td>`).join('')}</tr>`).join('')}</tbody>
+          </table>` : ''}
+        </div>`).join('')}
+      ${c.cases.length ? `<div class="tc-block"><h4>⚖️ 관련 판례</h4>
+        ${c.cases.map(k => `<div class="tc-case"><div class="ct">${esc(k.t)}</div><div class="cd">${md(k.d)}</div></div>`).join('')}
+      </div>` : ''}
+      <div class="tc-actions">
+        <button class="btn-ghost" id="btn-card-quiz">📝 관련 문제 풀기</button>
+        <button class="btn-primary" id="btn-card-drill">🧠 세뇌 암기 시작</button>
+      </div>`;
+
+    $('#btn-card-drill').addEventListener('click', () => { Sfx.tap(); onDrill(cid); });
+    $('#btn-card-quiz').addEventListener('click', () => { Sfx.tap(); onQuiz(c.unit, c.subject); });
+
+    if(first){
+      Store.addXp(15); Store.addCoin(5); hud();
+      Sfx.unlock();
+      Fx.toast('📜 새 이론 카드 수집! +15 XP', true, 2200);
+      Fx.confetti(18);
+    }
+    show('scr-card');
   }
 
   /* ── 문제 렌더링 ───────────────────────────────────── */
@@ -263,5 +355,6 @@ const UI = (() => {
   }
 
   return { $, $$, esc, show, back, hud, home, daily, subjects, achievements,
-           modeTags, selectSubject, selectUnit, question, reveal, result };
+           modeTags, selectSubject, selectUnit, question, reveal, result,
+           codexList, cardDetail };
 })();

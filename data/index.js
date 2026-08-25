@@ -70,6 +70,34 @@ window.QB = {
     law: { name:'판례 골렘',       sprite:'🗿', hp:12, taunt:'대법원은 어떻게 판시했는가.' }
   },
 
+  /* ── 이론 도감(개념 카드) 저장소 ─────────────────────────────
+     card = {
+       id, subject, unit, title,
+       tier   : 'S'|'A'|'B'        중요도(수집 등급)
+       summary: '한 줄 요약',
+       blocks : [{ h:'소제목', items:['항목', ...], table:[[..],[..]] }]
+       cases  : [{ t:'판례 표시', d:'요지' }]        (선택)
+       cloze  : [{ s:'문장 {{정답}} 문장', o:['오답1','오답2','오답3'] }]
+       tip    : '암기 팁'
+     }
+     ────────────────────────────────────────────────────────── */
+  theory: [],
+  addTheory(arr){
+    if(!Array.isArray(arr)) return;
+    for(const c of arr){
+      if(!c || !c.title) continue;
+      c.tier = c.tier || 'B';
+      c.blocks = c.blocks || [];
+      c.cases  = c.cases  || [];
+      c.cloze  = c.cloze  || [];
+      c.id = c.id || (c.subject + '-t-' + (this.theory.length + 1));
+      this.theory.push(c);
+    }
+  },
+  theoryBySubject(sid){ return this.theory.filter(c => c.subject === sid); },
+  theoryByUnit(uid){ return this.theory.filter(c => c.unit === uid); },
+  theoryById(id){ return this.theory.find(c => c.id === id); },
+
   /* 문제 저장소 ---------------------------------------------- */
   items: [],
   add(arr){
@@ -82,6 +110,39 @@ window.QB = {
       q.src  = q.src || 'AI 파생문제';
       this.items.push(q);
     }
+  },
+
+  /* 이론 카드의 cloze(빈칸)를 실제 문항으로 자동 변환 --------
+     → 세뇌 모드에서 풀 수 있고, SRS·오답노트에도 그대로 편입된다. */
+  buildClozeQuestions(){
+    const made = [];
+    for(const c of this.theory){
+      c.cloze.forEach((cz, i) => {
+        const m = /\{\{(.+?)\}\}/.exec(cz.s);
+        if(!m) return;
+        const answer = m[1];
+        const opts = [answer, ...(cz.o || [])].slice(0, 4);
+        // 결정적 셔플(카드 id 기반) — 새로고침해도 답 위치가 고정된다
+        const seed = (c.id + i).split('').reduce((a, ch) => a + ch.charCodeAt(0), 0);
+        for(let k = opts.length - 1; k > 0; k--){
+          const j = (seed * (k + 3)) % (k + 1);
+          [opts[k], opts[j]] = [opts[j], opts[k]];
+        }
+        made.push({
+          id: c.id + '#cz' + i,
+          subject: c.subject, unit: c.unit,
+          type: 'mcq', cloze: true, cardId: c.id,
+          src: '이론 도감 · ' + c.title,
+          q: cz.s.replace(/\{\{.+?\}\}/, ' ______ '),
+          choices: opts,
+          a: opts.indexOf(answer),
+          exp: cz.e || (c.summary || ''),
+          tip: c.tip
+        });
+      });
+    }
+    this.add(made);
+    return made.length;
   },
 
   /* 조회 헬퍼 ------------------------------------------------ */
