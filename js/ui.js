@@ -179,7 +179,10 @@ const UI = (() => {
     $('#mc-ox-tag').textContent    = `최고 ${s.bestOx}문제`;
     $('#mc-boss-tag').textContent  = `격파 ${s.bossKills}마리`;
     $('#mc-srs-tag').textContent   = `대기 ${Store.dueCards().length}문제`;
-    $('#mc-exam-tag').textContent  = `응시 ${s.examCount}회`;
+    const le = Store.lastExam();
+    $('#mc-exam-tag').textContent  = le
+      ? `응시 ${s.examCount}회 · 최근 ${Math.round(le.ok / le.n * 100)}점`
+      : `응시 ${s.examCount}회`;
     $('#mc-wrong-tag').textContent = `${Store.wrongCards().length}문제 수감`;
     const ct = $('#mc-codex-tag');
     if(ct) ct.textContent = `수집 ${Store.readCount()}/${QB.theory.length}장`;
@@ -530,6 +533,54 @@ const UI = (() => {
       total: QB.count(x.id)
     })).filter(x => x.total);
 
+    /* 모의고사 성적 추이 — 수험 준비에서 가장 알고 싶은 것은
+       '내가 나아지고 있는가'다. 회차 수만으로는 알 수 없다. */
+    const log = Store.examLog().slice(0, 12).reverse();   // 오래된 것부터 최대 12회
+    const examSection = log.length ? `
+      <div class="st-sec">
+        <h3>모의고사 성적 추이 <small>100점 만점 환산</small></h3>
+        <div class="ex-chart">
+          ${log.map((e, i) => {
+            const sc = Math.round(e.ok / e.n * 100);
+            const c  = sc >= 80 ? 'var(--good)' : sc >= 60 ? 'var(--gold)' : 'var(--bad)';
+            const d  = new Date(e.t);
+            const label = (d.getMonth() + 1) + '/' + d.getDate();
+            return `<div class="ex-col ${i === log.length - 1 ? 'last' : ''}"
+                         title="${label} · ${e.ok}/${e.n} (${sc}점)">
+              <span class="ex-sc">${sc}</span>
+              <span class="ex-bar-wrap"><i style="height:${Math.max(sc, 3)}%;background:${c}"></i></span>
+              <span class="ex-lab">${label}</span>
+            </div>`;
+          }).join('')}
+        </div>
+        ${(() => {
+          const last = log[log.length - 1];
+          const subs = Object.keys(last.sub || {});
+          if(subs.length < 2) return '';
+          return `<h4 class="ex-h4">가장 최근 회차 · 과목별</h4>
+            <div class="exam-table">${subs.map(sid => {
+              const [ok, n] = last.sub[sid];
+              const sub = QB.subject(sid) || { name:sid, emoji:'📘' };
+              const a = n ? Math.round(ok / n * 100) : 0;
+              return `<div class="exam-row">
+                <span>${sub.emoji} ${esc(sub.name)}</span>
+                <span class="ex-bar"><i style="width:${a}%;background:${a>=80?'var(--good)':a>=60?'var(--gold)':'var(--bad)'}"></i></span>
+                <b>${ok}/${n}</b>
+              </div>`;
+            }).join('')}</div>`;
+        })()}
+        ${log.length >= 2 ? (() => {
+          const first = Math.round(log[0].ok / log[0].n * 100);
+          const last  = Math.round(log[log.length-1].ok / log[log.length-1].n * 100);
+          const diff  = last - first;
+          return `<p class="ex-note">${diff > 0
+            ? `첫 회차보다 <b style="color:var(--good)">${diff}점</b> 올랐어요.`
+            : diff < 0
+              ? `첫 회차보다 <b style="color:var(--bad)">${-diff}점</b> 내려갔어요. 오답노트부터 훑어 보세요.`
+              : '첫 회차와 같은 점수예요. 약한 단원을 좁혀 보세요.'}</p>`;
+        })() : ''}
+      </div>` : '';
+
     $('#stats-body').innerHTML = `
       <div class="st-sec">
         <h3>한눈에 보기</h3>
@@ -543,6 +594,8 @@ const UI = (() => {
           <div class="st-tile"><b>${s.cards}<small style="font-size:12px;color:var(--ink2)">/${s.cardTotal}</small></b><span>도감 수집</span></div>
         </div>
       </div>
+
+      ${examSection}
 
       <div class="st-sec">
         <h3>최근 ${span === 7 ? '1주' : '2주'} 학습량 <small>막대 = 하루에 푼 문제 수</small></h3>

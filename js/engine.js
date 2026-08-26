@@ -334,6 +334,8 @@ const Engine = (() => {
       b.n++; if(q.__ok) b.ok++;
     }
 
+    if(S.mode === 'exam'){ Store.logExam(S.opt.subject || 'all', bySub); Store.save(); }
+
     return { acc, total, bonusXp, bonusCoin, leveled, stars, newAch, bySub,
              streak: streakInfo.streak, streakReward: streakInfo.reward };
   }

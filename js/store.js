@@ -25,6 +25,10 @@ const Store = (() => {
     examDate: null,
     // 이 사람이 스스로 붙인 이름. 기기를 오갈 때 누구 진도인지 알아보는 표시
     nick: '',
+    // 모의고사 성적: [{t:시각, s:'all'|과목, n, ok, sub:{과목:[맞힘,푼수]}}]
+    // 수험 준비에서 가장 알고 싶은 건 '내가 나아지고 있는가'인데
+    // 회차 수만 세고 점수를 버리면 그걸 볼 방법이 없다.
+    examLog: [],
     // 상점에서 산 소모품 보유량
     inv: { hint:0, heart:0, boost:0 },
     ach: {},
@@ -485,6 +489,19 @@ const Store = (() => {
       return true;
     }catch(e){ return false; }
   }
+  /* 모의고사 한 회차를 기록한다. 오래된 것부터 60회까지만 남긴다. */
+  function logExam(scope, bySub){
+    let n = 0, ok = 0;
+    const sub = {};
+    for(const sid in bySub){ sub[sid] = [bySub[sid].ok, bySub[sid].n]; n += bySub[sid].n; ok += bySub[sid].ok; }
+    if(!n) return;
+    S.examLog.push({ t: Date.now(), s: scope || 'all', n, ok, sub });
+    if(S.examLog.length > 60) S.examLog = S.examLog.slice(-60);
+  }
+  /* 최근 회차부터 */
+  function examLog(){ return S.examLog.slice().reverse(); }
+  function lastExam(){ return S.examLog.length ? S.examLog[S.examLog.length - 1] : null; }
+
   /* ── 기기 간 이어하기 ───────────────────────────────
      정적 페이지라 계정 서버를 둘 수 없다. 대신 진도 전체를 한 줄의
      코드로 뽑아 다른 기기에 붙여 넣는다. 이때 덮어쓰면 안 된다 —
@@ -542,6 +559,14 @@ const Store = (() => {
     Object.assign(S.streakClaimed, inc.streakClaimed || {});
     for(const k in (inc.inv || {})) S.inv[k] = Math.max(S.inv[k] || 0, inc.inv[k]);
 
+    // 모의고사 기록은 두 기기의 회차를 시각 기준으로 합쳐 시간순으로 세운다
+    if(inc.examLog && inc.examLog.length){
+      const seen = new Set(S.examLog.map(x => x.t));
+      inc.examLog.forEach(x => { if(!seen.has(x.t)){ S.examLog.push(x); seen.add(x.t); } });
+      S.examLog.sort((a, b) => a.t - b.t);
+      if(S.examLog.length > 60) S.examLog = S.examLog.slice(-60);
+    }
+
     S.playedDays = [...new Set([...(S.playedDays||[]), ...(inc.playedDays||[])])].sort();
     if(inc.examDate && !S.examDate) S.examDate = inc.examDate;
     if(inc.lastPlay && (!S.lastPlay || inc.lastPlay > S.lastPlay)) S.lastPlay = inc.lastPlay;
@@ -578,7 +603,7 @@ const Store = (() => {
     markRead, markDrill, readCount, recentDays, unitStats, summary, INTERVAL,
     isMarked, toggleMark, markedIds, wrongNotes,
     weekAttendance, nextStreakGoal, STREAK_REWARDS, setExamDate, plan,
-    SHOP, buy, useItem, has,
+    SHOP, buy, useItem, has, logExam, examLog, lastExam,
     subjectAccuracy, subjectSeen, touchStreak, daily, progressTask,
     checkAch, ACHS, exportData, importData, mergeData, reset, today
   };
