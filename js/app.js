@@ -357,7 +357,10 @@
             color:'var(--brand)' });
       } else if(m === 'ox'){
         UI.selectSubject('⚡ OX 스피드런 범위', '60초 안에 최대한 많이! 자동으로 다음 문제가 나옵니다.',
-          sid => start('ox', { subject: sid }));
+          sid => start('ox', { subject: sid }),
+          { id:'all', name:'전 과목 랜덤', emoji:'🎲',
+            desc:'5과목이 뒤섞여 나옵니다. 진짜 실력은 여기서 드러납니다',
+            color:'var(--brand)' });
       } else if(m === 'codex'){
         openCodex();
       } else {

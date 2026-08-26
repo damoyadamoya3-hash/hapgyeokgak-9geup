@@ -123,7 +123,19 @@ const Engine = (() => {
       pool = weightedPick(shuffle(pool), cfg.n);
     }
     else if(mode === 'ox'){
-      pool = QB.items.filter(q => q.type === 'ox' && (!opt.subject || q.subject === opt.subject));
+      if(opt.subject && opt.subject !== 'all'){
+        pool = QB.items.filter(q => q.type === 'ox' && q.subject === opt.subject);
+      }else{
+        /* 전 과목 랜덤 — OX 보유량이 과목마다 크게 달라(교육학 75 : 영어 11)
+           그냥 섞으면 영어·국어는 60초 안에 거의 나오지 않는다.
+           과목마다 최대 40문항까지만 넣어 한 과목이 판을 덮지 않게 한다. */
+        pool = [];
+        for(const sub of QB.SUBJECTS){
+          pool = pool.concat(
+            shuffle(QB.items.filter(q => q.type === 'ox' && q.subject === sub.id)).slice(0, 40)
+          );
+        }
+      }
       pool = balanceOx(shuffle(pool), 200);
     }
     else if(mode === 'boss'){
