@@ -84,20 +84,21 @@ console.log('OX 정답 O비율 :', oxPct + '%', '(은행 기준)');
 console.log('  ※ 실제 출제는 Engine.evenOutOx / balanceOx 가 세션 단위로 47~51% 로 맞춘다');
 console.log('  ※ 다만 은행이 한쪽으로 크게 쏠리면 대체할 문항이 모자라므로 70% 를 넘기지 않는다');
 
-/* 길이 단서는 "정답이 최장인가"보다 "얼마나 눈에 띄게 긴가"가 문제다.
-   1~2자 차이는 단서가 되지 않으므로 격차 10자 이상만 센다. */
+/* 길이 단서가 실제로 통하는 조건은 "정답이 나머지 전부보다 눈에 띄게
+   길다"는 것이다. 가장 짧은 선택지와 비교하면 긴 오답이 하나만 있어도
+   단서가 사라지는데도 경고가 뜬다. 그래서 두 번째로 긴 선택지와 비교한다. */
 const mcq = QB.items.filter(q => q.type === 'mcq' && !q.cloze);
 let gap10 = 0, gap15 = 0, sameLen = 0;
 for(const q of mcq){
   const L = q.choices.map(c => String(c).length);
-  const mx = Math.max(...L), mn = Math.min(...L);
-  if(L[q.a] === mx){
-    if(mx - mn >= 10) gap10++;
-    if(mx - mn >= 15) gap15++;
-  }
-  if(mx - mn <= 12) sameLen++;
+  const ans = L[q.a];
+  const runnerUp = Math.max(...L.filter((_, i) => i !== q.a));
+  const gap = ans - runnerUp;               // 정답 − 가장 긴 오답
+  if(gap >= 10) gap10++;
+  if(gap >= 15) gap15++;
+  if(Math.max(...L) - Math.min(...L) <= 12) sameLen++;
 }
-console.log('정답이 눈에 띄게 긴 문항');
+console.log('정답이 가장 긴 오답보다 눈에 띄게 긴 문항');
 console.log('  격차 15자 이상 :', gap15 + '건', gap15 === 0 ? '✅' : '⚠️  오답 선택지를 늘려 주세요');
 console.log('  격차 10자 이상 :', gap10 + '건', gap10 <= mcq.length * 0.05 ? '✅' : '⚠️');
 console.log('선택지 길이 균질 :', Math.round(sameLen / mcq.length * 100) + '%');
