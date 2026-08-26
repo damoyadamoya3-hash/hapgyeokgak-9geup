@@ -40,6 +40,7 @@ window.QB_PACKS = [
   'questions/law-01-gen',
   'questions/law-02-remedy',
   'questions/law-03-more',
+  'questions/law-04-fill',
 
   /* ── 국어 ── */
   'questions/kor-01-gram',
@@ -48,7 +49,10 @@ window.QB_PACKS = [
 
   /* ── 영어 ── */
   'questions/eng-01-core',
-  'questions/eng-02-more'
+  'questions/eng-02-more',
+
+  /* ── 보강(국어·영어 독해) ── */
+  'questions/mix-01-reading'
 ];
 
 (function(){
