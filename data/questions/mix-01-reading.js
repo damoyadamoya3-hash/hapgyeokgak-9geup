@@ -30,10 +30,10 @@ QB.add([
 { id:'kor-read-024', subject:'kor', unit:'kor-read', type:'mcq', src:'기출 빈출논점',
   q:'다음 개요의 흐름상 ㉠에 들어갈 내용으로 가장 적절한 것은?\n\nⅠ. 서론: 학교 행정업무 과중의 실태\nⅡ. 본론\n  1. 원인 — 공문 처리 증가, 인력 부족\n  2. ㉠\nⅢ. 결론: 교육 활동에 집중할 수 있는 여건 마련',
   choices:[
-    '학교 행정업무의 역사적 변천',
+    '역사적 배경 — 학교 행정업무 제도가 변해 온 과정 정리',
     '해결 방안 — 업무 경감 시스템 도입, 행정 전담 인력 배치',
-    '교원 자격 제도의 문제점',
-    '학생 수 감소의 사회적 배경'],
+    '제도 비판 — 현행 교원 자격 제도의 구조적 문제점 분석',
+    '인구 변화 — 학생 수 감소가 학교 현장에 미친 사회적 영향'],
   a:1,
   exp:'본론에서 원인을 다루었으므로 다음은 **해결 방안**이 오고, 결론의 "여건 마련"과도 자연스럽게 이어진다. 개요 문제는 **상하 관계와 결론과의 호응**을 본다.' },
 
@@ -57,10 +57,10 @@ QB.add([
   passage:'Feedback is most useful when it is specific and timely. Telling a student "good job" confirms the outcome but says nothing about what to repeat. Telling the same student "your second paragraph states the claim clearly and supports it with evidence" identifies the behavior worth repeating. Delay weakens feedback in a similar way: by the time a graded paper is returned weeks later, the student no longer remembers the choices that produced the result.',
   q:'What is the main point of the passage?',
   choices:[
-    'Feedback should always be positive.',
+    'Feedback should always be positive and centred on encouragement.',
     'Feedback works best when it is specific and given promptly.',
-    'Grades are more useful than written comments.',
-    'Students should evaluate their own writing.'],
+    'Numerical grades are more useful to students than written comments.',
+    'Students should evaluate their own writing rather than be told.'],
   a:1,
   exp:'첫 문장이 주제문이고, 이후 두 예시가 각각 specific과 timely를 뒷받침한다. ①③④는 지문에 근거가 없다.',
   tip:'첫 문장이 일반 진술이면 그것이 주제문일 확률이 높다' },
@@ -76,10 +76,10 @@ QB.add([
   passage:'Administrative discretion is often described as a necessary evil. It is necessary because no rule can anticipate every situation an official will face. It is treated as an evil because discretion opens the door to inconsistency and favoritism. Recent scholarship, however, suggests a third view: discretion is neither good nor bad in itself, and what matters is whether the reasons behind each decision can be examined afterward.',
   q:'According to the passage, what determines whether discretion is acceptable?',
   choices:[
-    'The number of rules that exist.',
+    'The sheer number of written rules that already exist.',
     'Whether the reasoning behind decisions can be reviewed.',
-    'The rank of the official exercising it.',
-    'Whether citizens agree with the outcome.'],
+    'The rank of the official who happens to be exercising it.',
+    'Whether the citizens affected agree with the final outcome.'],
   a:1,
   exp:'마지막 문장의 "whether the reasons behind each decision can be examined afterward"가 근거다. 행정법의 이유제시·사후 통제 논의와 이어진다.' },
 

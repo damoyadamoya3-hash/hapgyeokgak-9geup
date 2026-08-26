@@ -163,10 +163,10 @@ QB.add([
   passage:'Bureaucracy is often criticized as rigid and impersonal. Yet these very features serve a purpose. Fixed rules limit the discretion of individual officials, which protects citizens from arbitrary treatment. Impersonality ensures that cases are decided on their merits rather than on personal connections. The challenge, then, is not to eliminate bureaucratic features but to prevent them from becoming ends in themselves.',
   q:'What is the author\'s attitude toward bureaucracy?',
   choices:[
-    'Entirely negative — it should be abolished.',
+    'Entirely negative — it produces only harm and should be abolished.',
     'Balanced — its criticized features also have protective functions.',
-    'Indifferent — it makes no real difference.',
-    'Uncritically positive — it has no drawbacks.'],
+    'Indifferent — bureaucratic form makes no real difference either way.',
+    'Uncritically positive — it has no drawbacks worth taking seriously.'],
   a:1,
   exp:'"Yet these very features serve a purpose"에서 태도가 드러난다. 관료제의 경직성과 몰인정성이 자의적 처분과 정실을 막는 기능을 한다고 보되, 수단이 목적이 되는 것은 경계한다. 균형 잡힌 태도다.',
   tip:'태도 문제 — Yet / However 뒤에 필자의 입장이 있다' },

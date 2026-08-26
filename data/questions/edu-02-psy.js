@@ -87,7 +87,10 @@ QB.add([
 
 { id:'edu-psy-016', subject:'edu', unit:'edu-psy', type:'mcq', src:'기출 빈출논점',
   q:'다음 중 장기기억의 부호화 전략에 해당하지 않는 것은?',
-  choices:['정교화(elaboration)','조직화(organization)','심상(imagery)','유지시연(maintenance rehearsal)'],
+  choices:['기존 지식과 연결하는 정교화(elaboration)',
+           '위계와 범주로 묶는 조직화(organization)',
+           '이미지로 떠올리는 심상화(imagery)',
+           '소리 내어 되풀이하는 유지시연(rehearsal)'],
   a:3,
   exp:'유지시연은 정보를 단기기억에 머물게 하는 반복일 뿐 의미적 처리가 없어 장기기억으로의 전이 효과가 낮다. 정교화·조직화·심상은 유의미한 부호화 전략이다.' },
 

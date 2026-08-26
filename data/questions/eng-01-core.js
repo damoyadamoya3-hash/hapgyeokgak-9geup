@@ -125,10 +125,10 @@ QB.add([
   passage:'Public administration in education requires balancing two competing demands. On one hand, schools must comply with national standards to ensure consistency and equity across regions. On the other hand, each school faces unique local conditions that standardized rules cannot fully address. Effective administrators therefore treat regulations not as rigid commands but as frameworks within which professional judgment operates.',
   q:'What is the main idea of the passage?',
   choices:[
-    'National standards should be abolished in education.',
-    'Local conditions are more important than national standards.',
+    'National standards should be abolished so that each school sets its own rules.',
+    'Local conditions always matter more than national standards in administration.',
     'Administrators should apply regulations as flexible frameworks for professional judgment.',
-    'Schools should be completely independent from government oversight.'],
+    'Schools should be entirely independent from any form of government oversight.'],
   a:2,
   exp:'글은 국가 기준과 지역 특수성이라는 두 요구를 대비한 뒤, 마지막 문장에서 규정을 "전문적 판단이 작동하는 틀"로 다루어야 한다고 결론짓는다. ①②④는 모두 지나친 진술이다.',
   tip:'therefore / thus 뒤 문장이 주제문일 확률이 높다' },
@@ -137,10 +137,10 @@ QB.add([
   passage:'Researchers found that students who tested themselves on material remembered significantly more than those who simply reread it. This "testing effect" occurs because retrieval practice strengthens the memory trace far more than passive review. Notably, the benefit appears even when students answer incorrectly, provided they receive feedback afterward.',
   q:'According to the passage, which is true?',
   choices:[
-    'Rereading is the most effective study method.',
-    'Answering incorrectly always harms learning.',
+    'Rereading the material is the single most effective study method.',
+    'Answering a question incorrectly always harms subsequent learning.',
     'Retrieval practice strengthens memory more than passive review.',
-    'Feedback has no effect on the testing effect.'],
+    'Feedback afterward has no effect on the testing effect at all.'],
   a:2,
   exp:'두 번째 문장이 근거다. 오답을 내더라도 피드백만 있으면 효과가 나타난다고 했으므로 ②④도 틀리다. — 이 원리가 바로 이 앱의 "문제 풀고 즉시 해설 보기" 방식의 근거다.' },
 
