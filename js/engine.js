@@ -29,6 +29,19 @@ const Engine = (() => {
     return scored.slice(0, n).map(x => x.q);
   }
 
+  /* 객관식 선택지 섞기 — 정답 위치가 특정 번호에 몰리는 것을 막는다.
+     해설이 번호를 지칭하는 문항(fixedOrder)은 건드리지 않는다. */
+  function shuffleChoices(q){
+    if(q.type !== 'mcq' || q.fixedOrder || !Array.isArray(q.choices)) return q;
+    const answer = q.choices[q.a];
+    const mixed = shuffle(q.choices);
+    const next = mixed.indexOf(answer);
+    if(next < 0) return q;              // 중복 선택지 등 이상 상황에서는 그대로 둔다
+    q.choices = mixed;
+    q.a = next;
+    return q;
+  }
+
   /* OX 세션의 정답 균형 맞추기
      문제 은행 자체에 "O"가 많으므로, 한 판에서는 O와 X를 번갈아 섞어
      "무조건 O 찍기"가 통하지 않게 한다. */
@@ -108,6 +121,8 @@ const Engine = (() => {
     }
 
     if(!pool.length) return null;
+
+    pool.forEach(shuffleChoices);
 
     // 전 과목 모의고사는 문항 수에 비례해 시간을 준다 (1문항 = 1분)
     const sessionCfg = (mode === 'exam' && opt.subject === 'all')

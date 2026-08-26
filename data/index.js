@@ -108,6 +108,11 @@ window.QB = {
       q.type = q.type || (Array.isArray(q.choices) ? 'mcq' : 'ox');
       q.id   = q.id || (q.subject + '-' + (this.items.length + 1));
       q.src  = q.src || 'AI 파생문제';
+      // 해설이나 문두가 선택지 번호(①, "2번")를 지칭하면 순서를 섞을 수 없다.
+      // 섞는 순간 "②는 주동문이다" 같은 해설이 엉뚱한 선택지를 가리키게 된다.
+      if(q.type === 'mcq' && q.fixedOrder === undefined){
+        q.fixedOrder = /[①②③④⑤]|\d\s*번/.test((q.exp || '') + (q.tip || '') + (q.q || ''));
+      }
       this.items.push(q);
     }
   },

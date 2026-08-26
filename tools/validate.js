@@ -31,6 +31,26 @@ for(const c of QB.theory){
   if(!QB.unit(c.unit)) fail('이론카드 단원 오류 ' + c.unit, c.id);
   for(const cz of c.cloze) if(!/\{\{.+?\}\}/.test(cz.s)) fail('빈칸 표시 없음', c.id);
 }
+/* ── 정답 편향 점검 ─────────────────────────────────────
+   한쪽으로 찍어서 맞는 문제가 있으면 인출 연습이 성립하지 않는다. */
+console.log('─'.repeat(46));
+const ox = QB.items.filter(q => q.type === 'ox');
+const oxT = ox.filter(q => q.a === true).length;
+const oxPct = Math.round(oxT / ox.length * 100);
+console.log('OX 정답 O비율 :', oxPct + '%', oxPct >= 40 && oxPct <= 60 ? '✅' : '⚠️  40~60% 권장');
+
+const mcq = QB.items.filter(q => q.type === 'mcq' && !q.cloze);
+let longest = 0, sameLen = 0;
+for(const q of mcq){
+  const L = q.choices.map(c => String(c).length);
+  if(L[q.a] === Math.max(...L)) longest++;
+  if(Math.max(...L) - Math.min(...L) <= 12) sameLen++;
+}
+const lenPct = Math.round(longest / mcq.length * 100);
+console.log('정답=최장 선택지 :', lenPct + '%', lenPct <= 35 ? '✅' : '⚠️  35% 이하 권장 (오답 선택지를 비슷한 길이로)');
+console.log('선택지 길이 균질 :', Math.round(sameLen / mcq.length * 100) + '%');
+console.log('  ※ 정답 위치 편향은 Engine.shuffleChoices 가 실행 시점에 해소한다');
+
 console.log('─'.repeat(46));
 console.log('문항 총계 :', QB.items.length, '(빈칸 파생 포함)');
 console.log('이론 카드 :', QB.theory.length);
