@@ -382,7 +382,24 @@ const Store = (() => {
     { id:'perfect', e:'✨', n:'만점 클리어',    chk:s => s.hadPerfect === true },
     { id:'codex10', e:'📜', n:'도감 10장',      chk:s => readCount() >= 10 },
     { id:'codex30', e:'📚', n:'도감 30장',      chk:s => readCount() >= 30 },
-    { id:'codexall',e:'🗝️', n:'도감 완성',      chk:s => QB.theory.length > 0 && readCount() >= QB.theory.length }
+    { id:'codexall',e:'🗝️', n:'도감 완성',      chk:s => QB.theory.length > 0 && readCount() >= QB.theory.length },
+
+    /* 장기 목표 — 1,000문제로 사다리가 끝나면 그 뒤로 쫓을 것이 없어진다 */
+    { id:'a3000',   e:'⚡', n:'3000문제 돌파',  chk:s => s.totalAnswered >= 3000 },
+    { id:'a5000',   e:'💫', n:'5000문제 돌파',  chk:s => s.totalAnswered >= 5000 },
+    { id:'round1',  e:'📖', n:'전 범위 1회독',
+      chk:s => QB.items.length > 0 && Object.keys(s.cards).length >= QB.items.length },
+    { id:'subjAll', e:'🏅', n:'한 과목 완주',
+      chk:s => QB.SUBJECTS.some(x => {
+        const qs = QB.bySubject(x.id);
+        return qs.length > 0 && qs.every(q => s.cards[q.id]);
+      }) },
+    { id:'acc90',   e:'🎯', n:'정답률 90%',
+      chk:s => s.totalAnswered >= 200 && s.totalCorrect / s.totalAnswered >= 0.9 },
+    { id:'mastery', e:'🧠', n:'장기기억 100문항',
+      chk:s => Object.keys(s.cards).filter(id => s.cards[id].box >= 5).length >= 100 },
+    { id:'streak100',e:'🔱', n:'100일 연속',    chk:s => s.streak >= 100 },
+    { id:'lv40',    e:'🏫', n:'레벨 40',        chk:s => levelInfo().lv >= 40 }
   ];
   function checkAch(){
     const newly = [];
