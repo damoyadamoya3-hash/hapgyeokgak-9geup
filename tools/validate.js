@@ -31,6 +31,28 @@ for(const c of QB.theory){
   if(!QB.unit(c.unit)) fail('이론카드 단원 오류 ' + c.unit, c.id);
   for(const cz of c.cloze) if(!/\{\{.+?\}\}/.test(cz.s)) fail('빈칸 표시 없음', c.id);
 }
+/* ── 내용 중복 점검 ─────────────────────────────────────
+   같은 논점을 두 번 물으면 학습 시간만 잡아먹는다. */
+const norm = t => String(t).replace(/[\s*"'·,.()\[\]「」]/g, '').slice(0, 45);
+const stem = {};
+for(const q of QB.items.filter(x => !x.cloze)){
+  const k = norm(q.q);
+  (stem[k] = stem[k] || []).push(q);
+}
+// 문두가 같아도 선택지가 다르면 별개 문항이므로, OX 는 문두만으로 중복 판정
+const dups = Object.values(stem).filter(g => {
+  if(g.length < 2) return false;
+  if(g.every(q => q.type === 'ox')) return true;
+  // 객관식은 선택지까지 같을 때만 중복으로 본다
+  const key = q => (q.choices || []).map(norm).sort().join('|');
+  return new Set(g.map(key)).size < g.length;
+});
+if(dups.length){
+  console.log('⚠️  중복 문항 ' + dups.length + '건');
+  dups.slice(0, 10).forEach(g => console.log('   ' + g.map(q => q.id).join(' , ')));
+  bad += dups.length;
+} else console.log('중복 문항 : 없음 ✅');
+
 /* ── 정답 편향 점검 ─────────────────────────────────────
    한쪽으로 찍어서 맞는 문제가 있으면 인출 연습이 성립하지 않는다. */
 console.log('─'.repeat(46));
