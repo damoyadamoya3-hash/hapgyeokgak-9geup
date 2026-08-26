@@ -533,6 +533,56 @@ const Store = (() => {
     return btoa(unescape(encodeURIComponent(JSON.stringify(packed))));
   }
 
+  /* 압축 경로에서 쓰려고 같은 내용을 문자열 그대로 돌려준다 */
+  function rawJson(){
+    return decodeURIComponent(escape(atob(exportData())));
+  }
+
+  /* ── 코드 압축 (v5) ─────────────────────────────────
+     진도를 전부 담으면 base64 로 66KB 가 된다. 폰과 PC 사이를
+     오가며 붙여 넣기에는 너무 길다. 브라우저에 들어 있는
+     CompressionStream 으로 눌러 담으면 9KB 로 줄어든다(87%).
+     라이브러리를 들이지 않고 얻는 이득이라 마다할 이유가 없다.
+     지원하지 않는 브라우저에서는 v3(비압축)로 물러선다. */
+  const CAN_ZIP = typeof CompressionStream === 'function' &&
+                  typeof DecompressionStream === 'function';
+
+  function bytesToB64(u8){
+    let s = '';
+    for(let i = 0; i < u8.length; i += 0x8000)
+      s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+    return btoa(s);
+  }
+  function b64ToBytes(b64){
+    const bin = atob(b64);
+    const u8 = new Uint8Array(bin.length);
+    for(let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    return u8;
+  }
+
+  async function exportPacked(){
+    const json = rawJson();
+    if(!CAN_ZIP) return exportData();
+    try{
+      const cs = new CompressionStream('deflate-raw');
+      const w  = cs.writable.getWriter();
+      w.write(new TextEncoder().encode(json)); w.close();
+      const buf = await new Response(cs.readable).arrayBuffer();
+      return 'H5~' + bytesToB64(new Uint8Array(buf));   // 압축본임을 알리는 머리표
+    }catch(e){ return exportData(); }
+  }
+
+  async function unpack(str){
+    const t = String(str).trim();
+    if(!t.startsWith('H5~')) return t;                  // 예전 형식은 그대로
+    if(!CAN_ZIP) throw new Error('이 브라우저는 압축 코드를 풀 수 없습니다');
+    const ds = new DecompressionStream('deflate-raw');
+    const w  = ds.writable.getWriter();
+    w.write(b64ToBytes(t.slice(3))); w.close();
+    const json = new TextDecoder().decode(await new Response(ds.readable).arrayBuffer());
+    return btoa(unescape(encodeURIComponent(json)));    // 기존 해독기가 받는 모양으로
+  }
+
   function importData(str){
     try{
       const p = decodePack(str);
@@ -661,6 +711,7 @@ const Store = (() => {
     SHOP, buy, useItem, has, logExam, examLog, lastExam,
     subjectAccuracy, subjectSeen, touchStreak, daily, progressTask,
     checkAch, ACHS, exportData, importData, mergeData, reset, today,
-    onSaveError, get saveBroken(){ return saveBroken; }
+    onSaveError, get saveBroken(){ return saveBroken; },
+    exportPacked, unpack, CAN_ZIP
   };
 })();

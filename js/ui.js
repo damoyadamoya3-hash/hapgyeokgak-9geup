@@ -311,7 +311,7 @@ const UI = (() => {
     const sum = Store.summary ? Store.summary() : null;
     const cards = Object.keys(Store.s.cards).length;
     const lv = Store.levelInfo(Store.s.xp);
-    const code = Store.exportData();
+    const code = Store.exportData();   // 압축본이 준비될 때까지 보여 줄 임시본
 
     $('#sync-body').innerHTML = `
       <div class="sync-card">
@@ -360,6 +360,16 @@ const UI = (() => {
       Fx.toast(Store.s.nick ? `${Store.s.nick} 님으로 저장했어요` : '이름표를 지웠어요', true, 1600);
     });
 
+    /* 압축은 비동기라 화면을 먼저 그린 뒤 코드만 갈아 끼운다.
+       그동안에도 비압축본이 들어 있으므로 복사가 실패하지 않는다. */
+    Store.exportPacked().then(packed => {
+      const ta = $('#sync-out');
+      if(!ta) return;                       // 그새 화면을 떠났으면 그만둔다
+      ta.value = packed;
+      const btn = $('#sync-copy');
+      if(btn) btn.textContent = `📋 코드 복사 (${(packed.length/1024).toFixed(0)}KB)`;
+    }).catch(() => {});
+
     $('#sync-copy').addEventListener('click', () => {
       const ta = $('#sync-out');
       ta.select(); ta.setSelectionRange(0, ta.value.length);
@@ -374,22 +384,26 @@ const UI = (() => {
     $('#sync-merge').addEventListener('click', () => {
       const v = $('#sync-in').value.trim();
       if(!v) return Fx.toast('먼저 코드를 붙여 넣어 주세요');
-      const r = Store.mergeData(v);
-      if(!r) return Fx.toast('코드를 읽을 수 없어요. 전체를 복사했는지 확인해 주세요 😢');
-      Fx.toast(`합쳤어요! 문항 ${r.added}개가 새로 들어왔습니다 (총 ${r.total}개)`, true, 3200);
-      onChange && onChange();
-      sync(onChange);
+      Store.unpack(v).then(plain => {
+        const r = Store.mergeData(plain);
+        if(!r) return Fx.toast('코드를 읽을 수 없어요. 전체를 복사했는지 확인해 주세요 😢');
+        Fx.toast(`합쳤어요! 문항 ${r.added}개가 새로 들어왔습니다 (총 ${r.total}개)`, true, 3200);
+        onChange && onChange();
+        sync(onChange);
+      }).catch(() => Fx.toast('코드를 읽을 수 없어요 😢'));
     });
 
     $('#sync-replace').addEventListener('click', () => {
       const v = $('#sync-in').value.trim();
       if(!v) return Fx.toast('먼저 코드를 붙여 넣어 주세요');
       if(!confirm('이 기기의 진도를 지우고 코드의 내용으로 바꿉니다. 계속할까요?')) return;
-      if(Store.importData(v)){
-        Fx.toast('불러오기 완료!', true);
-        onChange && onChange();
-        sync(onChange);
-      } else Fx.toast('코드가 올바르지 않아요 😢');
+      Store.unpack(v).then(plain => {
+        if(Store.importData(plain)){
+          Fx.toast('불러오기 완료!', true);
+          onChange && onChange();
+          sync(onChange);
+        } else Fx.toast('코드가 올바르지 않아요 😢');
+      }).catch(() => Fx.toast('코드를 읽을 수 없어요 😢'));
     });
 
     show('scr-sync');
