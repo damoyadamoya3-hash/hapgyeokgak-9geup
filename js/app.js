@@ -206,8 +206,32 @@
       }
     }
 
+    offerCodex(res.q);
+
     // 테트리스 낙하도 멈춰 두고, 폭발 연출만 마저 보여준다
     setTimeout(() => { if(paused) Tetris.pause(); }, 900);
+  }
+
+  /* 해설에서 이론 도감으로 건너가는 통로.
+     해설 세 줄로는 개념이 통째로 빈 자리를 메울 수 없다. 그 단원에
+     이론 카드가 있으면 그 자리에서 펼쳐 보고 돌아올 수 있게 한다.
+     세션은 해설을 읽는 동안 이미 멈춰 있으므로 시간은 흐르지 않는다. */
+  function offerCodex(q){
+    const btn = $('#btn-fb-codex');
+    const cards = q && q.unit ? QB.theoryByUnit(q.unit) : [];
+    if(!cards.length){ btn.classList.add('hidden'); return; }
+
+    // 이 문항의 출처 카드가 있으면 그 카드를, 없으면 단원의 첫 카드를 연다
+    const card = (q.cardId && QB.theoryById(q.cardId)) || cards[0];
+    const unit = QB.unit(q.unit);
+    btn.textContent = '📜 ' + (unit ? unit.name : '이 단원') + ' 이론 카드 펼치기';
+    btn.classList.remove('hidden');
+    btn.onclick = () => {
+      Sfx.tap();
+      UI.cardDetail(card.id,
+        c => start('cloze', { card: c }),
+        (u, sub) => start('quest', { unit: u, subject: sub }));
+    };
   }
 
   /* 하트를 모두 잃었을 때 — 보유 중이면 이어서 풀지 물어본다 */
@@ -231,6 +255,7 @@
     pauseStart = 0;
     paused = false;                // ▶ 재개
     $('#pb-timer').classList.remove('paused');
+    $('#btn-fb-codex').classList.add('hidden');
     Tetris.resume();
     // OX 스피드런은 큐가 떨어지면 재보충
     if(S.mode === 'ox' && S.i + 1 >= S.queue.length){
