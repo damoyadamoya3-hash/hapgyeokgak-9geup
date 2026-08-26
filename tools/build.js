@@ -70,6 +70,22 @@ function build(){
     );
   }
 
+  /* 인라인된 스크립트가 실제로 파싱되는지 검사한다.
+     문자열 안에 줄바꿈이 섞이는 것 같은 사고는 브라우저를 열기 전에 잡아야 한다. */
+  const blocks = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
+  let syntaxErrors = 0;
+  blocks.forEach((code, i) => {
+    try{ new Function(code); }
+    catch(e){
+      console.error('  ✗ 스크립트 블록 ' + i + ' 구문 오류: ' + e.message);
+      syntaxErrors++;
+    }
+  });
+  if(syntaxErrors){
+    console.error('❌ 구문 오류 ' + syntaxErrors + '건 — 빌드를 중단합니다.');
+    process.exit(1);
+  }
+
   /* 남은 외부 참조가 있는지 확인 */
   const leftover = html.match(/<script src="(?!https?:)[^"]+"><\/script>/g);
   if(leftover) console.warn('  ! 인라인되지 않은 스크립트:', leftover.join(', '));
@@ -96,6 +112,7 @@ function build(){
   console.log('   데이터 팩      :', packs.length + '개');
   console.log('   dist/index.html   :', kb(Buffer.byteLength(html)));
   console.log('   dist/artifact.html:', kb(Buffer.byteLength(art)));
+  console.log('   스크립트 블록      :', blocks.length + '개 · 구문 오류 없음');
 }
 
 build();
