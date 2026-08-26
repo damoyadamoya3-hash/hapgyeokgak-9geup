@@ -149,6 +149,9 @@ const UI = (() => {
 
   /* ══════════ 오답노트 ══════════ */
   let noteTab = 'wrong';
+  let noteSubject = 'all';       // 과목 필터
+  let noteLimit = 30;            // 한 번에 그리는 개수 (전부 그리면 수백 개가 된다)
+  const NOTE_PAGE = 30;
 
   function noteAnswerText(q){
     if(q.type === 'ox') return q.a ? 'O' : 'X';
@@ -156,12 +159,26 @@ const UI = (() => {
   }
 
   function notes(onSolve){
-    const rows = noteTab === 'wrong'
+    const all = noteTab === 'wrong'
       ? Store.wrongNotes()
       : Store.markedIds().map(id => ({ id, ...(Store.s.cards[id] || {n:0,ok:0,ng:0,box:0}), q: QB.byId(id) }))
               .filter(x => x.q);
 
+    const filtered = noteSubject === 'all'
+      ? all
+      : all.filter(r => r.q.subject === noteSubject);
+    const rows = filtered.slice(0, noteLimit);
+
     $$('.note-tab').forEach(t => t.classList.toggle('on', t.dataset.note === noteTab));
+
+    // 과목 필터 — 해당 과목에 항목이 있을 때만 칩을 보여준다
+    const counts = {};
+    all.forEach(r => { counts[r.q.subject] = (counts[r.q.subject] || 0) + 1; });
+    $('#note-filter').innerHTML = all.length ? `
+      <button class="note-chip ${noteSubject === 'all' ? 'on' : ''}" data-nf="all">전체 ${all.length}</button>` +
+      QB.SUBJECTS.filter(x => counts[x.id]).map(x => `
+        <button class="note-chip ${noteSubject === x.id ? 'on' : ''}" data-nf="${x.id}">
+          ${x.emoji} ${esc(x.name)} ${counts[x.id]}</button>`).join('') : '';
 
     $('#note-body').innerHTML = rows.length ? rows.map(r => {
       const q = r.q;
@@ -194,6 +211,27 @@ const UI = (() => {
         ? '아직 틀린 문제가 없어요.<br>문제를 풀다 보면 여기에 쌓입니다.'
         : '북마크한 문제가 없어요.<br>문제를 푼 뒤 해설 창의 ☆를 눌러 저장하세요.'}</div>`;
 
+    // 더 보기
+    if(filtered.length > rows.length){
+      $('#note-body').insertAdjacentHTML('beforeend',
+        `<button class="btn-ghost" id="note-more" style="width:100%;margin-top:4px">
+           ▾ ${filtered.length - rows.length}개 더 보기
+         </button>`);
+      $('#note-more').addEventListener('click', () => {
+        Sfx.tap();
+        noteLimit += NOTE_PAGE;
+        notes(onSolve);
+      });
+    }
+
+    $$('#note-filter [data-nf]').forEach(b =>
+      b.addEventListener('click', () => {
+        Sfx.tap();
+        noteSubject = b.dataset.nf;
+        noteLimit = NOTE_PAGE;
+        notes(onSolve);
+      }));
+
     // 펼치기 / 접기
     $$('#note-body .note-head').forEach(h =>
       h.addEventListener('click', () => {
@@ -219,7 +257,10 @@ const UI = (() => {
     show('scr-note');
   }
 
-  function setNoteTab(tab, onSolve){ noteTab = tab; notes(onSolve); }
+  function setNoteTab(tab, onSolve){
+    noteTab = tab; noteSubject = 'all'; noteLimit = NOTE_PAGE;
+    notes(onSolve);
+  }
 
   /* ══════════ 학습 분석 ══════════ */
   function stats(onPickUnit){
