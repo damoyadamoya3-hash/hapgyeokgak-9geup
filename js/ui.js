@@ -686,17 +686,17 @@ const UI = (() => {
       </div>
 
       <div class="st-sec">
-        <h3>과목별 정답률</h3>
+        <h3>과목별 정답률 <small>눌러서 그 과목 단원 고르기</small></h3>
         <div class="st-list">
           ${subj.map(x => `
-            <div class="st-row" style="cursor:default">
+            <button class="st-row" data-subj="${x.id}">
               <span style="font-size:20px">${x.emoji}</span>
               <span class="sr-body">
                 <h4>${esc(x.name)} <em>${x.seen}/${x.total}문항 학습</em></h4>
                 <span class="sr-bar"><i style="width:${x.acc}%;background:${accColor(x.acc)}"></i></span>
               </span>
               <span class="sr-acc" style="color:${x.seen ? accColor(x.acc) : 'var(--ink2)'}">${x.seen ? x.acc + '%' : '–'}</span>
-            </div>`).join('')}
+            </button>`).join('')}
         </div>
       </div>
 
@@ -732,6 +732,14 @@ const UI = (() => {
         복습 간격이 길어진 문항입니다. <b>오른쪽 막대가 두꺼워지는 것이 진짜 실력</b>입니다.</p>
       </div>
       ${disclaimer()}`;
+
+    /* 과목 행을 눌러 그 과목의 단원 목록으로 간다. 과락을 과목 단위로
+       알려 주면서 정작 그 과목으로 갈 길이 없으면 반쪽이다. */
+    $$('#stats-body [data-subj]').forEach(b =>
+      b.addEventListener('click', () => {
+        Sfx.tap();
+        selectUnit(b.dataset.subj, uid => onPickUnit && onPickUnit(uid, b.dataset.subj));
+      }));
 
     $$('#stats-body [data-weak]').forEach(b =>
       b.addEventListener('click', () => {
