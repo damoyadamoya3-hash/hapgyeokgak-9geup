@@ -13,6 +13,7 @@ window.QB_PACKS = [
   'theory/edu-t-02-core',
   'theory/his-t-01-timeline',
   'theory/his-t-02-gorjos',
+  'theory/his-t-03-culture',
   'theory/edu-t-03-law',
   'theory/kor-t-01-core',
   'theory/kor-t-02-word',
