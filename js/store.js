@@ -64,8 +64,15 @@ const Store = (() => {
     for(const k of keys) if(k < limit) delete S.dayStats[k];
   }
 
-  /* ── 레벨 계산: 누적 XP → 레벨 ────────────────────────── */
-  function xpForLevel(lv){ return Math.round(80 * Math.pow(lv, 1.35)); }
+  /* ── 레벨 계산: 누적 XP → 레벨 ──────────────────────────
+     곡선은 실제 수험 기간(6~12개월)에 맞춰 잡았다.
+     하루 30문항·문항당 평균 15XP 기준으로
+       Lv10 기출 사냥꾼 ≈ 10일 · Lv20 과목별 고수 ≈ 7주
+       Lv26 合格 예약자 ≈ 3개월 · Lv40 교육행정 주무관 ≈ 7~8개월
+       Lv50 전설의 수험생 ≈ 1년
+     이전 곡선(80·lv^1.35)은 Lv40 에 427일, Lv50 에 726일이 걸려
+     상위 칭호가 시험 전에 닿지 않았다. */
+  function xpForLevel(lv){ return Math.round(70 * Math.pow(lv, 1.20)); }
   function levelInfo(){
     let lv = 1, need = xpForLevel(1), left = S.xp;
     while(left >= need){ left -= need; lv++; need = xpForLevel(lv); }
