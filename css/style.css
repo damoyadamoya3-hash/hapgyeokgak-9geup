@@ -7,7 +7,8 @@
   --ink:#191d26;           /* 인쇄 잉크 */
   --ink2:#5c6472;
   --line:#d6ddce;
-  --brand:#e5432b;         /* 마킹 적색 */
+  --brand:#e5432b;         /* 마킹 적색 — 면(배경)에 쓸 때 */
+  --brand-ink:#c02d17;     /* 같은 계열이지만 밝은 바탕 위 글자용 (대비 4.5:1 확보) */
   --brand2:#f2703f;
   --brand-sh:#a82d1a;      /* 버튼 하단 그림자 */
   --accent:#2f5fbf;        /* OMR 인쇄 청색 */
@@ -25,7 +26,7 @@
 /* 야간 자율학습 모드 — 명시적 선택이 있을 때 */
 :root[data-theme="dark"]{
   --bg:#14161c; --bg2:#1e212a; --ink:#edefe9; --ink2:#9aa2ae; --line:#2e3441;
-  --brand:#ff5f43; --brand2:#ff8a5c; --brand-sh:#8f2413;
+  --brand:#ff5f43; --brand-ink:#ff7a63; --brand2:#ff8a5c; --brand-sh:#8f2413;
   --accent:#6b9bff; --good:#35c184; --bad:#ff5a68; --gold:#ffd43b; --muted:#6e7686;
   --card:#1e212a;
   --shadow:0 3px 0 rgba(0,0,0,.45), 0 10px 26px rgba(0,0,0,.4);
@@ -34,7 +35,7 @@
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --bg:#14161c; --bg2:#1e212a; --ink:#edefe9; --ink2:#9aa2ae; --line:#2e3441;
-    --brand:#ff5f43; --brand2:#ff8a5c; --brand-sh:#8f2413;
+    --brand:#ff5f43; --brand-ink:#ff7a63; --brand2:#ff8a5c; --brand-sh:#8f2413;
     --accent:#6b9bff; --good:#35c184; --bad:#ff5a68; --gold:#ffd43b; --muted:#6e7686;
     --card:#1e212a;
     --shadow:0 3px 0 rgba(0,0,0,.45), 0 10px 26px rgba(0,0,0,.4);
@@ -463,7 +464,7 @@ body.fever .combo-badge{background:linear-gradient(120deg,#ff2e88,#ffd600);anima
 .note-tabs{display:flex;gap:8px;margin-bottom:14px}
 .note-tab{flex:1;background:var(--card);border:2px solid var(--line);border-radius:14px;
   padding:11px;font-size:14px;font-family:var(--f-round);box-shadow:var(--shadow);transition:border-color .15s}
-.note-tab.on{border-color:var(--brand);color:var(--brand)}
+.note-tab.on{border-color:var(--brand);color:var(--brand-ink)}
 
 .note-item{background:var(--card);border:2px solid var(--line);border-left:5px solid var(--bad);
   border-radius:14px;margin-bottom:10px;overflow:hidden}
@@ -497,7 +498,7 @@ body.fever .combo-badge{background:linear-gradient(120deg,#ff2e88,#ffd600);anima
 .ds-day.now em{color:var(--brand);font-family:var(--f-round)}
 .ds-msg{margin:10px 0 0;font-size:12.5px;color:var(--ink2);line-height:1.6;
   display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.ds-msg b{color:var(--brand);font-size:13.5px}
+.ds-msg b{color:var(--brand-ink);font-size:13.5px}
 .ds-rw{margin-left:auto;font-size:11px;color:var(--gold);font-family:var(--f-round);
   background:rgba(242,194,0,.16);border-radius:99px;padding:3px 10px;white-space:nowrap}
 
@@ -542,7 +543,7 @@ body.fever .combo-badge{background:linear-gradient(120deg,#ff2e88,#ffd600);anima
 .note-filter:empty{display:none}
 .note-chip{background:var(--card);border:2px solid var(--line);border-radius:99px;
   padding:6px 12px;font-size:12.5px;white-space:nowrap;transition:border-color .15s,color .15s}
-.note-chip.on{border-color:var(--brand);color:var(--brand);font-family:var(--f-round)}
+.note-chip.on{border-color:var(--brand);color:var(--brand-ink);font-family:var(--f-round)}
 
 /* ══════════ 학습 계획 (D-day) ══════════ */
 .plan-card{display:block;width:100%;text-align:left;background:var(--card);
@@ -550,7 +551,7 @@ body.fever .combo-badge{background:linear-gradient(120deg,#ff2e88,#ffd600);anima
   box-shadow:var(--shadow);margin-bottom:12px;transition:border-color .16s,transform .16s}
 .plan-card:active{transform:translateY(2px)}
 .pc-top{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
-.pc-dday{font-family:var(--f-round);font-size:26px;color:var(--brand);line-height:1.1;
+.pc-dday{font-family:var(--f-round);font-size:26px;color:var(--brand-ink);line-height:1.1;
   font-variant-numeric:tabular-nums}
 .pc-dday.pc-set{font-size:17px}
 .pc-date{font-size:12px;color:var(--ink2)}
@@ -560,7 +561,7 @@ body.fever .combo-badge{background:linear-gradient(120deg,#ff2e88,#ffd600);anima
   background:linear-gradient(90deg,var(--accent),var(--good));transition:width .5s}
 .pc-goal{display:flex;justify-content:space-between;align-items:baseline;
   font-size:12.5px;color:var(--ink2);gap:8px}
-.pc-goal b{font-family:var(--f-round);color:var(--brand);font-size:14px;
+.pc-goal b{font-family:var(--f-round);color:var(--brand-ink);font-size:14px;
   font-variant-numeric:tabular-nums}
 .pc-left{font-size:11.5px;white-space:nowrap}
 .pc-today{height:7px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:6px}
@@ -572,7 +573,7 @@ body.fever .combo-badge{background:linear-gradient(120deg,#ff2e88,#ffd600);anima
 .set-date::after{display:none}
 .pc-warn{margin:10px 0 0;font-size:12px;line-height:1.6;color:var(--ink2);
   background:rgba(208,47,60,.10);border-radius:10px;padding:8px 10px;word-break:keep-all}
-.pc-warn b{color:var(--brand);font-family:var(--f-body);font-weight:700}
+.pc-warn b{color:var(--brand-ink);font-family:var(--f-body);font-weight:700}
 
 /* ══════════ 시작 안내 ══════════ */
 .start-guide{background:var(--card);border:2px solid var(--brand);border-radius:var(--r);
