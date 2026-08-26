@@ -298,7 +298,13 @@ const Store = (() => {
     // 하루 목표는 10~120문항 사이로 제한한다.
     // 시험이 코앞이면 산술적으로 수백 문항이 나오는데, 그런 숫자는
     // 실행할 수 없으므로 상한을 두고 대신 '전략을 바꾸라'고 알린다.
-    const raw = days > 0 ? Math.ceil(left / days) : left;
+    /* 목표는 '안 본 문항'만 보고 계산하면 안 된다. 복습이 900개 밀린
+       사람에게 '오늘 10문항' 이라고 말해 주면 거짓말이 된다.
+       밀린 복습은 아무리 길어도 2주 안에 털어내는 것을 기준으로 얹는다. */
+    const dueNow  = dueCards().length;
+    const newLoad = days > 0 ? Math.ceil(left / days) : left;
+    const revLoad = Math.ceil(dueNow / Math.max(Math.min(days, 14), 1));
+    const raw  = newLoad + revLoad;
     const goal = Math.min(Math.max(raw, 10), 120);
     return { hasDate:true, date:S.examDate, days, total, seen, left, todayN,
              pct: total ? Math.round(seen / total * 100) : 0,

@@ -172,6 +172,46 @@ t('복습 — 가장 밀린 문항이 반드시 포함된다', () => {
   ok(s.queue.some(q => Store.s.cards[q.id].due === oldest), '가장 밀린 문항이 빠짐');
 });
 
+/* ── 학습 계획 ───────────────────────────────────────────── */
+t('학습 계획 — 복습·새 문제의 합이 언제나 목표와 같다', () => {
+  const all = QB.items;
+  for(const [due, days] of [[0,120],[300,120],[900,60],[5,30],[0,null]]){
+    Store.reset();
+    for(let i = 0; i < due; i++)
+      Store.s.cards[all[i].id] = { n:1, ok:0, ng:1, box:0, due: shift(-1), last: Store.today() };
+    if(days) Store.setExamDate(shift(days));
+    Store.save();
+    const p = Store.plan();
+    eq(p.review + p.fresh, p.goal, `밀림 ${due}·D-${days} 배분 합계`);
+    ok(p.review <= Math.ceil(p.goal / 2), `밀림 ${due} 복습이 목표의 절반을 넘김`);
+  }
+});
+
+t('학습 계획 — 안 본 문항이 남아 있으면 새 문제를 반드시 배정한다', () => {
+  Store.reset();
+  const all = QB.items;
+  for(let i = 0; i < 900; i++)                       // 복습이 크게 밀린 상황
+    Store.s.cards[all[i].id] = { n:1, ok:0, ng:1, box:0, due: shift(-5), last: Store.today() };
+  Store.setExamDate(shift(20));
+  Store.save();
+  const p = Store.plan();
+  ok(p.fresh >= 1, '밀린 복습에 밀려 새 문제가 0개');
+});
+
+t('학습 계획 — 복습이 밀리면 목표도 함께 늘어난다', () => {
+  const all = QB.items;
+  const goalWith = due => {
+    Store.reset();
+    for(let i = 0; i < due; i++)
+      Store.s.cards[all[i].id] = { n:1, ok:0, ng:1, box:0, due: shift(-1), last: Store.today() };
+    Store.setExamDate(shift(60));
+    Store.save();
+    return Store.plan().goal;
+  };
+  const few = goalWith(0), many = goalWith(600);
+  ok(many > few * 2, `밀림 600 인데 목표가 ${few} → ${many} 뿐. 밀린 양을 반영하지 않음`);
+});
+
 /* ── 모의고사 ────────────────────────────────────────────── */
 t('모의고사 — 기출형 객관식으로만 채운다', () => {
   fresh();
