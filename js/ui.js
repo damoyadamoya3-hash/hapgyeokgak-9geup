@@ -138,6 +138,11 @@ const UI = (() => {
         <span class="pc-left">남은 문항 ${p.left}개</span>
       </div>
       <div class="pc-today"><i style="width:${ratio}%"></i></div>
+      <div class="pc-split">
+        <span class="pc-rev ${p.due > p.review ? 'over' : ''}">🔁 복습 <b>${p.review}</b>문항${
+          p.due > p.review ? ` <small>(밀림 ${p.due})</small>` : ''}</span>
+        <span class="pc-new">✨ 새 문제 <b>${p.fresh}</b>문항</span>
+      </div>
       ${p.capped ? `<p class="pc-warn">⚠️ 남은 날에 전부 보기는 어려워요.
         <b>약한 단원</b>과 <b>오답노트</b> 위주로 좁혀 가세요.</p>` : ''}`;
   }

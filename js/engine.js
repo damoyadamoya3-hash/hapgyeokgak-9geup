@@ -115,7 +115,7 @@ const Engine = (() => {
   };
 
   function build(mode, opt = {}){
-    const cfg = MODE[mode];
+    let cfg = MODE[mode];
     let pool = [];
 
     if(mode === 'quest'){
@@ -143,13 +143,19 @@ const Engine = (() => {
       pool = weightedPick(shuffle(QB.bySubject(opt.subject)), (boss ? boss.hp : 10) + 8);
     }
     else if(mode === 'srs'){
+      /* 밀린 것부터 순서대로 가져온다. 여기서 다시 섞으면 밀린 순서가
+         무너지므로, 가져온 뒤에 그 안에서만 섞어 출제 순서를 흩는다. */
       const ids = Store.dueCards();
-      pool = ids.map(id => QB.byId(id)).filter(Boolean);
-      if(pool.length < cfg.n){
+      // 밀린 양이 많으면 한 판을 늘려야 실제로 줄어든다.
+      // 15문항씩으로는 1,000개가 밀린 상태를 평생 못 따라잡는다.
+      const size = ids.length > 200 ? 30 : ids.length > 60 ? 24 : cfg.n;
+      pool = ids.slice(0, size).map(id => QB.byId(id)).filter(Boolean);
+      if(pool.length < size){
         const extra = QB.items.filter(q => !Store.s.cards[q.id]);
-        pool = pool.concat(shuffle(extra).slice(0, cfg.n - pool.length));
+        pool = pool.concat(shuffle(extra).slice(0, size - pool.length));
       }
-      pool = shuffle(pool).slice(0, cfg.n);
+      pool = shuffle(pool);
+      cfg = { ...cfg, n: pool.length };
     }
     else if(mode === 'wrong'){
       const ids = Store.wrongCards();

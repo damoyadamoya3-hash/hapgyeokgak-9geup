@@ -133,12 +133,22 @@ const Store = (() => {
     return c;
   }
 
+  /* 복습 대기 목록 — 많이 밀린 것부터 앞에 세운다.
+     무작위로 뽑으면 60일 밀린 문항이 오늘 밀린 문항과 같은 확률이 되어,
+     밀린 것이 영영 나오지 않는다. 밀린 날수가 같으면 약한 것(박스가
+     낮은 것)을 먼저 본다. */
   function dueCards(){
     const t = today();
-    return Object.keys(S.cards).filter(id => {
-      const c = S.cards[id];
-      return c.due <= t && c.box < INTERVAL.length - 1;
-    });
+    return Object.keys(S.cards)
+      .filter(id => {
+        const c = S.cards[id];
+        return c.due <= t && c.box < INTERVAL.length - 1;
+      })
+      .sort((a, b) => {
+        const x = S.cards[a], y = S.cards[b];
+        if(x.due !== y.due) return x.due < y.due ? -1 : 1;   // 오래 밀린 것 먼저
+        return x.box - y.box;                                 // 그다음 약한 것
+      });
   }
   function wrongCards(){
     return Object.keys(S.cards).filter(id => S.cards[id].ng > 0 && S.cards[id].box <= 2);
@@ -227,11 +237,29 @@ const Store = (() => {
     const left  = Math.max(total - seen, 0);
     const todayN = (S.dayStats[today()] || { n:0 }).n;
 
+    /* 하루 목표를 '복습'과 '새 문제'로 나눠 준다.
+       측정해 보면 이 배분이 결과를 가른다. 복습을 적게 하면 진도는
+       빨라도 복습 대기가 800개까지 밀리고, 복습만 하면 대기는 잡히나
+       석 달에 은행의 27% 밖에 못 본다. 어느 쪽이든 '이것만 보고 합격'
+       과 멀어지므로, 오늘 몇 개를 복습하고 몇 개를 새로 볼지 정해 준다.
+       복습은 하루 목표의 절반까지만 배정한다 — 밀린 게 아무리 많아도
+       새 문제를 아예 못 보는 날은 없어야 한다. */
+    const split = g => {
+      const due = dueCards().length;
+      // 절반까지만 복습에 배정한다. 상한을 절대값(10문항)으로 두면
+      // 목표가 작은 날에 복습이 목표를 다 먹어 새 문제가 0이 된다.
+      let review = Math.min(due, Math.floor(g / 2));
+      let fresh  = g - review;
+      // 아직 안 본 문항이 남아 있는 한 새 문제는 최소 1개 배정한다
+      if(left > 0 && fresh < 1){ fresh = 1; review = Math.max(g - 1, 0); }
+      return { due, review, fresh };
+    };
+
     if(!S.examDate){
+      // 시험일이 없으면 하루 30문항을 기본 목표로 제안한다
       return { hasDate:false, total, seen, left, todayN,
                pct: total ? Math.round(seen / total * 100) : 0,
-               // 시험일이 없으면 하루 30문항을 기본 목표로 제안한다
-               goal: 30, days: null };
+               goal: 30, days: null, ...split(30) };
     }
     const ms = new Date(S.examDate + 'T00:00:00') - new Date(today() + 'T00:00:00');
     const days = Math.ceil(ms / 86400000);
@@ -243,7 +271,7 @@ const Store = (() => {
     const goal = Math.min(Math.max(raw, 10), 120);
     return { hasDate:true, date:S.examDate, days, total, seen, left, todayN,
              pct: total ? Math.round(seen / total * 100) : 0,
-             goal, capped: raw > goal };
+             goal, capped: raw > goal, ...split(goal) };
   }
 
   /* ── 북마크 ─────────────────────────────────────────── */
