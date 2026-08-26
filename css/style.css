@@ -483,3 +483,14 @@ body.fever .combo-badge{background:linear-gradient(120deg,#ff2e88,#ffd600);anima
 .ds-msg b{color:var(--brand);font-size:13.5px}
 .ds-rw{margin-left:auto;font-size:11px;color:var(--gold);font-family:var(--f-round);
   background:rgba(242,194,0,.16);border-radius:99px;padding:3px 10px;white-space:nowrap}
+
+/* ══════════ 전 과목 모의고사 ══════════ */
+.stage-hero{border-color:var(--brand);box-shadow:0 0 0 3px rgba(229,67,43,.14), var(--shadow)}
+.stage-hero h4{color:var(--brand)}
+.exam-table{display:grid;gap:7px;margin-bottom:16px}
+.exam-row{display:flex;align-items:center;gap:10px;background:var(--card);border:2px solid var(--line);
+  border-radius:12px;padding:9px 12px;font-size:13px}
+.exam-row > span:first-child{flex:0 0 auto;min-width:96px}
+.exam-row .ex-bar{flex:1;height:8px;background:var(--line);border-radius:99px;overflow:hidden}
+.exam-row .ex-bar i{display:block;height:100%;border-radius:99px}
+.exam-row b{font-family:var(--f-round);font-variant-numeric:tabular-nums;flex:0 0 auto;min-width:48px;text-align:right}

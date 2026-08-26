@@ -97,6 +97,14 @@
     pauseStart = Date.now();
     $('#pb-timer').classList.add('paused');
     const res = Engine.submit(S, ans);
+
+    if(S.cfg.silent){
+      // 실전 모의고사 — 정오를 알려주지 않고 바로 다음 문항으로 넘어간다
+      UI.markSilent(btn);
+      setTimeout(() => { if(S && !S.over) next(); }, 220);
+      return;
+    }
+
     UI.reveal(S, res, btn);
 
     /* ── 테트리스 연동: 정답이 곧 소거 스위치 ── */
@@ -275,8 +283,13 @@
         UI.selectSubject('👹 도전할 보스를 고르세요', '정답 1개 = 보스 HP 1 감소. 하트 3개를 모두 잃으면 패배!',
           sid => start('boss', { subject: sid }));
       } else if(m === 'exam'){
-        UI.selectSubject('📝 모의고사 과목', '과목당 20문항 · 제한시간 20분. 실전처럼 풀어보세요.',
-          sid => start('exam', { subject: sid }));
+        UI.selectSubject('📝 모의고사 범위',
+          '실전처럼 <b>해설 없이</b> 끝까지 풀고, 마지막에 한꺼번에 채점합니다.<br>' +
+          '오답은 자동으로 오답노트에 담깁니다.',
+          sid => start('exam', { subject: sid }),
+          { id:'all', name:'전 과목 통합 회차', emoji:'🏁',
+            desc:'5과목 × 20문항 = 100문항 · 100분. 실제 시험과 같은 분량',
+            color:'var(--brand)' });
       } else if(m === 'ox'){
         UI.selectSubject('⚡ OX 스피드런 범위', '60초 안에 최대한 많이! 자동으로 다음 문제가 나옵니다.',
           sid => start('ox', { subject: sid }));

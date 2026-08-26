@@ -101,11 +101,16 @@ const UI = (() => {
   function home(){ hud(); daily(); modeTags(); subjects(); achievements(); }
 
   /* ── 선택 화면: 과목 목록 ──────────────────────────── */
-  function selectSubject(title, note, cb){
+  function selectSubject(title, note, cb, extra){
     $('#sel-title').textContent = title;
+    const extraHtml = extra ? `<button class="stage stage-hero" data-pick="${extra.id}">
+        <span class="st-no" style="background:${extra.color};color:#fff">${extra.emoji}</span>
+        <span class="st-body"><h4>${esc(extra.name)}</h4><p>${esc(extra.desc)}</p></span>
+        <span class="st-stars">▶</span>
+      </button>` : '';
     $('#sel-body').innerHTML =
       (note ? `<div class="sel-note">${note}</div>` : '') +
-      `<div class="stage-row">` + QB.SUBJECTS.map(s => {
+      `<div class="stage-row">` + extraHtml + QB.SUBJECTS.map(s => {
         const n = QB.count(s.id);
         return `<button class="stage ${n ? '' : 'locked'}" data-pick="${s.id}" ${n?'':'disabled'}>
           <span class="st-no" style="background:${s.color};color:#fff">${s.emoji}</span>
@@ -522,6 +527,15 @@ const UI = (() => {
     fb.classList.remove('hidden');
   }
 
+  /* 실전 모의고사 — 정오를 숨기고 "선택했다"는 표시만 남긴다 */
+  function markSilent(btn){
+    if(!btn) return;
+    Array.from($('#q-choices').children).forEach(b => { b.disabled = true; });
+    btn.style.borderColor = 'var(--accent)';
+    btn.style.background = 'color-mix(in srgb, var(--accent) 12%, transparent)';
+    Sfx.tap();
+  }
+
   /* 보너스 XP를 피드백 패널 수치에 즉시 반영하고 튀어오르게 한다 */
   function bumpXp(amount, note){
     if(!amount) return;
@@ -556,14 +570,27 @@ const UI = (() => {
     $('#res-xp').textContent      = '+' + S.xp + ' XP';
     $('#res-coin').textContent    = '+' + S.coin + ' 🪙';
 
-    $('#res-review').innerHTML = S.wrongList.length
+    // 모의고사는 과목별 성적표를 먼저 보여준다
+    const subTable = (S.mode === 'exam' && fin.bySub && Object.keys(fin.bySub).length > 1)
+      ? `<h3 style="font-size:15px;margin:0 0 8px">📋 과목별 성적</h3>
+         <div class="exam-table">${Object.keys(fin.bySub).map(sid => {
+            const b = fin.bySub[sid], sub = QB.subject(sid) || { name:sid, emoji:'📘' };
+            const a = b.n ? Math.round(b.ok / b.n * 100) : 0;
+            return `<div class="exam-row">
+              <span>${sub.emoji} ${esc(sub.name)}</span>
+              <span class="ex-bar"><i style="width:${a}%;background:${a>=80?'var(--good)':a>=60?'var(--gold)':'var(--bad)'}"></i></span>
+              <b>${b.ok}/${b.n}</b>
+            </div>`;
+         }).join('')}</div>` : '';
+
+    $('#res-review').innerHTML = subTable + (S.wrongList.length
       ? `<h3 style="font-size:15px;margin:0 0 4px">📌 다시 볼 문제 ${S.wrongList.length}개</h3>` +
         S.wrongList.slice(0, 8).map(q => `
           <div class="rev-item">
             <div class="rq">${md(q.q.length > 90 ? q.q.slice(0,90) + '…' : q.q)}</div>
             <div class="ra">정답: ${q.type === 'ox' ? (q.a ? 'O' : 'X') : ('①②③④⑤'[q.a] + ' ' + esc(q.choices[q.a]||''))}</div>
           </div>`).join('')
-      : `<div class="sel-note" style="text-align:center">틀린 문제 없음! 완벽합니다 ✨</div>`;
+      : `<div class="sel-note" style="text-align:center">틀린 문제 없음! 완벽합니다 ✨</div>`);
 
     if(win){ Sfx.win(); Fx.confetti(fin.acc === 100 ? 60 : 36); }
     else Sfx.lose();
@@ -588,5 +615,5 @@ const UI = (() => {
 
   return { $, $$, esc, show, back, hud, home, daily, subjects, achievements,
            modeTags, selectSubject, selectUnit, question, reveal, result,
-           codexList, cardDetail, bumpXp, stats, notes, setNoteTab };
+           codexList, cardDetail, bumpXp, stats, notes, setNoteTab, markSilent };
 })();

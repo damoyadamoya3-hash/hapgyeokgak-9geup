@@ -35,7 +35,7 @@ const Engine = (() => {
     ox:    { label:'OX 스피드런',   hearts:0, timer:60, n:999 },
     boss:  { label:'보스 레이드',   hearts:3, timer:0,  n:999 },
     srs:   { label:'망각곡선 복습', hearts:0, timer:0,  n:15 },
-    exam:  { label:'실전 모의고사', hearts:0, timer:1200, n:20 },
+    exam:  { label:'실전 모의고사', hearts:0, timer:1200, n:20, silent:true },
     wrong: { label:'오답 지옥',     hearts:0, timer:0,  n:15 },
     cloze: { label:'세뇌 암기',     hearts:0, timer:0,  n:30 }
   };
@@ -78,13 +78,27 @@ const Engine = (() => {
       pool = shuffle(pool).slice(0, cfg.n);
     }
     else if(mode === 'exam'){
-      pool = shuffle(QB.bySubject(opt.subject)).slice(0, cfg.n);
+      if(opt.subject === 'all'){
+        // 전 과목 통합 회차 — 과목마다 균등하게 뽑아 실제 시험 구성에 맞춘다
+        const per = opt.per || 20;
+        pool = [];
+        for(const sub of QB.SUBJECTS){
+          pool = pool.concat(shuffle(QB.bySubject(sub.id)).slice(0, per));
+        }
+      }else{
+        pool = shuffle(QB.bySubject(opt.subject)).slice(0, cfg.n);
+      }
     }
 
     if(!pool.length) return null;
 
+    // 전 과목 모의고사는 문항 수에 비례해 시간을 준다 (1문항 = 1분)
+    const sessionCfg = (mode === 'exam' && opt.subject === 'all')
+      ? { ...cfg, n: pool.length, timer: pool.length * 60 }
+      : cfg;
+
     return {
-      mode, opt, cfg,
+      mode, opt, cfg: sessionCfg,
       queue: pool,
       i: 0,
       correct: 0, wrong: 0,
@@ -138,6 +152,9 @@ const Engine = (() => {
 
     if(S.maxCombo > Store.s.maxCombo){ Store.s.maxCombo = S.maxCombo; Store.save(); }
 
+    // 과목별 집계를 위해 푼 문항을 기록 (원본을 건드리지 않도록 얕은 복사)
+    (S.answered || (S.answered = [])).push({ subject:q.subject, __ok:ok });
+
     return { ok, q, gain, combo: S.combo };
   }
 
@@ -186,7 +203,14 @@ const Engine = (() => {
     Store.save();
     const newAch = Store.checkAch();
 
-    return { acc, total, bonusXp, bonusCoin, leveled, stars, newAch,
+    // 과목별 성적 (모의고사 결과 표시용) — 실제로 푼 과목만 집계한다
+    const bySub = {};
+    for(const q of S.answered || []){
+      const b = bySub[q.subject] || (bySub[q.subject] = { n:0, ok:0 });
+      b.n++; if(q.__ok) b.ok++;
+    }
+
+    return { acc, total, bonusXp, bonusCoin, leveled, stars, newAch, bySub,
              streak: streakInfo.streak, streakReward: streakInfo.reward };
   }
 
