@@ -67,8 +67,7 @@ const Hype = (() => {
       bpm = v;
       if(playing){ clearInterval(timer); timer = setInterval(tick, 60000 / bpm / 2); }
     }
-    function duck(v){ if(gain) gain.gain.value = v; }
-    return { start, stop, setTempo, duck, get playing(){ return playing; } };
+    return { start, stop, setTempo, get playing(){ return playing; } };
   })();
 
   /* ══════════ 잭팟 릴 ══════════ */
@@ -119,7 +118,6 @@ const Hype = (() => {
         clearInterval(spin);
         r.textContent = prize.sym;
         r.classList.remove('stop'); void r.offsetWidth; r.classList.add('stop');
-        Sfx.tone ? Sfx.tone(600 + i * 200, .08) : Sfx.tap();
         Sfx.coin();
         done++;
         if(done === reels.length) settle(el, prize, onWin);

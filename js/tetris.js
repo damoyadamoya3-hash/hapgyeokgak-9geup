@@ -370,7 +370,6 @@ const Tetris = (() => {
   return {
     init, stop, drop, garbage, bomb, resize, detonate, setSpeed, pause, resume,
     pending(){ return pendingRows().length; },
-    height: stackHeight,
     get lines(){ return lines; },
     get drops(){ return drops; },
     get running(){ return running; }

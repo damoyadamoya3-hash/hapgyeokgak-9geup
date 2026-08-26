@@ -47,13 +47,6 @@ const Store = (() => {
 
   /* ── 레벨 계산: 누적 XP → 레벨 ────────────────────────── */
   function xpForLevel(lv){ return Math.round(80 * Math.pow(lv, 1.35)); }
-  function recalcLevel(){
-    let lv = 1, need = xpForLevel(1), left = S.xp;
-    while(left >= need){ left -= need; lv++; need = xpForLevel(lv); }
-    const leveled = lv > S.lv;
-    S.lv = lv;
-    return { leveled, lv, cur: left, need };
-  }
   function levelInfo(){
     let lv = 1, need = xpForLevel(1), left = S.xp;
     while(left >= need){ left -= need; lv++; need = xpForLevel(lv); }
@@ -147,7 +140,9 @@ const Store = (() => {
     const r = S.readCards[cardId] || { read:null, drill:0 };
     const first = !r.read;
     r.read = today();
-    S.readCards[cardId] = r; save();
+    S.readCards[cardId] = r;
+    if(first) progressTask('codex', 1);
+    save();
     return first;                       // 최초 열람이면 true (보상 지급용)
   }
   function markDrill(cardId){
@@ -288,7 +283,9 @@ const Store = (() => {
     { id:'acc80',   text:'정답률 80% 이상 1판',   goal:1,  xp:80,  coin:30, key:'acc80' },
     { id:'boss1',   text:'보스 1마리 격파',       goal:1,  xp:100, coin:40, key:'boss' },
     { id:'srs10',   text:'복습카드 10개 정리',    goal:10, xp:70,  coin:25, key:'srs' },
-    { id:'combo10', text:'10콤보 달성',           goal:10, xp:80,  coin:30, key:'combo' }
+    { id:'combo10', text:'10콤보 달성',           goal:10, xp:80,  coin:30, key:'combo' },
+    { id:'exam1',   text:'모의고사 1회 응시',     goal:1,  xp:120, coin:50, key:'exam' },
+    { id:'codex2',  text:'이론 카드 2장 읽기',    goal:2,  xp:60,  coin:20, key:'codex' }
   ];
   function daily(){
     const t = today();
