@@ -647,3 +647,34 @@ body.fever .combo-badge{background:linear-gradient(120deg,#ff2e88,#ffd600);anima
 .fb-codex:hover{ background:var(--bg); border-color:var(--brand); }
 .fb-codex:active{ transform:translateY(1px); }
 @media (pointer:coarse){ .fb-codex{ min-height:44px; } }
+
+/* 계정 · 이어하기 ─────────────────────────────────────
+   서버가 없으므로 '로그인' 대신 진도를 통째로 옮기는 코드를 쓴다.
+   코드가 40KB 나 되어 prompt 창으로는 다룰 수 없어 전용 화면을 둔다. */
+.sync-card{
+  background:var(--card); border:2px solid var(--line); border-radius:16px;
+  padding:16px; margin-bottom:14px;
+}
+.sync-h{ font-family:var(--f-round); font-size:16px; margin:0 0 8px; color:var(--ink); }
+.sync-lab{ display:block; font-family:var(--f-round); font-size:14px; margin-bottom:6px; }
+.sync-nick{
+  width:100%; padding:11px 13px; border:2px solid var(--line); border-radius:11px;
+  background:var(--bg); color:var(--ink); font-family:var(--f-body); font-size:15px;
+}
+.sync-note{ font-size:13px; color:var(--muted); margin:8px 0 0; line-height:1.6; }
+.sync-box{
+  width:100%; margin:10px 0; padding:11px 13px;
+  border:2px solid var(--line); border-radius:11px; resize:vertical;
+  background:var(--bg); color:var(--muted);
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11px;
+  line-height:1.5; word-break:break-all;
+}
+.sync-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; text-align:center; }
+.sync-grid div{ background:var(--bg); border-radius:11px; padding:10px 4px; min-width:0; }
+.sync-grid b{ display:block; font-family:var(--f-round); font-size:17px; color:var(--brand-ink); }
+.sync-grid span{ font-size:11px; color:var(--muted); }
+.sync-card .btn-ghost{ width:100%; margin-top:8px; }
+.sync-foot{ font-size:12px; color:var(--muted); line-height:1.7; margin:4px 4px 24px; }
+@media (max-width:400px){
+  .sync-grid{ grid-template-columns:repeat(2,1fr); }
+}

@@ -38,7 +38,7 @@
 <section id="scr-home" class="screen">
   <header class="topbar">
     <div class="tb-left">
-      <div class="avatar" id="hud-avatar">🐣</div>
+      <button class="avatar" id="hud-avatar" title="내 계정 · 다른 기기에서 이어하기" aria-label="내 계정">🐣</button>
       <div class="tb-meta">
         <div class="tb-name"><span id="hud-title">9급 지망생</span> <b id="hud-lv">Lv.1</b></div>
         <div class="xpbar"><i id="hud-xpfill"></i><span id="hud-xptext">0 / 100</span></div>
@@ -118,6 +118,12 @@
 <section id="scr-shop" class="screen">
   <header class="subbar"><button class="back-btn" data-back aria-label="뒤로 가기">←</button><h2>🪙 상점</h2><span></span></header>
   <main class="stats-wrap"><div id="shop-body"></div></main>
+</section>
+
+<!-- ═══════════ 계정 · 이어하기 ═══════════ -->
+<section id="scr-sync" class="screen">
+  <header class="subbar"><button class="back-btn" data-back aria-label="뒤로 가기">←</button><h2>👤 내 계정</h2><span></span></header>
+  <main class="stats-wrap"><div id="sync-body"></div></main>
 </section>
 
 <!-- ═══════════ 오답노트 ═══════════ -->
@@ -219,8 +225,7 @@
     <label class="sw"><span>🎵 배경음악</span><input type="checkbox" id="set-bgm" checked></label>
     <label class="sw"><span>🗓️ 시험일</span><input type="date" id="set-exam" class="set-date"></label>
     <div class="modal-danger">
-      <button class="btn-ghost" id="btn-export">📤 진행도 내보내기</button>
-      <button class="btn-ghost" id="btn-import">📥 불러오기</button>
+      <button class="btn-ghost" id="btn-sync">🔗 다른 기기에서 이어하기</button>
       <button class="btn-danger" id="btn-reset">전체 초기화</button>
     </div>
     <button class="btn-primary" id="btn-close-settings" aria-label="설정 닫기">닫기</button>

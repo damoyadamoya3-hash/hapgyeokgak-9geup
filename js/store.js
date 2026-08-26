@@ -23,6 +23,8 @@ const Store = (() => {
     streakClaimed: {},
     // 시험일 (YYYY-MM-DD). 설정하면 D-day 와 하루 목표량을 계산한다
     examDate: null,
+    // 이 사람이 스스로 붙인 이름. 기기를 오갈 때 누구 진도인지 알아보는 표시
+    nick: '',
     // 상점에서 산 소모품 보유량
     inv: { hint:0, heart:0, boost:0 },
     ach: {},
@@ -474,20 +476,8 @@ const Store = (() => {
 
   function importData(str){
     try{
-      const raw = JSON.parse(decodeURIComponent(escape(atob(str.trim()))));
-      let p;
-      if(raw && (raw.v === 2 || raw.v === 3)){
-        p = raw.s || {};
-        p.cards = {};
-        const dates = raw.d || [];
-        for(const id in (raw.c || {})){
-          const a = raw.c[id];
-          const due = raw.v === 3 ? (dates[a[4]] ?? today()) : a[4];
-          p.cards[id] = { n:a[0], ok:a[1], ng:a[2], box:a[3], due, last:a[5] || null };
-        }
-      }else{
-        p = raw;                      // 옛 형식도 그대로 받아들인다
-      }
+      const p = decodePack(str);
+      if(!p) return false;
       S = Object.assign(structuredClone(DEFAULT), p);
       S.settings = Object.assign(structuredClone(DEFAULT.settings), p.settings || {});
       S.daily    = Object.assign(structuredClone(DEFAULT.daily),    p.daily    || {});
@@ -495,6 +485,91 @@ const Store = (() => {
       return true;
     }catch(e){ return false; }
   }
+  /* ── 기기 간 이어하기 ───────────────────────────────
+     정적 페이지라 계정 서버를 둘 수 없다. 대신 진도 전체를 한 줄의
+     코드로 뽑아 다른 기기에 붙여 넣는다. 이때 덮어쓰면 안 된다 —
+     PC 코드를 폰에 넣는 순간 폰에서 푼 것이 사라지기 때문이다.
+     그래서 두 기록 중 더 많이 공부한 쪽을 남기는 병합으로 처리한다. */
+  function mergeData(str){
+    let inc;
+    try{ inc = decodePack(str); }catch(e){ return null; }
+    if(!inc) return null;
+
+    const before = { n:S.totalAnswered, cards:Object.keys(S.cards).length };
+
+    // 누적값은 큰 쪽을 남긴다
+    ['xp','coin','totalAnswered','totalCorrect','maxCombo','bestOx',
+     'bossKills','examCount','streak'].forEach(k => {
+      S[k] = Math.max(S[k] || 0, inc[k] || 0);
+    });
+    S.lv = levelInfo(S.xp).lv;
+
+    // 문항 기록 — 더 많이 푼 쪽을 남기고, 복습일은 이른 쪽을 택한다
+    for(const id in (inc.cards || {})){
+      const a = S.cards[id], b = inc.cards[id];
+      if(!a){ S.cards[id] = b; continue; }
+      S.cards[id] = {
+        n:   Math.max(a.n, b.n),
+        ok:  Math.max(a.ok, b.ok),
+        ng:  Math.max(a.ng, b.ng),
+        box: Math.max(a.box, b.box),
+        due: (a.due && b.due) ? (a.due < b.due ? a.due : b.due) : (a.due || b.due),
+        last: (a.last && b.last) ? (a.last > b.last ? a.last : b.last) : (a.last || b.last)
+      };
+    }
+
+    // 단원 성적은 별과 최고점이 높은 쪽
+    for(const u in (inc.units || {})){
+      const a = S.units[u], b = inc.units[u];
+      S.units[u] = a ? { stars:Math.max(a.stars, b.stars), best:Math.max(a.best, b.best) } : b;
+    }
+
+    // 하루 학습량은 같은 날짜라면 많이 푼 쪽
+    for(const d in (inc.dayStats || {})){
+      const a = S.dayStats[d], b = inc.dayStats[d];
+      S.dayStats[d] = (a && a.n >= b.n) ? a : b;
+    }
+
+    // 열람·북마크·업적·출석 보상은 합집합
+    for(const c in (inc.readCards || {})){
+      const a = S.readCards[c], b = inc.readCards[c];
+      S.readCards[c] = a
+        ? { read: a.read || b.read, drill: Math.max(a.drill || 0, b.drill || 0) }
+        : b;
+    }
+    Object.assign(S.marks,         inc.marks         || {});
+    Object.assign(S.ach,           inc.ach           || {});
+    Object.assign(S.streakClaimed, inc.streakClaimed || {});
+    for(const k in (inc.inv || {})) S.inv[k] = Math.max(S.inv[k] || 0, inc.inv[k]);
+
+    S.playedDays = [...new Set([...(S.playedDays||[]), ...(inc.playedDays||[])])].sort();
+    if(inc.examDate && !S.examDate) S.examDate = inc.examDate;
+    if(inc.lastPlay && (!S.lastPlay || inc.lastPlay > S.lastPlay)) S.lastPlay = inc.lastPlay;
+
+    save();
+    return {
+      added:   Object.keys(S.cards).length - before.cards,
+      answered: S.totalAnswered - before.n,
+      total:   Object.keys(S.cards).length
+    };
+  }
+
+  /* 코드 → 상태 객체. v1~v3 을 모두 읽는다. */
+  function decodePack(str){
+    const raw = JSON.parse(decodeURIComponent(escape(atob(String(str).trim()))));
+    if(!raw) return null;
+    if(raw.v !== 2 && raw.v !== 3) return raw;      // 옛 형식
+    const p = raw.s || {};
+    p.cards = {};
+    const dates = raw.d || [];
+    for(const id in (raw.c || {})){
+      const a = raw.c[id];
+      const due = raw.v === 3 ? (dates[a[4]] ?? today()) : a[4];
+      p.cards[id] = { n:a[0], ok:a[1], ng:a[2], box:a[3], due, last:a[5] || null };
+    }
+    return p;
+  }
+
   function reset(){ S = structuredClone(DEFAULT); save(); }
 
   return {
@@ -505,6 +580,6 @@ const Store = (() => {
     weekAttendance, nextStreakGoal, STREAK_REWARDS, setExamDate, plan,
     SHOP, buy, useItem, has,
     subjectAccuracy, subjectSeen, touchStreak, daily, progressTask,
-    checkAch, ACHS, exportData, importData, reset, today
+    checkAch, ACHS, exportData, importData, mergeData, reset, today
   };
 })();

@@ -62,7 +62,7 @@ const UI = (() => {
   function hud(){
     const li = Store.levelInfo(), t = Store.title();
     $('#hud-avatar').textContent = t.emoji;
-    $('#hud-title').textContent  = t.name;
+    $('#hud-title').textContent  = Store.s.nick ? Store.s.nick + ' · ' + t.name : t.name;
     $('#hud-lv').textContent     = 'Lv.' + li.lv;
     $('#hud-xpfill').style.width = li.pct + '%';
     $('#hud-xptext').textContent = li.cur + ' / ' + li.need;
@@ -260,6 +260,98 @@ const UI = (() => {
   }
 
   /* ══════════ 상점 ══════════ */
+  /* ── 계정 · 다른 기기에서 이어하기 ────────────────────
+     정적 페이지라 계정 서버가 없다. 그래서 '로그인' 대신 진도 전체를
+     한 줄의 코드로 옮긴다. 핵심은 불러오기가 덮어쓰기가 아니라
+     합치기라는 점이다 — 그래야 두 기기를 번갈아 써도 잃지 않는다. */
+  function sync(onChange){
+    const sum = Store.summary ? Store.summary() : null;
+    const cards = Object.keys(Store.s.cards).length;
+    const lv = Store.levelInfo(Store.s.xp);
+    const code = Store.exportData();
+
+    $('#sync-body').innerHTML = `
+      <div class="sync-card">
+        <label class="sync-lab" for="sync-nick">이름표</label>
+        <input id="sync-nick" class="sync-nick" maxlength="12" placeholder="예: 지훈"
+               value="${esc(Store.s.nick || '')}">
+        <p class="sync-note">기기를 오갈 때 누구 진도인지 알아보기 위한 표시입니다.</p>
+      </div>
+
+      <div class="sync-card">
+        <h3 class="sync-h">지금 이 기기의 진도</h3>
+        <div class="sync-grid">
+          <div><b>Lv.${lv.lv}</b><span>레벨</span></div>
+          <div><b>${Store.s.totalAnswered.toLocaleString()}</b><span>푼 문제</span></div>
+          <div><b>${cards.toLocaleString()}</b><span>기록된 문항</span></div>
+          <div><b>${Store.s.streak}일</b><span>연속 학습</span></div>
+        </div>
+      </div>
+
+      <div class="sync-card">
+        <h3 class="sync-h">1. 이 기기의 코드 만들기</h3>
+        <p class="sync-note">아래 코드를 복사해 다른 기기의 <b>2번 칸</b>에 붙여 넣으세요.</p>
+        <textarea id="sync-out" class="sync-box" readonly rows="3">${esc(code)}</textarea>
+        <button class="btn-primary" id="sync-copy">📋 코드 복사 (${(code.length/1024).toFixed(0)}KB)</button>
+      </div>
+
+      <div class="sync-card">
+        <h3 class="sync-h">2. 다른 기기의 코드 불러오기</h3>
+        <p class="sync-note">
+          <b>합치기</b>는 두 기록 중 더 많이 공부한 쪽을 남깁니다.
+          번갈아 써도 잃는 것이 없으니 이쪽을 쓰세요.
+        </p>
+        <textarea id="sync-in" class="sync-box" rows="3" placeholder="여기에 코드를 붙여 넣으세요"></textarea>
+        <button class="btn-primary" id="sync-merge">🔗 합치기</button>
+        <button class="btn-ghost" id="sync-replace">이 기기를 코드로 덮어쓰기</button>
+      </div>
+
+      <p class="sync-foot">
+        이 사이트는 서버 없이 기기 안에서만 돌아갑니다. 그래서 진도도 기기에 남습니다.
+        코드는 그 진도를 통째로 옮기는 열쇠이니, 시험 전까지 한 번쯤 따로 보관해 두세요.
+      </p>`;
+
+    $('#sync-nick').addEventListener('change', e => {
+      Store.s.nick = e.target.value.trim().slice(0, 12);
+      Store.save(); hud();
+      Fx.toast(Store.s.nick ? `${Store.s.nick} 님으로 저장했어요` : '이름표를 지웠어요', true, 1600);
+    });
+
+    $('#sync-copy').addEventListener('click', () => {
+      const ta = $('#sync-out');
+      ta.select(); ta.setSelectionRange(0, ta.value.length);
+      const done = () => Fx.toast('코드를 복사했어요 📋 다른 기기에 붙여 넣으세요', true, 2600);
+      if(navigator.clipboard) navigator.clipboard.writeText(ta.value).then(done, () => {
+        try{ document.execCommand('copy'); done(); }
+        catch(e){ Fx.toast('길게 눌러 직접 복사해 주세요'); }
+      });
+      else { try{ document.execCommand('copy'); done(); }catch(e){} }
+    });
+
+    $('#sync-merge').addEventListener('click', () => {
+      const v = $('#sync-in').value.trim();
+      if(!v) return Fx.toast('먼저 코드를 붙여 넣어 주세요');
+      const r = Store.mergeData(v);
+      if(!r) return Fx.toast('코드를 읽을 수 없어요. 전체를 복사했는지 확인해 주세요 😢');
+      Fx.toast(`합쳤어요! 문항 ${r.added}개가 새로 들어왔습니다 (총 ${r.total}개)`, true, 3200);
+      onChange && onChange();
+      sync(onChange);
+    });
+
+    $('#sync-replace').addEventListener('click', () => {
+      const v = $('#sync-in').value.trim();
+      if(!v) return Fx.toast('먼저 코드를 붙여 넣어 주세요');
+      if(!confirm('이 기기의 진도를 지우고 코드의 내용으로 바꿉니다. 계속할까요?')) return;
+      if(Store.importData(v)){
+        Fx.toast('불러오기 완료!', true);
+        onChange && onChange();
+        sync(onChange);
+      } else Fx.toast('코드가 올바르지 않아요 😢');
+    });
+
+    show('scr-sync');
+  }
+
   function shop(onBuy){
     const coin = Store.s.coin;
     $('#shop-body').innerHTML = `
@@ -815,6 +907,6 @@ const UI = (() => {
 
   return { $, $$, esc, show, back, popScreen, setPopHandler, currentScreen,
            hud, home, daily, planCard, startGuide, setGuideHandler, subjects, achievements,
-           modeTags, selectSubject, selectUnit, question, reveal, result,
+           modeTags, selectSubject, selectUnit, question, reveal, result, sync,
            codexList, cardDetail, bumpXp, stats, notes, setNoteTab, markSilent, shop };
 })();

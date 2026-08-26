@@ -479,18 +479,16 @@
     });
     window.addEventListener('resize', () => { if(Tetris.running) Tetris.resize(); });
 
-    $('#btn-export').addEventListener('click', () => {
-      const code = Store.exportData();
-      navigator.clipboard?.writeText(code).then(
-        () => Fx.toast('진행도 코드가 클립보드에 복사됐어요 📋', true, 2600),
-        () => prompt('아래 코드를 복사해 두세요', code)
-      );
+    // 아바타 → 계정 화면
+    $('#hud-avatar').addEventListener('click', () => {
+      Sfx.tap();
+      UI.sync(() => { applyTheme(); UI.home(); });
     });
-    $('#btn-import').addEventListener('click', () => {
-      const code = prompt('내보내기 코드를 붙여넣으세요');
-      if(!code) return;
-      if(Store.importData(code)){ Fx.toast('불러오기 완료!', true); applyTheme(); UI.home(); modal.classList.add('hidden'); }
-      else Fx.toast('코드가 올바르지 않아요 😢');
+
+    // 40KB 짜리 코드는 prompt 창에 붙여 넣을 수 없다. 전용 화면으로 보낸다.
+    $('#btn-sync').addEventListener('click', () => {
+      modal.classList.add('hidden');
+      UI.sync(() => { applyTheme(); UI.home(); });
     });
     $('#btn-reset').addEventListener('click', () => {
       if(confirm('모든 진행도가 삭제됩니다. 정말 초기화할까요?')){
