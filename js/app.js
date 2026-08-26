@@ -17,6 +17,7 @@
   ];
   function boot(){
     applyTheme();
+    Store.onSaveError(warnSaveFailed);
     QB.buildClozeQuestions();     // 이론 카드의 빈칸 → 실제 문항으로 편입
 
     // 실제 준비는 수십 ms 면 끝난다. 로고를 보여 주되 기다리게 하지는 않는다.
@@ -41,6 +42,19 @@
     document.documentElement.setAttribute('data-theme', Store.s.settings.dark ? 'dark' : 'light');
     // Artifact 로 배포하면 <html lang="ko"> 가 제거되므로 여기서 보장한다
     if(!document.documentElement.lang) document.documentElement.lang = 'ko';
+  }
+
+  /* 저장이 안 되면 반드시 알려야 한다. 모르고 계속 풀면 그 시간이 통째로
+     날아간다. 진도를 옮겨 둘 방법(계정 화면의 코드)까지 함께 안내한다. */
+  function warnSaveFailed(){
+    Fx.toast('⚠️ 진도가 저장되지 않고 있어요 — 저장 공간이 찼거나 시크릿 모드입니다', false, 6000);
+    setTimeout(() => {
+      if(confirm('브라우저에 진도를 저장할 수 없습니다.\n\n'
+               + '이대로 두면 창을 닫는 순간 오늘 푼 것이 사라집니다.\n'
+               + '지금 계정 화면에서 코드를 만들어 다른 곳에 보관하시겠어요?')){
+        UI.sync(() => { applyTheme(); UI.home(); });
+      }
+    }, 600);
   }
 
   /* ── 세션 시작 ─────────────────────────────────────── */

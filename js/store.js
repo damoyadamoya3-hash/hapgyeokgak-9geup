@@ -58,9 +58,36 @@ const Store = (() => {
       return merged;
     }catch(e){ return structuredClone(DEFAULT); }
   }
+  /* 저장 실패를 조용히 삼키면 하루 종일 공부한 것이 사라졌다는 사실을
+     아무도 모른 채 창을 닫게 된다. 눈에 보이는 오류보다 나쁘다.
+     저장 공간이 꽉 찼거나 시크릿 모드일 때 실제로 일어난다. */
+  let saveBroken = false;
+  let onSaveFail = null;
+  function onSaveError(fn){ onSaveFail = fn; }
+
   function save(){
     prune();
-    try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){}
+    try{
+      localStorage.setItem(KEY, JSON.stringify(S));
+      saveBroken = false;
+      return true;
+    }catch(e){
+      // 오래된 기록을 버리고 한 번 더 시도한다
+      try{
+        const keys = Object.keys(S.dayStats).sort();
+        if(keys.length > 30) for(const k of keys.slice(0, keys.length - 30)) delete S.dayStats[k];
+        if(S.examLog.length > 20) S.examLog = S.examLog.slice(-20);
+        localStorage.setItem(KEY, JSON.stringify(S));
+        saveBroken = false;
+        return true;
+      }catch(e2){
+        if(!saveBroken){            // 한 세션에 한 번만 알린다
+          saveBroken = true;
+          if(onSaveFail) try{ onSaveFail(e2); }catch(e3){}
+        }
+        return false;
+      }
+    }
   }
 
   /* 일자별 기록은 분석에 180일이면 충분하다. 그대로 두면 해마다 늘어난다. */
@@ -633,6 +660,7 @@ const Store = (() => {
     weekAttendance, nextStreakGoal, STREAK_REWARDS, setExamDate, plan,
     SHOP, buy, useItem, has, logExam, examLog, lastExam,
     subjectAccuracy, subjectSeen, touchStreak, daily, progressTask,
-    checkAch, ACHS, exportData, importData, mergeData, reset, today
+    checkAch, ACHS, exportData, importData, mergeData, reset, today,
+    onSaveError, get saveBroken(){ return saveBroken; }
   };
 })();
