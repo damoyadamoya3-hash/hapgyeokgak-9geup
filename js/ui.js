@@ -6,19 +6,57 @@ const UI = (() => {
   const $$ = s => Array.from(document.querySelectorAll(s));
   const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-  let history = [];
+  /* ── 화면 이동 ──────────────────────────────────────────
+     내부 스택과 브라우저 히스토리를 함께 관리한다.
+     그래야 폰의 뒤로가기 버튼·제스처가 앱을 나가지 않고
+     이전 화면으로 돌아간다. */
+  let stack = [];
+  let onPop = null;          // 앱이 가로챌 기회 (풀이 중 이탈 확인 등)
 
-  function show(id, push = true){
+  function paint(id){
     $$('.screen').forEach(s => s.classList.remove('active'));
     const el = document.getElementById(id);
     if(el) el.classList.add('active');
-    if(push) history.push(id);
     window.scrollTo(0, 0);
   }
-  function back(){
-    history.pop();
-    show(history.pop() || 'scr-home');
+
+  function show(id, push = true){
+    paint(id);
+    if(push){
+      stack.push(id);
+      // 아티팩트 iframe 등 히스토리 조작이 막힌 환경에서도 앱은 동작해야 한다
+      try{ window.history.pushState({ depth: stack.length }, ''); }catch(e){}
+    }
   }
+
+  /* 내부 스택만 되돌린다 (브라우저 히스토리는 건드리지 않음) */
+  function popScreen(){
+    if(stack.length <= 1){
+      paint('scr-home');
+      stack = ['scr-home'];
+      return false;
+    }
+    stack.pop();
+    paint(stack[stack.length - 1]);
+    return true;
+  }
+
+  /* 화면 안의 ← 버튼 — 브라우저 히스토리를 통해 돌아가
+     내부 스택과 브라우저 기록이 어긋나지 않게 한다 */
+  function back(){
+    if(stack.length > 1){
+      try{ window.history.back(); return; }catch(e){}
+    }
+    popScreen();
+  }
+
+  window.addEventListener('popstate', () => {
+    if(onPop && onPop() === false) return;   // 앱이 처리했으면 여기서 멈춘다
+    popScreen();
+  });
+
+  function setPopHandler(fn){ onPop = fn; }
+  function currentScreen(){ return stack[stack.length - 1] || 'scr-home'; }
 
   /* ── HUD ───────────────────────────────────────────── */
   function hud(){
@@ -656,7 +694,8 @@ const UI = (() => {
     show('scr-result');
   }
 
-  return { $, $$, esc, show, back, hud, home, daily, subjects, achievements,
+  return { $, $$, esc, show, back, popScreen, setPopHandler, currentScreen,
+           hud, home, daily, subjects, achievements,
            modeTags, selectSubject, selectUnit, question, reveal, result,
            codexList, cardDetail, bumpXp, stats, notes, setNoteTab, markSilent };
 })();

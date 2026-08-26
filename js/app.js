@@ -393,7 +393,24 @@
     });
   }
 
+  /* 폰의 뒤로가기 — 풀이 중이면 바로 나가지 않고 확인부터 받는다 */
+  function handleBack(){
+    if(S && UI.currentScreen() === 'scr-play'){
+      if(confirm('풀이를 그만둘까요? 지금까지의 기록은 저장됩니다.')){
+        end();                       // 결과 화면으로 정상 종료
+      }else{
+        // 사용자가 계속 풀겠다고 했으므로 히스토리 항목을 되돌려 놓는다
+        try{ window.history.pushState({ depth: 0 }, ''); }catch(e){}
+      }
+      return false;                  // 기본 뒤로가기 동작을 막는다
+    }
+    return true;
+  }
+
   /* ── 시작 ──────────────────────────────────────────── */
-  document.addEventListener('DOMContentLoaded', () => { wire(); boot(); });
+  document.addEventListener('DOMContentLoaded', () => {
+    UI.setPopHandler(handleBack);
+    wire(); boot();
+  });
   window.__app = { start, get session(){ return S; } };
 })();
