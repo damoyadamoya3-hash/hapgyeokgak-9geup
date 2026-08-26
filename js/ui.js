@@ -273,7 +273,7 @@ const UI = (() => {
         <span class="st-no">${locked ? '🔒' : (i + 1)}</span>
         <span class="st-body"><h4>${u.emoji} ${esc(u.name)}</h4>
           <p>${n ? n + '문항 · 최고 ' + rec.best + '%' : '문항 준비중'}</p></span>
-        <span class="st-stars" style="color:var(--gold)">${stars}</span>
+        <span class="st-stars" style="color:var(--gold-ink)">${stars}</span>
       </button>`;
     }).join('') + `</div>`;
     $$('#sel-body [data-unit]').forEach(b =>
@@ -593,9 +593,9 @@ const UI = (() => {
           const last  = Math.round(log[log.length-1].ok / log[log.length-1].n * 100);
           const diff  = last - first;
           return `<p class="ex-note">${diff > 0
-            ? `첫 회차보다 <b style="color:var(--good)">${diff}점</b> 올랐어요.`
+            ? `첫 회차보다 <b style="color:var(--good-ink)">${diff}점</b> 올랐어요.`
             : diff < 0
-              ? `첫 회차보다 <b style="color:var(--bad)">${-diff}점</b> 내려갔어요. 오답노트부터 훑어 보세요.`
+              ? `첫 회차보다 <b style="color:var(--bad-ink)">${-diff}점</b> 내려갔어요. 오답노트부터 훑어 보세요.`
               : '첫 회차와 같은 점수예요. 약한 단원을 좁혀 보세요.'}</p>`;
         })() : ''}
       </div>` : '';
@@ -709,7 +709,7 @@ const UI = (() => {
     $('#sel-body').innerHTML = `
       <div class="codex-stat">
         <span>📖 수집률</span><span class="cs-bar"><i style="width:${pct}%"></i></span>
-        <b style="font-family:var(--f-round);color:var(--brand)">${read}/${cards.length}</b>
+        <b style="font-family:var(--f-round);color:var(--brand-ink)">${read}/${cards.length}</b>
       </div>
       ${cards.length ? '' : '<div class="sel-note">이 과목의 이론 카드는 준비 중입니다.</div>'}
       ${units.map(u => `

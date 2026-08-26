@@ -11,9 +11,9 @@ window.QB = {
       desc: '어휘·생활영어·문법·독해' },
     { id: 'his',   name: '한국사(한능검)', emoji: '🏯', color: '#6b4fb8',
       desc: '한국사능력검정시험 심화 대비 · 선사~현대' },
-    { id: 'edu',   name: '교육학개론',   emoji: '🎓', color: '#1e9e62',
+    { id: 'edu',   name: '교육학개론',   emoji: '🎓', color: '#08884c',
       desc: '교육철학·교육사·교육심리·교육과정·교육행정·교육평가' },
-    { id: 'law',   name: '행정법총론',   emoji: '⚖️', color: '#c8930a',
+    { id: 'law',   name: '행정법총론',   emoji: '⚖️', color: '#a16c00',
       desc: '행정법통론·행정작용법·행정구제법·행정절차·정보공개' }
   ],
 
