@@ -448,16 +448,28 @@ const Store = (() => {
     }
     return S.daily;
   }
+  /* 임무를 끝내면 그 자리에서 보상을 준다.
+     예전에는 done 만 찍고 XP·코인을 주지 않아, 목록에 '+60XP · 20🪙'
+     라고 써 놓고 아무것도 주지 않았다. 매일 보이는 자리에서 약속이
+     깨지고 있었던 셈이다. */
   function progressTask(key, amount){
     const d = daily();
-    let changed = null;
+    const finished = [];
     for(const t of d.tasks){
       if(t.key !== key || t.done) continue;
       t.prog = (key === 'combo') ? Math.max(t.prog, amount) : t.prog + amount;
-      if(t.prog >= t.goal){ t.done = true; changed = t; }
+      if(t.prog >= t.goal){
+        t.prog = t.goal;          // 넘겨 표시하지 않는다
+        t.done = true;
+        finished.push(t);
+      }
+    }
+    for(const t of finished){     // 지급은 상태를 저장한 뒤에
+      addXp(t.xp || 0);
+      addCoin(t.coin || 0);
     }
     save();
-    return changed;
+    return finished;
   }
 
   /* ── 업적 ───────────────────────────────────────────── */

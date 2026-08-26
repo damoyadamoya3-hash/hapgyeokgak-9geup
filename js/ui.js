@@ -1046,6 +1046,12 @@ const UI = (() => {
     if(fin.leveled){
       setTimeout(() => { Sfx.levelup(); Fx.toast(`🎊 레벨 업! Lv.${fin.leveled} — ${Store.title().name}`, true, 3200); Fx.confetti(50); }, 700);
     }
+    (fin.doneTasks || []).forEach((t, i) =>
+      setTimeout(() => {
+        Sfx.coin();
+        Fx.toast(`✅ 오늘의 임무 완료: ${t.text} (+${t.xp} XP · ${t.coin}🪙)`, true, 2600);
+      }, 900 + i * 900));
+
     fin.newAch.forEach((a, i) =>
       setTimeout(() => { Sfx.unlock(); Fx.toast(`${a.e} 업적 달성: ${a.n}`, true, 2800); }, 1200 + i * 800));
 

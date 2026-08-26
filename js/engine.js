@@ -320,11 +320,13 @@ const Engine = (() => {
     const streakInfo = Store.touchStreak();
 
     // 일일 임무 진행
-    Store.progressTask('answered', total);
-    if(S.mode === 'ox') Store.progressTask('ox', S.correct);
-    if(S.mode === 'srs') Store.progressTask('srs', S.correct);
-    if(acc >= 80 && total >= 5) Store.progressTask('acc80', 1);
-    Store.progressTask('combo', S.maxCombo);
+    const doneTasks = [];
+    const task = (k, v) => { const r = Store.progressTask(k, v); if(r && r.length) doneTasks.push(...r); };
+    task('answered', total);
+    if(S.mode === 'ox') task('ox', S.correct);
+    if(S.mode === 'srs') task('srs', S.correct);
+    if(acc >= 80 && total >= 5) task('acc80', 1);
+    task('combo', S.maxCombo);
 
     // 단원 별 획득
     let stars = 0;
@@ -342,7 +344,7 @@ const Engine = (() => {
 
     if(S.mode === 'exam'){ Store.logExam(S.opt.subject || 'all', bySub); Store.save(); }
 
-    return { acc, total, bonusXp, bonusCoin, leveled, stars, newAch, bySub,
+    return { acc, total, bonusXp, bonusCoin, leveled, stars, newAch, bySub, doneTasks,
              streak: streakInfo.streak, streakReward: streakInfo.reward };
   }
 
