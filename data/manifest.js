@@ -49,6 +49,7 @@ window.QB_PACKS = [
   'questions/law-03-more',
   'questions/law-04-fill',
   'questions/law-05-fill',
+  'questions/law-06-mcq',
 
   /* ── 국어 ── */
   'questions/kor-01-gram',

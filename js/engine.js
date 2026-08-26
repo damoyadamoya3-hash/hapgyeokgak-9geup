@@ -168,11 +168,20 @@ const Engine = (() => {
          모의고사만큼은 객관식을 먼저 채워야 실전 감각이 생긴다.
          객관식이 모자란 과목은 남는 자리만 OX 로 메운다. */
       const examPick = (sid, n) => {
-        const all  = QB.bySubject(sid);
-        const mcq  = shuffle(all.filter(q => q.type === 'mcq')).slice(0, n);
-        if(mcq.length >= n) return mcq;
-        const ox = shuffle(all.filter(q => q.type !== 'mcq')).slice(0, n - mcq.length);
-        return shuffle(mcq.concat(ox));
+        const all = QB.bySubject(sid);
+        /* 이론 카드에서 뽑아낸 빈칸 문항은 형식만 4지선다일 뿐 실전 문제가
+           아니다. 기출형 객관식 → 기출형 OX → 빈칸 순으로 채운다. */
+        const tiers = [
+          all.filter(q => q.type === 'mcq' && !q.cloze),
+          all.filter(q => q.type !== 'mcq' && !q.cloze),
+          all.filter(q => q.cloze)
+        ];
+        let out = [];
+        for(const t of tiers){
+          if(out.length >= n) break;
+          out = out.concat(shuffle(t).slice(0, n - out.length));
+        }
+        return shuffle(out);
       };
       if(opt.subject === 'all'){
         // 전 과목 통합 회차 — 과목마다 균등하게 뽑아 실제 시험 구성에 맞춘다
