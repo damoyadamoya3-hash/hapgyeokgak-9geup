@@ -33,6 +33,8 @@
 
   function applyTheme(){
     document.documentElement.setAttribute('data-theme', Store.s.settings.dark ? 'dark' : 'light');
+    // Artifact 로 배포하면 <html lang="ko"> 가 제거되므로 여기서 보장한다
+    if(!document.documentElement.lang) document.documentElement.lang = 'ko';
   }
 
   /* ── 세션 시작 ─────────────────────────────────────── */

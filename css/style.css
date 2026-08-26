@@ -511,3 +511,28 @@ body.fever .combo-badge{background:linear-gradient(120deg,#ff2e88,#ffd600);anima
 .exam-row .ex-bar{flex:1;height:8px;background:var(--line);border-radius:99px;overflow:hidden}
 .exam-row .ex-bar i{display:block;height:100%;border-radius:99px}
 .exam-row b{font-family:var(--f-round);font-variant-numeric:tabular-nums;flex:0 0 auto;min-width:48px;text-align:right}
+
+/* ══════════ 키보드 접근성 ══════════
+   마우스 클릭에는 테두리가 생기지 않고, 키보드로 이동할 때만 표시된다. */
+:focus{outline:none}
+:focus-visible{
+  outline:3px solid var(--accent);
+  outline-offset:2px;
+  border-radius:8px;
+}
+.choice:focus-visible,
+.ox-btn:focus-visible,
+.mode-card:focus-visible,
+.subj-card:focus-visible,
+.stage:focus-visible,
+.tcard:focus-visible,
+.note-head:focus-visible,
+.st-row:focus-visible{
+  outline-offset:3px;
+}
+.btn-primary:focus-visible{outline-color:var(--gold)}
+/* 키보드 사용자를 위한 본문 바로가기 */
+.skip-link{position:absolute;left:-9999px;top:0;z-index:100;
+  background:var(--card);color:var(--ink);padding:10px 16px;border-radius:0 0 12px 0;
+  border:2px solid var(--brand);font-size:14px}
+.skip-link:focus{left:0}

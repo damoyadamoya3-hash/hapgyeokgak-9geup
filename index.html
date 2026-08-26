@@ -21,7 +21,7 @@
     <div class="jp-mult"></div>
   </div>
 </div>
-<div id="toast-layer"></div>
+<div id="toast-layer" role="status" aria-live="polite"></div>
 
 <!-- ═══════════ 로딩 ═══════════ -->
 <section id="scr-boot" class="screen active">
@@ -100,19 +100,19 @@
 
 <!-- ═══════════ 과목/스테이지 선택 ═══════════ -->
 <section id="scr-select" class="screen">
-  <header class="subbar"><button class="back-btn" data-back>←</button><h2 id="sel-title">과목 선택</h2><span></span></header>
+  <header class="subbar"><button class="back-btn" data-back aria-label="뒤로 가기">←</button><h2 id="sel-title">과목 선택</h2><span></span></header>
   <main class="sel-wrap"><div id="sel-body"></div></main>
 </section>
 
 <!-- ═══════════ 학습 분석 ═══════════ -->
 <section id="scr-stats" class="screen">
-  <header class="subbar"><button class="back-btn" data-back>←</button><h2>📊 학습 분석</h2><span></span></header>
+  <header class="subbar"><button class="back-btn" data-back aria-label="뒤로 가기">←</button><h2>📊 학습 분석</h2><span></span></header>
   <main class="stats-wrap"><div id="stats-body"></div></main>
 </section>
 
 <!-- ═══════════ 오답노트 ═══════════ -->
 <section id="scr-note" class="screen">
-  <header class="subbar"><button class="back-btn" data-back>←</button><h2>📕 오답노트</h2><span></span></header>
+  <header class="subbar"><button class="back-btn" data-back aria-label="뒤로 가기">←</button><h2>📕 오답노트</h2><span></span></header>
   <main class="stats-wrap">
     <div class="note-tabs">
       <button class="note-tab on" data-note="wrong">💀 틀린 문제</button>
@@ -124,14 +124,14 @@
 
 <!-- ═══════════ 이론 도감: 카드 상세 ═══════════ -->
 <section id="scr-card" class="screen">
-  <header class="subbar"><button class="back-btn" data-back>←</button><h2 id="card-title">이론 카드</h2><span></span></header>
+  <header class="subbar"><button class="back-btn" data-back aria-label="뒤로 가기">←</button><h2 id="card-title">이론 카드</h2><span></span></header>
   <main class="card-wrap"><div id="card-body"></div></main>
 </section>
 
 <!-- ═══════════ 플레이 ═══════════ -->
 <section id="scr-play" class="screen">
   <header class="playbar">
-    <button class="back-btn" id="btn-quit">✕</button>
+    <button class="back-btn" id="btn-quit" aria-label="그만두기">✕</button>
     <div class="pb-center">
       <div class="pb-progress"><i id="pb-fill"></i></div>
       <div class="pb-info"><span id="pb-count">1 / 10</span><span id="pb-mode">퀘스트</span></div>
@@ -164,7 +164,7 @@
       <div id="q-choices" class="q-choices"></div>
     </div>
     <div id="feedback" class="feedback hidden">
-      <div class="fb-head"><span id="fb-icon">✅</span><b id="fb-title">정답!</b><button class="fb-mark" id="btn-mark" title="북마크">☆</button><span id="fb-xp" class="fb-xp">+10 XP</span></div>
+      <div class="fb-head"><span id="fb-icon">✅</span><b id="fb-title">정답!</b><button class="fb-mark" id="btn-mark" title="북마크" aria-label="이 문제 북마크">☆</button><span id="fb-xp" class="fb-xp">+10 XP</span></div>
       <p id="fb-exp" class="fb-exp"></p>
       <div id="fb-tip" class="fb-tip hidden"></div>
       <button class="btn-primary" id="btn-next">다음 →</button>
@@ -209,7 +209,7 @@
       <button class="btn-ghost" id="btn-import">📥 불러오기</button>
       <button class="btn-danger" id="btn-reset">전체 초기화</button>
     </div>
-    <button class="btn-primary" id="btn-close-settings">닫기</button>
+    <button class="btn-primary" id="btn-close-settings" aria-label="설정 닫기">닫기</button>
   </div>
 </div>
 
