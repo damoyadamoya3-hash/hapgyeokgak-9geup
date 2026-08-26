@@ -573,3 +573,21 @@ body.fever .combo-badge{background:linear-gradient(120deg,#ff2e88,#ffd600);anima
 .pc-warn{margin:10px 0 0;font-size:12px;line-height:1.6;color:var(--ink2);
   background:rgba(208,47,60,.10);border-radius:10px;padding:8px 10px;word-break:keep-all}
 .pc-warn b{color:var(--brand);font-family:var(--f-body);font-weight:700}
+
+/* ══════════ 시작 안내 ══════════ */
+.start-guide{background:var(--card);border:2px solid var(--brand);border-radius:var(--r);
+  padding:14px;box-shadow:0 0 0 3px rgba(229,67,43,.10), var(--shadow);margin-bottom:12px}
+.sg-head{display:flex;align-items:center;justify-content:space-between;
+  font-family:var(--f-round);font-size:15px;margin-bottom:11px}
+.sg-close{font-size:15px;color:var(--ink2);padding:3px 6px;border-radius:8px}
+.sg-list{display:grid;gap:7px}
+.sg-step{display:flex;align-items:center;gap:11px;background:var(--bg);border:2px solid transparent;
+  border-radius:13px;padding:11px 12px;text-align:left;width:100%;transition:border-color .15s}
+.sg-step:not([disabled]):active{border-color:var(--brand)}
+.sg-step.done{opacity:.55}
+.sg-icon{font-size:19px;flex:0 0 auto}
+.sg-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.sg-body b{font-family:var(--f-round);font-size:14px;font-weight:400}
+.sg-body em{font-style:normal;font-size:11.5px;color:var(--ink2)}
+.sg-go{color:var(--brand);font-size:12px;flex:0 0 auto}
+.sg-msg{margin:11px 0 0;font-size:12.5px;color:var(--ink2);text-align:center}

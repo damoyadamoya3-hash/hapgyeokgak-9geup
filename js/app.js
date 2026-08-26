@@ -421,9 +421,25 @@
     return true;
   }
 
+  /* 시작 안내에서 각 단계를 눌렀을 때 */
+  function guideStep(key){
+    if(key === 'card'){
+      openCodex();
+    }else if(key === 'quest'){
+      UI.selectSubject('🗺️ 어느 과목부터 시작할까요?',
+        '한 판은 10문항입니다. 틀려도 괜찮으니 일단 감을 잡아 보세요.',
+        sid => UI.selectUnit(sid, uid => start('quest', { unit: uid, subject: sid })));
+    }else if(key === 'exam'){
+      $('#set-exam').value = Store.s.examDate || '';
+      $('#modal-settings').classList.remove('hidden');
+      setTimeout(() => $('#set-exam').focus(), 120);
+    }
+  }
+
   /* ── 시작 ──────────────────────────────────────────── */
   document.addEventListener('DOMContentLoaded', () => {
     UI.setPopHandler(handleBack);
+    UI.setGuideHandler(guideStep);
     wire(); boot();
   });
   window.__app = { start, get session(){ return S; } };

@@ -70,6 +70,49 @@ const UI = (() => {
     $('#hud-coin').textContent   = Store.s.coin;
   }
 
+  /* ── 시작 안내 ──────────────────────────────────────
+     처음 열면 모드 카드 7개가 전부 0 으로 보여서 어디서 시작할지
+     알 수 없다. 첫 20문항을 풀 때까지만 순서를 안내한다. */
+  function startGuide(onStep){
+    const el = $('#start-guide');
+    const s = Store.s;
+    if(s.totalAnswered >= 20 || s.guideDone){ el.classList.add('hidden'); return; }
+
+    const steps = [
+      { key:'card',  icon:'📜', title:'이론 카드 한 장 읽기',
+        desc:'개념을 먼저 잡아야 문제가 붙는다', done: Store.readCount() >= 1 },
+      { key:'quest', icon:'🗺️', title:'스토리 퀘스트 한 판',
+        desc:'10문항으로 감을 잡아 본다',       done: s.totalAnswered >= 1 },
+      { key:'exam',  icon:'🗓️', title:'시험일 등록',
+        desc:'오늘 몇 문항을 풀지 정해 준다',   done: !!s.examDate }
+    ];
+    const left = steps.filter(x => !x.done).length;
+
+    el.classList.remove('hidden');
+    el.innerHTML = `
+      <div class="sg-head">
+        <span>🚩 이렇게 시작해 보세요</span>
+        <button class="sg-close" id="sg-close" aria-label="시작 안내 닫기">✕</button>
+      </div>
+      <div class="sg-list">
+        ${steps.map(x => `
+          <button class="sg-step ${x.done ? 'done' : ''}" data-step="${x.key}" ${x.done ? 'disabled' : ''}>
+            <span class="sg-icon">${x.done ? '✅' : x.icon}</span>
+            <span class="sg-body"><b>${esc(x.title)}</b><em>${esc(x.desc)}</em></span>
+            <span class="sg-go">${x.done ? '' : '▶'}</span>
+          </button>`).join('')}
+      </div>
+      ${left === 0 ? '<p class="sg-msg">준비 끝! 이제 매일 조금씩 쌓아 가면 됩니다 👍</p>' : ''}`;
+
+    $('#sg-close').addEventListener('click', () => {
+      Sfx.tap();
+      Store.s.guideDone = true; Store.save();
+      el.classList.add('hidden');
+    });
+    $$('#start-guide [data-step]').forEach(b =>
+      b.addEventListener('click', () => { Sfx.tap(); onStep(b.dataset.step); }));
+  }
+
   /* ── 학습 계획 (D-day) ─────────────────────────────── */
   function planCard(){
     const p = Store.plan();
@@ -165,7 +208,9 @@ const UI = (() => {
       </div>`).join('');
   }
 
-  function home(){ hud(); planCard(); daily(); modeTags(); subjects(); achievements(); }
+  let guideStep = null;
+  function home(){ hud(); startGuide(guideStep || (()=>{})); planCard(); daily(); modeTags(); subjects(); achievements(); }
+  function setGuideHandler(fn){ guideStep = fn; }
 
   /* ── 선택 화면: 과목 목록 ──────────────────────────── */
   function selectSubject(title, note, cb, extra){
@@ -724,7 +769,7 @@ const UI = (() => {
   }
 
   return { $, $$, esc, show, back, popScreen, setPopHandler, currentScreen,
-           hud, home, daily, planCard, subjects, achievements,
+           hud, home, daily, planCard, startGuide, setGuideHandler, subjects, achievements,
            modeTags, selectSubject, selectUnit, question, reveal, result,
            codexList, cardDetail, bumpXp, stats, notes, setNoteTab, markSilent };
 })();
