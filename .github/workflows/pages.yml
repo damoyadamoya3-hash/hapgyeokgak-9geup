@@ -1,0 +1,54 @@
+# 푸시할 때마다 사이트를 다시 빌드해 GitHub Pages 로 띄운다.
+# dist/index.html 하나에 CSS·JS·문제 데이터가 전부 들어 있으므로
+# 그 파일을 index.html 로 올리기만 하면 된다.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 문제 데이터 검증
+        run: node tools/validate.js
+
+      - name: 단일 파일로 번들
+        run: node tools/build.js
+
+      - name: 배포할 파일 모으기
+        run: |
+          mkdir -p _site
+          cp dist/index.html _site/index.html
+          # 주소창에 아무 경로나 쳐도 앱이 뜨도록
+          cp dist/index.html _site/404.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
