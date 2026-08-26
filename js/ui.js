@@ -884,6 +884,12 @@ const UI = (() => {
           </div>`).join('')
       : `<div class="sel-note" style="text-align:center">틀린 문제 없음! 완벽합니다 ✨</div>`);
 
+    // 방금 틀린 게 있으면 그 자리에서 바로잡을 길을 열어 준다
+    const wrongBtn = $('#btn-res-wrong');
+    const hasWrong = Store.wrongCards().length > 0;
+    wrongBtn.classList.toggle('hidden', !hasWrong);
+    if(hasWrong) wrongBtn.textContent = `📕 틀린 것만 다시 (${Store.wrongCards().length})`;
+
     if(win){ Sfx.win(); Fx.confetti(fin.acc === 100 ? 60 : 36); }
     else Sfx.lose();
 

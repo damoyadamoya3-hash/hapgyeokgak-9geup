@@ -307,8 +307,12 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 .rev-item{background:var(--card);border:2px solid var(--line);border-left:5px solid var(--bad);border-radius:12px;padding:11px 13px}
 .rev-item .rq{font-size:13.5px;line-height:1.6;word-break:keep-all}
 .rev-item .ra{font-size:12px;color:var(--good);margin-top:5px;font-family:var(--f-round)}
-.res-btns{display:grid;grid-template-columns:1fr 1.4fr;gap:10px}
-.res-btns .btn-primary{margin:0}
+/* 버튼이 둘일 때도 셋일 때도(오답이 있으면 '틀린 것만 다시'가 는다)
+   같은 비율로 놓이도록 그리드 대신 플렉스를 쓴다. */
+.res-btns{display:flex;flex-wrap:wrap;gap:10px}
+.res-btns>button{flex:1 1 128px;margin:0}
+.res-btns .btn-primary{flex:1.4 1 148px;margin:0}
+.res-btns>button.hidden{display:none}
 
 /* ══════════ 모달/토스트/FX ══════════ */
 .modal{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55);display:grid;place-items:center;padding:18px;animation:fadeUp .2s}

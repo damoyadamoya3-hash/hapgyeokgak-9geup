@@ -429,6 +429,13 @@
       if(confirm('정말 그만둘까요? 지금까지의 기록은 저장됩니다.')){ end(); }
     });
     $('#btn-res-home').addEventListener('click', () => { Sfx.tap(); UI.home(); UI.show('scr-home'); });
+    /* 틀린 문제를 눈앞에 두고 갈 곳이 홈과 '한 판 더' 뿐이면, 방금 틀린
+       것을 바로잡을 기회를 그대로 흘려보내게 된다. 오답이 있을 때만 뜬다. */
+    $('#btn-res-wrong').addEventListener('click', () => {
+      Sfx.tap();
+      start('wrong', {});
+    });
+
     $('#btn-res-again').addEventListener('click', () => {
       Sfx.tap();
       if(lastPlay) start(lastPlay.mode, lastPlay.opt); else UI.show('scr-home');
