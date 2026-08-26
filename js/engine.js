@@ -12,21 +12,36 @@ const Engine = (() => {
     return r;
   }
 
-  /* 약한 문제 우선 가중 추출 --------------------------------- */
+  /* 문항별 출제 가중치
+     틀릴수록 ↑, 복습 시점이 지났으면 ↑, 이미 여러 번 맞혔으면 ↓ */
+  function weightOf(q){
+    const c = Store.s.cards[q.id];
+    if(!c) return 10;                                  // 아직 안 본 문항
+    const acc = c.n ? c.ok / c.n : 0;
+    let w = 2 + (1 - acc) * 12 - Math.min(c.box, 5);
+    if(c.due <= Store.today()) w += 4;                 // 복습 시점 도래
+    return Math.max(w, 0.6);
+  }
+
+  /* 가중 무작위 추출 (비복원)
+     예전에는 가중치로 정렬해 상위 n개를 잘라 썼는데, 그러면 가중치가 조금만
+     낮아도 영영 뽑히지 않는다. 실제로 "숙달했지만 복습 시점이 된" 문항이
+     3% 밖에 나오지 않아 간격 반복이 무력해졌다.
+     이제는 가중치에 비례한 확률로 뽑되 모든 문항에 기회를 준다. */
   function weightedPick(pool, n){
-    const scored = pool.map(q => {
-      const c = Store.s.cards[q.id];
-      let w = 10;                       // 미학습
-      if(c){
-        const acc = c.n ? c.ok / c.n : 0;
-        w = 2 + (1 - acc) * 12 - Math.min(c.box, 5);   // 틀릴수록 ↑
-        if(c.due <= Store.today()) w += 4;
-        w = Math.max(w, 0.6);
-      }
-      return { q, w: w * (0.75 + Math.random() * 0.5) };
-    });
-    scored.sort((a, b) => b.w - a.w);
-    return scored.slice(0, n).map(x => x.q);
+    const items = pool.map(q => ({ q, w: weightOf(q) }));
+    const out = [];
+    let total = items.reduce((a, x) => a + x.w, 0);
+
+    while(out.length < n && items.length){
+      let r = Math.random() * total;
+      let i = 0;
+      while(i < items.length - 1 && (r -= items[i].w) > 0) i++;
+      out.push(items[i].q);
+      total -= items[i].w;
+      items.splice(i, 1);
+    }
+    return out;
   }
 
   /* 객관식 선택지 섞기 — 정답 위치가 특정 번호에 몰리는 것을 막는다.
