@@ -58,6 +58,7 @@ window.QB_PACKS = [
   'questions/kor-02-word',
   'questions/kor-03-more',
   'questions/kor-04-trap',
+  'questions/kor-05-mcq',
 
   /* ── 영어 ── */
   'questions/eng-01-core',
