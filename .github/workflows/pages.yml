@@ -29,6 +29,9 @@ jobs:
       - name: 문제 데이터 검증
         run: node tools/validate.js
 
+      - name: 동작 회귀 테스트
+        run: node tools/test.js
+
       - name: 단일 파일로 번들
         run: node tools/build.js
 

@@ -108,8 +108,11 @@ const Store = (() => {
      이전 곡선(80·lv^1.35)은 Lv40 에 427일, Lv50 에 726일이 걸려
      상위 칭호가 시험 전에 닿지 않았다. */
   function xpForLevel(lv){ return Math.round(70 * Math.pow(lv, 1.20)); }
-  function levelInfo(){
-    let lv = 1, need = xpForLevel(1), left = S.xp;
+  /* 인자를 무시하고 늘 S.xp 를 보고 있었다. levelInfo(S.xp) 라고 쓴
+     자리가 우연히 맞았을 뿐이라, 다른 값을 넣으면 조용히 틀린다. */
+  function levelInfo(xp){
+    let left = (xp == null ? S.xp : xp);
+    let lv = 1, need = xpForLevel(1);
     while(left >= need){ left -= need; lv++; need = xpForLevel(lv); }
     return { lv, cur: left, need, pct: Math.round(left / need * 100) };
   }
@@ -132,6 +135,7 @@ const Store = (() => {
     const before = levelInfo().lv;
     S.xp += n;
     const after = levelInfo().lv;
+    S.lv = after;                        // 파생값이므로 XP 와 함께 맞춰 둔다
     save();
     return after > before ? after : 0;   // 레벨업 시 새 레벨 반환
   }
