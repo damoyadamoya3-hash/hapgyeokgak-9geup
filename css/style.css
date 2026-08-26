@@ -729,3 +729,10 @@ body.fever .combo-badge{background:linear-gradient(120deg,#ff2e88,#ffd600);anima
 .src-note{margin:22px 2px 26px;padding:12px 14px;border:2px dashed var(--line);
   border-radius:13px;font-size:12px;line-height:1.75;color:var(--muted)}
 .src-note b{color:var(--ink2)}
+/* 과락 경고 — 한 과목이라도 40점 미만이면 총점과 무관하게 불합격이다 */
+.exam-row.cutoff{background:rgba(208,47,60,.10);border-radius:9px}
+.cut-tag{font-style:normal;font-family:var(--f-round);font-size:10.5px;color:#fff;
+  background:var(--on-bad);border-radius:99px;padding:1px 7px;margin-left:5px}
+.cut-warn{margin:10px 0 14px;padding:11px 13px;border-radius:12px;font-size:12.5px;line-height:1.7;
+  background:rgba(208,47,60,.10);border:2px solid var(--on-bad);color:var(--ink)}
+.cut-ok{margin:10px 0 14px;font-size:12.5px;color:var(--good-ink);line-height:1.6}

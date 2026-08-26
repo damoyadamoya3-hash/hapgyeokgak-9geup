@@ -285,6 +285,15 @@ const UI = (() => {
   /* 문항 출처와 법령 시점 고지.
      README 에만 적어 두면 사이트만 보고 공부하는 사람은 끝내 모른다.
      특히 개정이 잦은 영역은 시험 결과에 직접 영향을 준다. */
+  /* 한글 조사 — 받침이 있으면 '이/은', 없으면 '가/는'.
+     개수로 고르면 "영어 이 40점" 처럼 어색해진다. */
+  function josa(word, withBatchim, without){
+    const last = String(word).trim().slice(-1);
+    const code = last.charCodeAt(0);
+    if(code < 0xAC00 || code > 0xD7A3) return without;   // 한글이 아니면 기본형
+    return ((code - 0xAC00) % 28) ? withBatchim : without;
+  }
+
   function disclaimer(){
     return `<p class="src-note">
       ℹ️ 수록 문항은 국가직·지방직 9급과 한국사능력검정시험에서 <b>반복 출제되는 논점</b>을
@@ -588,17 +597,26 @@ const UI = (() => {
           const last = log[log.length - 1];
           const subs = Object.keys(last.sub || {});
           if(subs.length < 2) return '';
+          const under = subs.filter(sid => {
+            const [ok, n] = last.sub[sid];
+            return n >= 5 && Math.round(ok / n * 100) < 40;
+          });
           return `<h4 class="ex-h4">가장 최근 회차 · 과목별</h4>
             <div class="exam-table">${subs.map(sid => {
               const [ok, n] = last.sub[sid];
               const sub = QB.subject(sid) || { name:sid, emoji:'📘' };
               const a = n ? Math.round(ok / n * 100) : 0;
-              return `<div class="exam-row">
-                <span>${sub.emoji} ${esc(sub.name)}</span>
+              const bad = n >= 5 && a < 40;
+              return `<div class="exam-row${bad ? ' cutoff' : ''}">
+                <span>${sub.emoji} ${esc(sub.name)}${bad ? ' <em class="cut-tag">과락</em>' : ''}</span>
                 <span class="ex-bar"><i style="width:${a}%;background:${a>=80?'var(--good)':a>=60?'var(--gold)':'var(--bad)'}"></i></span>
                 <b>${ok}/${n}</b>
               </div>`;
-            }).join('')}</div>`;
+            }).join('')}</div>
+            ${under.length
+              ? `<p class="cut-warn">⚠️ <b>${under.map(sid => (QB.subject(sid)||{name:sid}).name).join(' · ')}</b>
+                   40점 미만 — 9급 공채는 한 과목이라도 40점에 못 미치면
+                   <b>총점과 무관하게 불합격</b>합니다.</p>` : ''}`;
         })()}
         ${log.length >= 2 ? (() => {
           const first = Math.round(log[0].ok / log[0].n * 100);
@@ -949,17 +967,35 @@ const UI = (() => {
     $('#res-coin').textContent    = '+' + S.coin + ' 🪙';
 
     // 모의고사는 과목별 성적표를 먼저 보여준다
+    /* 9급 공채는 한 과목이라도 40점 미만이면 과락이다. 총점이 아무리
+       높아도 그것으로 끝난다. 총점만 보여 주면 이 사실을 놓치게 된다. */
+    const CUT = 40;
+    const fails = fin.bySub ? Object.keys(fin.bySub).filter(sid => {
+      const b = fin.bySub[sid];
+      return b.n >= 5 && Math.round(b.ok / b.n * 100) < CUT;
+    }) : [];
+
     const subTable = (S.mode === 'exam' && fin.bySub && Object.keys(fin.bySub).length > 1)
       ? `<h3 style="font-size:15px;margin:0 0 8px">📋 과목별 성적</h3>
          <div class="exam-table">${Object.keys(fin.bySub).map(sid => {
             const b = fin.bySub[sid], sub = QB.subject(sid) || { name:sid, emoji:'📘' };
             const a = b.n ? Math.round(b.ok / b.n * 100) : 0;
-            return `<div class="exam-row">
-              <span>${sub.emoji} ${esc(sub.name)}</span>
+            const under = a < CUT && b.n >= 5;
+            return `<div class="exam-row${under ? ' cutoff' : ''}">
+              <span>${sub.emoji} ${esc(sub.name)}${under ? ' <em class="cut-tag">과락</em>' : ''}</span>
               <span class="ex-bar"><i style="width:${a}%;background:${a>=80?'var(--good)':a>=60?'var(--gold)':'var(--bad)'}"></i></span>
               <b>${b.ok}/${b.n}</b>
             </div>`;
-         }).join('')}</div>` : '';
+         }).join('')}</div>
+         ${fails.length
+            ? (() => {
+                const names = fails.map(sid => (QB.subject(sid)||{name:sid}).name);
+                const label = names.join(' · ');
+                return `<p class="cut-warn">⚠️ <b>${esc(label)}</b>${josa(names[names.length-1], '이', '가')}
+                  40점 미만입니다. 9급 공채는 한 과목이라도 40점에 못 미치면
+                  <b>총점과 무관하게 불합격</b>합니다. 여기부터 메우세요.</p>`;
+              })()
+            : `<p class="cut-ok">✅ 40점 미만 과목이 없습니다. 과락 위험은 넘겼습니다.</p>`}` : '';
 
     $('#res-review').innerHTML = subTable + (S.wrongList.length
       ? `<h3 style="font-size:15px;margin:0 0 4px">📌 다시 볼 문제 ${S.wrongList.length}개</h3>` +
