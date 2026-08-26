@@ -114,7 +114,14 @@ const UI = (() => {
   }
 
   /* ── 학습 계획 (D-day) ─────────────────────────────── */
+  /* onGo 를 생략하고 부르는 곳이 있다(시험일 변경 등). 그때 콜백 없이
+     다시 그리면 '복습·새 문제' 칸이 눌러도 아무 일 없는 상태가 된다.
+     그래서 넘겨받지 못하면 마지막에 등록된 것을 쓴다. */
+  let planGo = null;
+  function setPlanGo(fn){ planGo = fn; }
+
   function planCard(onGo){
+    onGo = onGo || planGo;
     const p = Store.plan();
     const el = $('#plan-card');
     const done = Math.min(p.todayN, p.goal);
@@ -228,9 +235,6 @@ const UI = (() => {
   }
 
   let guideStep = null;
-  let planGo = null;
-  function setPlanGo(fn){ planGo = fn; }
-
   function home(){ hud(); startGuide(guideStep || (()=>{})); planCard(planGo || (()=>{})); daily(); modeTags(); subjects(); achievements(); }
   function setGuideHandler(fn){ guideStep = fn; }
 
@@ -865,13 +869,14 @@ const UI = (() => {
     if(q.type === 'ox'){
       box.className = 'ox-row';
       box.innerHTML = `
-        <button class="ox-btn o" data-ans="1">O</button>
-        <button class="ox-btn x" data-ans="0">X</button>`;
+        <button class="ox-btn o" data-ans="1">O<kbd>O</kbd></button>
+        <button class="ox-btn x" data-ans="0">X<kbd>X</kbd></button>`;
     }else{
       box.className = 'q-choices';
       box.innerHTML = q.choices.map((c, i) =>
         `<button class="choice" data-ans="${i}">
            <span class="ci">${'①②③④⑤'[i] || (i+1)}</span><span>${md(c)}</span>
+           <kbd>${i + 1}</kbd>
          </button>`).join('');
     }
     Array.from(box.children).forEach(b =>
@@ -906,7 +911,8 @@ const UI = (() => {
     const tip = $('#fb-tip');
     if(q.tip){ tip.innerHTML = '💡 ' + md(q.tip); tip.classList.remove('hidden'); }
     else tip.classList.add('hidden');
-    $('#btn-next').textContent = (S.i + 1 >= S.queue.length && S.mode !== 'ox') ? '결과 보기 →' : '다음 →';
+    $('#btn-next').innerHTML = ((S.i + 1 >= S.queue.length && S.mode !== 'ox') ? '결과 보기 →' : '다음 →')
+      + ' <kbd>Enter</kbd>';
 
     // 북마크 버튼 — 지금 문항을 오답노트에 담아 둘 수 있다
     const mk = $('#btn-mark');
