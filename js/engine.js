@@ -277,6 +277,9 @@ const Engine = (() => {
 
     S.xp += bonusXp; S.coin += bonusCoin;
 
+    // XP 부스터(상점 아이템)를 마지막에 곱한다
+    if(S.boost && S.boost > 1) S.xp = Math.round(S.xp * S.boost);
+
     const leveled = Store.addXp(S.xp);
     Store.addCoin(S.coin);
     const streakInfo = Store.touchStreak();

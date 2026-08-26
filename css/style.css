@@ -604,3 +604,32 @@ body.fever .combo-badge{background:linear-gradient(120deg,#ff2e88,#ffd600);anima
   .note-chip{min-height:40px;display:inline-flex;align-items:center}
   .fb-mark{min-width:44px;min-height:44px;display:grid;place-items:center}
 }
+
+/* ══════════ 상점 ══════════ */
+.shop-head{background:var(--card);border:2px solid var(--line);border-radius:var(--r);
+  padding:14px 16px;box-shadow:var(--shadow);margin-bottom:14px;
+  display:flex;align-items:center;gap:10px}
+.shop-head .sh-coin{font-family:var(--f-round);font-size:24px;color:var(--brand-ink);
+  font-variant-numeric:tabular-nums}
+.shop-head p{margin:0;font-size:12.5px;color:var(--ink2);line-height:1.6}
+.shop-list{display:grid;gap:10px}
+.shop-item{display:flex;align-items:center;gap:12px;background:var(--card);
+  border:2px solid var(--line);border-radius:16px;padding:14px;box-shadow:var(--shadow)}
+.shop-item .si-emoji{font-size:28px;flex:0 0 auto}
+.shop-item .si-body{flex:1;min-width:0}
+.shop-item h4{margin:0 0 3px;font-size:15px;font-family:var(--f-round)}
+.shop-item p{margin:0;font-size:12px;color:var(--ink2);line-height:1.55;word-break:keep-all}
+.shop-item .si-own{font-size:11px;color:var(--good);margin-top:4px;display:block}
+.si-buy{flex:0 0 auto;background:linear-gradient(100deg,var(--brand),var(--brand2));color:#fff;
+  border-radius:13px;padding:10px 14px;font-family:var(--f-round);font-size:13.5px;
+  box-shadow:0 3px 0 var(--brand-sh);white-space:nowrap;transition:transform .1s,box-shadow .1s}
+.si-buy:active{transform:translateY(2px);box-shadow:0 1px 0 var(--brand-sh)}
+.si-buy[disabled]{background:var(--line);color:var(--ink2);box-shadow:none;cursor:default}
+
+/* 풀이 화면의 힌트 버튼 */
+.pb-hint{position:relative;font-size:16px;background:var(--card);border:2px solid var(--line);
+  border-radius:99px;padding:5px 11px;display:flex;align-items:center;gap:3px}
+.pb-hint b{font-family:var(--f-round);font-size:12px;color:var(--brand-ink)}
+.pb-hint[disabled]{opacity:.4;cursor:default}
+.choice.dimmed{opacity:.32;pointer-events:none}
+@media (pointer: coarse){ .pb-hint{min-height:44px} }

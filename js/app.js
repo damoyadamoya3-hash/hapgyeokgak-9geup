@@ -84,6 +84,10 @@
       }, 1000);
     } else tEl.classList.add('hidden');
 
+    // XP 부스터가 있으면 이번 판에 쓴다
+    S.boost = Store.has('boost') && Store.useItem('boost') ? 1.5 : 1;
+    if(S.boost > 1) Fx.toast('⚡ XP 부스터 적용 — 이번 판 1.5배', true, 2000);
+
     UI.show('scr-play');
     render();
     tetrisStart();
@@ -95,6 +99,38 @@
   function render(){
     if(!S || S.i >= S.queue.length){ end(); return; }
     UI.question(S, onAnswer);
+    refreshHint();
+  }
+
+  /* 50:50 힌트 — 객관식에서만, 보유 중일 때만 쓸 수 있다 */
+  function refreshHint(){
+    const btn = $('#btn-hint');
+    const q = S && Engine.current(S);
+    const usable = q && q.type === 'mcq' && q.choices.length > 2 && !S.cfg.silent;
+    btn.classList.toggle('hidden', !usable);
+    if(!usable) return;
+    const n = Store.s.inv.hint || 0;
+    $('#hint-n').textContent = n;
+    btn.disabled = n <= 0;
+  }
+
+  function useHint(){
+    if(!S || locked) return;
+    const q = Engine.current(S);
+    if(!q || q.type !== 'mcq') return;
+    if(!Store.useItem('hint')){ Fx.toast('힌트가 없어요. 상점에서 살 수 있습니다'); return; }
+
+    // 오답 중 두 개를 골라 흐리게 처리하고 선택할 수 없게 한다
+    const box = $('#q-choices');
+    const wrong = Array.from(box.children).filter((_, i) => i !== q.a);
+    Engine.shuffle(wrong).slice(0, 2).forEach(el => {
+      el.classList.add('dimmed');
+      el.disabled = true;
+    });
+    Sfx.tap();
+    Fx.burstAt($('#btn-hint'), ['🔍','✨'], 8);
+    refreshHint();
+    UI.hud();
   }
 
   /* ── 답안 제출 ─────────────────────────────────────── */
@@ -174,6 +210,19 @@
     setTimeout(() => { if(paused) Tetris.pause(); }, 900);
   }
 
+  /* 하트를 모두 잃었을 때 — 보유 중이면 이어서 풀지 물어본다 */
+  function offerHeart(){
+    if(!S || !S.cfg.hearts || S.hearts > 0) return false;
+    if(!Store.has('heart')) return false;
+    if(!confirm('하트를 모두 잃었어요. 하트 충전(보유 '
+                + Store.s.inv.heart + '개)을 써서 이어서 풀까요?')) return false;
+    Store.useItem('heart');
+    S.hearts = 1;
+    UI.hud();
+    Fx.toast('❤️ 하트를 충전했어요', true, 1600);
+    return true;
+  }
+
   function next(){
     if(!S) return;
     locked = false;
@@ -187,7 +236,15 @@
     if(S.mode === 'ox' && S.i + 1 >= S.queue.length){
       S.queue = S.queue.concat(Engine.shuffle(S.queue));
     }
-    if(Engine.advance(S)) end(); else render();
+    if(Engine.advance(S)){
+      // 하트 소진으로 끝나려는 참이면 충전 기회를 준다
+      if(S.reason === 'heart' && offerHeart()){
+        S.over = false; S.reason = null;
+        render();
+        return;
+      }
+      end();
+    } else render();
   }
 
   /* ── 종료 ──────────────────────────────────────────── */
@@ -316,6 +373,8 @@
 
     const openNote = () => UI.notes((unit, subject) => start('quest', { unit, subject }));
     $('#btn-note').addEventListener('click', e => { e.stopPropagation(); Sfx.tap(); openNote(); });
+    $('#btn-shop').addEventListener('click', () => { Sfx.tap(); UI.shop(); });
+    $('#btn-hint').addEventListener('click', useHint);
 
     // 학습 계획 카드를 누르면 시험일을 정할 수 있는 설정으로 안내
     $('#plan-card').addEventListener('click', () => {

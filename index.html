@@ -46,7 +46,7 @@
     </div>
     <div class="tb-right">
       <div class="stat-chip" title="연속 학습일"><span>🔥</span><b id="hud-streak">0</b></div>
-      <div class="stat-chip" title="코인"><span>🪙</span><b id="hud-coin">0</b></div>
+      <button class="stat-chip" id="btn-shop" title="상점 열기"><span>🪙</span><b id="hud-coin">0</b></button>
       <button class="icon-btn" id="btn-settings" title="설정">⚙️</button>
     </div>
   </header>
@@ -114,6 +114,12 @@
   <main class="stats-wrap"><div id="stats-body"></div></main>
 </section>
 
+<!-- ═══════════ 상점 ═══════════ -->
+<section id="scr-shop" class="screen">
+  <header class="subbar"><button class="back-btn" data-back aria-label="뒤로 가기">←</button><h2>🪙 상점</h2><span></span></header>
+  <main class="stats-wrap"><div id="shop-body"></div></main>
+</section>
+
 <!-- ═══════════ 오답노트 ═══════════ -->
 <section id="scr-note" class="screen">
   <header class="subbar"><button class="back-btn" data-back aria-label="뒤로 가기">←</button><h2>📕 오답노트</h2><span></span></header>
@@ -143,6 +149,7 @@
     </div>
     <div class="pb-right">
       <div id="pb-timer" class="pb-timer hidden">⏱ <b>60</b></div>
+      <button id="btn-hint" class="pb-hint hidden" aria-label="50:50 힌트 사용">🔍<b id="hint-n">0</b></button>
       <div id="pb-hearts" class="pb-hearts"></div>
     </div>
   </header>

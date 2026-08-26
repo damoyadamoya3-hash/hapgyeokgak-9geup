@@ -259,6 +259,51 @@ const UI = (() => {
     show('scr-select');
   }
 
+  /* ══════════ 상점 ══════════ */
+  function shop(onBuy){
+    const coin = Store.s.coin;
+    $('#shop-body').innerHTML = `
+      <div class="shop-head">
+        <span style="font-size:26px">🪙</span>
+        <span class="sh-coin">${coin}</span>
+        <p>정답을 맞히면 코인이 쌓입니다.<br>5콤보마다 더 많이 들어옵니다.</p>
+      </div>
+      <div class="shop-list">
+        ${Store.SHOP.map(it => {
+          const own = Store.s.inv[it.id] || 0;
+          const can = coin >= it.price;
+          return `<div class="shop-item">
+            <span class="si-emoji">${it.emoji}</span>
+            <span class="si-body">
+              <h4>${esc(it.name)}</h4>
+              <p>${esc(it.desc)}</p>
+              ${own ? `<span class="si-own">보유 ${own}개</span>` : ''}
+            </span>
+            <button class="si-buy" data-buy="${it.id}" ${can ? '' : 'disabled'}>
+              ${it.price} 🪙
+            </button>
+          </div>`;
+        }).join('')}
+      </div>
+      <p class="st-note">힌트는 풀이 화면 오른쪽 위 🔍 버튼으로 씁니다.
+      하트 충전은 하트를 모두 잃었을 때 자동으로 물어봅니다.
+      XP 부스터는 다음 한 판에 자동으로 적용됩니다.</p>`;
+
+    $$('#shop-body [data-buy]').forEach(b =>
+      b.addEventListener('click', () => {
+        if(Store.buy(b.dataset.buy)){
+          Sfx.coin();
+          Fx.burstAt(b, ['🪙','✨'], 10);
+          const it = Store.SHOP.find(x => x.id === b.dataset.buy);
+          Fx.toast(`${it.emoji} ${it.name} 구입!`, true, 1600);
+          shop(onBuy); hud();
+        }else{
+          Fx.toast('코인이 모자라요');
+        }
+      }));
+    show('scr-shop');
+  }
+
   /* ══════════ 오답노트 ══════════ */
   let noteTab = 'wrong';
   let noteSubject = 'all';       // 과목 필터
@@ -771,5 +816,5 @@ const UI = (() => {
   return { $, $$, esc, show, back, popScreen, setPopHandler, currentScreen,
            hud, home, daily, planCard, startGuide, setGuideHandler, subjects, achievements,
            modeTags, selectSubject, selectUnit, question, reveal, result,
-           codexList, cardDetail, bumpXp, stats, notes, setNoteTab, markSilent };
+           codexList, cardDetail, bumpXp, stats, notes, setNoteTab, markSilent, shop };
 })();

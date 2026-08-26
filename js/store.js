@@ -23,6 +23,8 @@ const Store = (() => {
     streakClaimed: {},
     // 시험일 (YYYY-MM-DD). 설정하면 D-day 와 하루 목표량을 계산한다
     examDate: null,
+    // 상점에서 산 소모품 보유량
+    inv: { hint:0, heart:0, boost:0 },
     ach: {},
     daily: { date: null, tasks: [] },
     settings: {
@@ -180,6 +182,34 @@ const Store = (() => {
     const list = sid ? QB.theoryBySubject(sid) : QB.theory;
     return list.filter(c => S.readCards[c.id] && S.readCards[c.id].read).length;
   }
+
+  /* ── 상점 ───────────────────────────────────────────
+     코인이 쌓이기만 하고 쓸 곳이 없으면 보상으로 기능하지 않는다.
+     공부를 방해하지 않고 오히려 돕는 것만 판다. */
+  const SHOP = [
+    { id:'hint',  emoji:'🔍', name:'50:50 힌트', price:40,
+      desc:'객관식에서 오답 두 개를 지운다' },
+    { id:'heart', emoji:'❤️', name:'하트 충전',  price:60,
+      desc:'하트를 모두 잃어도 그 자리에서 이어서 푼다' },
+    { id:'boost', emoji:'⚡', name:'XP 부스터',  price:80,
+      desc:'다음 한 판에서 얻는 XP 가 1.5배가 된다' }
+  ];
+
+  function buy(id){
+    const it = SHOP.find(x => x.id === id);
+    if(!it || S.coin < it.price) return false;
+    S.coin -= it.price;
+    S.inv[id] = (S.inv[id] || 0) + 1;
+    save();
+    return true;
+  }
+  function useItem(id){
+    if(!S.inv[id]) return false;
+    S.inv[id]--;
+    save();
+    return true;
+  }
+  function has(id){ return (S.inv[id] || 0) > 0; }
 
   /* ── 학습 계획 ──────────────────────────────────────── */
   function setExamDate(v){ S.examDate = v || null; save(); }
@@ -473,6 +503,7 @@ const Store = (() => {
     markRead, markDrill, readCount, recentDays, unitStats, summary, INTERVAL,
     isMarked, toggleMark, markedIds, wrongNotes,
     weekAttendance, nextStreakGoal, STREAK_REWARDS, setExamDate, plan,
+    SHOP, buy, useItem, has,
     subjectAccuracy, subjectSeen, touchStreak, daily, progressTask,
     checkAch, ACHS, exportData, importData, reset, today
   };
