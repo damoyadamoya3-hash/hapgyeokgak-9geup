@@ -114,7 +114,7 @@ const UI = (() => {
   }
 
   /* ── 학습 계획 (D-day) ─────────────────────────────── */
-  function planCard(){
+  function planCard(onGo){
     const p = Store.plan();
     const el = $('#plan-card');
     const done = Math.min(p.todayN, p.goal);
@@ -139,12 +139,23 @@ const UI = (() => {
       </div>
       <div class="pc-today"><i style="width:${ratio}%"></i></div>
       <div class="pc-split">
-        <span class="pc-rev ${p.due > p.review ? 'over' : ''}">🔁 복습 <b>${p.review}</b>문항${
+        <span class="pc-rev ${p.due > p.review ? 'over' : ''}" data-go="srs" role="button" tabindex="0">🔁 복습 <b>${p.review}</b>문항${
           p.due > p.review ? ` <small>(밀림 ${p.due})</small>` : ''}</span>
-        <span class="pc-new">✨ 새 문제 <b>${p.fresh}</b>문항</span>
+        <span class="pc-new" data-go="fresh" role="button" tabindex="0">✨ 새 문제 <b>${p.fresh}</b>문항</span>
       </div>
       ${p.capped ? `<p class="pc-warn">⚠️ 남은 날에 전부 보기는 어려워요.
         <b>약한 단원</b>과 <b>오답노트</b> 위주로 좁혀 가세요.</p>` : ''}`;
+
+    /* 오늘 할 일을 알려만 주고 끝내면, 읽고 나서 다시 찾아 들어가야 한다.
+       그 자리에서 바로 시작할 수 있어야 계획이 계획으로 남지 않는다.
+       카드 자체를 누르면 시험일 설정이므로 전파를 멈춘다. */
+    el.querySelectorAll('[data-go]').forEach(btn => {
+      const go = e => { e.stopPropagation(); onGo && onGo(btn.dataset.go); };
+      btn.addEventListener('click', go);
+      btn.addEventListener('keydown', e => {
+        if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); go(e); }
+      });
+    });
   }
 
   /* ── 일일 임무 ─────────────────────────────────────── */
@@ -217,7 +228,10 @@ const UI = (() => {
   }
 
   let guideStep = null;
-  function home(){ hud(); startGuide(guideStep || (()=>{})); planCard(); daily(); modeTags(); subjects(); achievements(); }
+  let planGo = null;
+  function setPlanGo(fn){ planGo = fn; }
+
+  function home(){ hud(); startGuide(guideStep || (()=>{})); planCard(planGo || (()=>{})); daily(); modeTags(); subjects(); achievements(); }
   function setGuideHandler(fn){ guideStep = fn; }
 
   /* ── 선택 화면: 과목 목록 ──────────────────────────── */
@@ -971,6 +985,6 @@ const UI = (() => {
 
   return { $, $$, esc, show, back, popScreen, setPopHandler, currentScreen,
            hud, home, daily, planCard, startGuide, setGuideHandler, subjects, achievements,
-           modeTags, selectSubject, selectUnit, question, reveal, result, sync,
+           modeTags, selectSubject, selectUnit, question, reveal, result, sync, setPlanGo,
            codexList, cardDetail, bumpXp, stats, notes, setNoteTab, markSilent, shop };
 })();

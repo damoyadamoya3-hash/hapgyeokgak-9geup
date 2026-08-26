@@ -405,6 +405,30 @@
     $('#btn-hint').addEventListener('click', useHint);
 
     // 학습 계획 카드를 누르면 시험일을 정할 수 있는 설정으로 안내
+    /* 계획 카드의 두 칸 — 오늘 할 일에서 바로 시작한다.
+       새 문제는 '아직 가장 덜 본 단원'으로 데려간다. 어디부터 손댈지
+       고르는 일 자체가 시작을 미루게 만들기 때문이다. */
+    UI.setPlanGo(what => {
+      if(what === 'srs'){
+        if(!Store.dueCards().length) return Fx.toast('복습할 카드가 없어요. 새 문제부터!');
+        return start('srs', {});
+      }
+      let best = null;
+      for(const sub of QB.SUBJECTS){
+        for(const u of (QB.UNITS[sub.id] || [])){
+          const pool = QB.byUnit(u.id);
+          if(!pool.length) continue;
+          const unseen = pool.filter(q => !Store.s.cards[q.id]).length;
+          if(!unseen) continue;
+          const ratio = unseen / pool.length;
+          if(!best || ratio > best.ratio) best = { unit:u.id, subject:sub.id, ratio, name:u.name };
+        }
+      }
+      if(!best) return Fx.toast('모든 문항을 한 번씩 봤어요! 이제 복습으로 굳히세요');
+      Fx.toast(`✨ ${best.name} 부터 시작해요`, true, 1800);
+      start('quest', { unit: best.unit, subject: best.subject });
+    });
+
     $('#plan-card').addEventListener('click', () => {
       Sfx.tap();
       $('#set-exam').value = Store.s.examDate || '';
