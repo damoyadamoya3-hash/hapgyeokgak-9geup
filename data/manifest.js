@@ -64,6 +64,7 @@ window.QB_PACKS = [
   'questions/eng-01-core',
   'questions/eng-02-more',
   'questions/eng-03-fill',
+  'questions/eng-04-mcq',
 
   /* ── 보강(국어·영어 독해) ── */
   'questions/mix-01-reading'
