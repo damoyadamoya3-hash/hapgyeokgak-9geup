@@ -38,7 +38,14 @@ const Store = (() => {
       const raw = localStorage.getItem(KEY);
       if(!raw) return structuredClone(DEFAULT);
       const p = JSON.parse(raw);
-      return Object.assign(structuredClone(DEFAULT), p);
+      const merged = Object.assign(structuredClone(DEFAULT), p);
+
+      // settings 는 얕은 병합이면 통째로 덮여 새로 추가된 항목의 기본값이
+      // 사라진다. 예전에 저장한 사용자가 새 기능(BGM·테트리스 등)을
+      // 못 쓰게 되므로 한 겹 더 병합한다.
+      merged.settings = Object.assign(structuredClone(DEFAULT.settings), p.settings || {});
+      merged.daily    = Object.assign(structuredClone(DEFAULT.daily),    p.daily    || {});
+      return merged;
     }catch(e){ return structuredClone(DEFAULT); }
   }
   function save(){
