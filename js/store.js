@@ -51,7 +51,17 @@ const Store = (() => {
     }catch(e){ return structuredClone(DEFAULT); }
   }
   function save(){
+    prune();
     try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){}
+  }
+
+  /* 일자별 기록은 분석에 180일이면 충분하다. 그대로 두면 해마다 늘어난다. */
+  function prune(){
+    const keys = Object.keys(S.dayStats);
+    if(keys.length <= 200) return;
+    const cut = new Date(); cut.setDate(cut.getDate() - 180);
+    const limit = cut.toISOString().slice(0, 10);
+    for(const k of keys) if(k < limit) delete S.dayStats[k];
   }
 
   /* ── 레벨 계산: 누적 XP → 레벨 ────────────────────────── */
@@ -383,12 +393,52 @@ const Store = (() => {
     return newly;
   }
 
-  /* ── 내보내기/불러오기 ──────────────────────────────── */
-  function exportData(){ return btoa(unescape(encodeURIComponent(JSON.stringify(S)))); }
+  /* ── 내보내기/불러오기 ────────────────────────────────
+     학습 기록은 문항 수만큼 늘어나 그대로 직렬화하면 코드가 100KB를 넘는다.
+     기기 간 옮길 때 붙여 넣기 어려우므로, 문항 기록만 배열로 압축한다.
+     (v1 = 옛 형식 그대로, v2 = 압축 형식) */
+  function exportData(){
+    const packed = { v:3, s:{ ...S } };
+    delete packed.s.cards;
+
+    // 날짜 문자열이 문항마다 반복되므로 사전으로 묶어 번호로 대체한다.
+    // last 는 다음 풀이 때 다시 기록되므로 내보내지 않는다.
+    const dates = [], idx = {};
+    const dnum = d => {
+      if(d == null) return -1;
+      if(!(d in idx)){ idx[d] = dates.length; dates.push(d); }
+      return idx[d];
+    };
+    packed.d = dates;
+    packed.c = {};
+    for(const id in S.cards){
+      const c = S.cards[id];
+      packed.c[id] = [c.n, c.ok, c.ng, c.box, dnum(c.due)];
+    }
+    return btoa(unescape(encodeURIComponent(JSON.stringify(packed))));
+  }
+
   function importData(str){
     try{
-      const p = JSON.parse(decodeURIComponent(escape(atob(str.trim()))));
-      S = Object.assign(structuredClone(DEFAULT), p); save(); return true;
+      const raw = JSON.parse(decodeURIComponent(escape(atob(str.trim()))));
+      let p;
+      if(raw && (raw.v === 2 || raw.v === 3)){
+        p = raw.s || {};
+        p.cards = {};
+        const dates = raw.d || [];
+        for(const id in (raw.c || {})){
+          const a = raw.c[id];
+          const due = raw.v === 3 ? (dates[a[4]] ?? today()) : a[4];
+          p.cards[id] = { n:a[0], ok:a[1], ng:a[2], box:a[3], due, last:a[5] || null };
+        }
+      }else{
+        p = raw;                      // 옛 형식도 그대로 받아들인다
+      }
+      S = Object.assign(structuredClone(DEFAULT), p);
+      S.settings = Object.assign(structuredClone(DEFAULT.settings), p.settings || {});
+      S.daily    = Object.assign(structuredClone(DEFAULT.daily),    p.daily    || {});
+      save();
+      return true;
     }catch(e){ return false; }
   }
   function reset(){ S = structuredClone(DEFAULT); save(); }
