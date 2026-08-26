@@ -128,6 +128,113 @@ const UI = (() => {
     show('scr-select');
   }
 
+  /* ══════════ 학습 분석 ══════════ */
+  function stats(onPickUnit){
+    const s   = Store.summary();
+    const days = Store.recentDays(14);
+    const us   = Store.unitStats();
+    const peak = Math.max(1, ...days.map(d => d.n));
+    const maxBox = Math.max(1, ...s.boxes);
+    const accColor = a => a >= 80 ? 'var(--good)' : a >= 60 ? 'var(--gold)' : 'var(--bad)';
+
+    // 과목별 집계
+    const subj = QB.SUBJECTS.map(x => ({
+      ...x,
+      acc:  Store.subjectAccuracy(x.id),
+      seen: Store.subjectSeen(x.id),
+      total: QB.count(x.id)
+    })).filter(x => x.total);
+
+    $('#stats-body').innerHTML = `
+      <div class="st-sec">
+        <h3>한눈에 보기</h3>
+        <div class="st-grid">
+          <div class="st-tile"><b>${s.answered}</b><span>총 푼 횟수</span></div>
+          <div class="st-tile ${s.acc >= 70 ? 'good' : s.acc >= 50 ? '' : 'warn'}"><b>${s.acc}%</b><span>전체 정답률</span></div>
+          <div class="st-tile info"><b>${s.seen}<small style="font-size:12px;color:var(--ink2)">/${s.total}</small></b><span>학습한 문항</span></div>
+          <div class="st-tile"><b>${s.days}</b><span>학습한 날</span></div>
+          <div class="st-tile info"><b>${s.due}</b><span>복습 대기</span></div>
+          <div class="st-tile warn"><b>${s.wrong}</b><span>오답 보관</span></div>
+          <div class="st-tile"><b>${s.cards}<small style="font-size:12px;color:var(--ink2)">/${s.cardTotal}</small></b><span>도감 수집</span></div>
+        </div>
+      </div>
+
+      <div class="st-sec">
+        <h3>최근 2주 학습량 <small>막대 = 하루에 푼 문제 수</small></h3>
+        <div class="st-chart">
+          ${days.map((d, i) => {
+            const h = Math.round(d.n / peak * 92);
+            const okH = d.n ? Math.round(d.ok / d.n * h) : 0;
+            return `<div class="st-bar ${i === days.length - 1 ? 'today' : ''}" title="${d.date} · ${d.n}문제 (정답 ${d.ok})">
+              <span class="sb-stack" style="height:${Math.max(h, d.n ? 4 : 3)}px">
+                <i class="sb-ng" style="display:block;height:${h - okH}px"></i>
+                <i class="sb-ok" style="display:block;height:${okH}px"></i>
+              </span>
+              <span class="sb-lab">${d.label}</span>
+            </div>`;
+          }).join('')}
+        </div>
+        <div class="st-legend">
+          <span><i style="background:var(--good)"></i>정답</span>
+          <span><i style="background:var(--bad)"></i>오답</span>
+        </div>
+      </div>
+
+      <div class="st-sec">
+        <h3>과목별 정답률</h3>
+        <div class="st-list">
+          ${subj.map(x => `
+            <div class="st-row" style="cursor:default">
+              <span style="font-size:20px">${x.emoji}</span>
+              <span class="sr-body">
+                <h4>${esc(x.name)} <em>${x.seen}/${x.total}문항 학습</em></h4>
+                <span class="sr-bar"><i style="width:${x.acc}%;background:${accColor(x.acc)}"></i></span>
+              </span>
+              <span class="sr-acc" style="color:${x.seen ? accColor(x.acc) : 'var(--ink2)'}">${x.seen ? x.acc + '%' : '–'}</span>
+            </div>`).join('')}
+        </div>
+      </div>
+
+      <div class="st-sec">
+        <h3>약한 단원 <small>정답률이 낮은 순 · 눌러서 바로 풀기</small></h3>
+        <div class="st-list">
+          ${us.length ? us.slice(0, 8).map(u => {
+            const unit = QB.unit(u.unit) || { name:u.unit, emoji:'📘' };
+            const sub  = QB.subject(u.subject) || { name:'' };
+            return `<button class="st-row" data-weak="${u.unit}" data-weak-subject="${u.subject}">
+              <span style="font-size:19px">${unit.emoji}</span>
+              <span class="sr-body">
+                <h4>${esc(unit.name)} <em>${esc(sub.name)} · ${u.n}회 풀이</em></h4>
+                <span class="sr-bar"><i style="width:${u.acc}%;background:${accColor(u.acc)}"></i></span>
+              </span>
+              <span class="sr-acc" style="color:${accColor(u.acc)}">${u.acc}%</span>
+            </button>`;
+          }).join('')
+          : '<div class="st-empty">아직 데이터가 없어요.<br>문제를 풀면 약한 단원을 찾아 드립니다.</div>'}
+        </div>
+      </div>
+
+      <div class="st-sec">
+        <h3>기억 정착도 <small>라이트너 박스 분포</small></h3>
+        <div class="st-boxes">
+          ${s.boxes.map((n, i) => `
+            <div class="st-box" title="${i === 0 ? '새 문항·오답' : Store.INTERVAL[i] + '일 뒤 복습'} — ${n}문항">
+              <span class="bx" style="height:${Math.max(Math.round(n / maxBox * 56), n ? 4 : 3)}px"></span>
+              <span class="bl">${n}</span>
+            </div>`).join('')}
+        </div>
+        <p class="st-note">왼쪽은 방금 틀렸거나 처음 본 문항, 오른쪽으로 갈수록 여러 번 연속으로 맞혀
+        복습 간격이 길어진 문항입니다. <b>오른쪽 막대가 두꺼워지는 것이 진짜 실력</b>입니다.</p>
+      </div>`;
+
+    $$('#stats-body [data-weak]').forEach(b =>
+      b.addEventListener('click', () => {
+        Sfx.tap();
+        onPickUnit(b.dataset.weak, b.dataset.weakSubject);
+      }));
+    show('scr-stats');
+  }
+
   /* ══════════ 이론 도감 ══════════ */
 
   /* 굵게: **텍스트** → <b> */
@@ -369,5 +476,5 @@ const UI = (() => {
 
   return { $, $$, esc, show, back, hud, home, daily, subjects, achievements,
            modeTags, selectSubject, selectUnit, question, reveal, result,
-           codexList, cardDetail, bumpXp };
+           codexList, cardDetail, bumpXp, stats };
 })();

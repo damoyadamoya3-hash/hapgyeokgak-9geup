@@ -15,6 +15,8 @@ const Store = (() => {
     units: {},
     // 이론 도감 열람 기록: { [cardId]: {read:날짜, drill:세뇌횟수} }
     readCards: {},
+    // 일자별 학습량: { 'YYYY-MM-DD': {n:푼 문제, ok:맞힌 문제} }
+    dayStats: {},
     ach: {},
     daily: { date: null, tasks: [] },
     settings: {
@@ -93,6 +95,9 @@ const Store = (() => {
     c.last = today();
     S.cards[qid] = c;
     S.totalAnswered++; if(ok) S.totalCorrect++;
+    const d = S.dayStats[c.last] || { n:0, ok:0 };
+    d.n++; if(ok) d.ok++;
+    S.dayStats[c.last] = d;
     save();
     return c;
   }
@@ -149,6 +154,57 @@ const Store = (() => {
   function readCount(sid){
     const list = sid ? QB.theoryBySubject(sid) : QB.theory;
     return list.filter(c => S.readCards[c.id] && S.readCards[c.id].read).length;
+  }
+
+  /* ── 학습 분석 ──────────────────────────────────────── */
+
+  /* 최근 n일간의 일자별 학습량 (오늘 포함, 과거 → 현재 순) */
+  function recentDays(n = 14){
+    const out = [];
+    for(let i = n - 1; i >= 0; i--){
+      const d = new Date(); d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      const st = S.dayStats[key] || { n:0, ok:0 };
+      out.push({ date:key, label:(d.getMonth()+1) + '/' + d.getDate(), n:st.n, ok:st.ok });
+    }
+    return out;
+  }
+
+  /* 단원별 성적 — 푼 적 있는 단원만, 정답률 오름차순(약한 순) */
+  function unitStats(){
+    const map = {};
+    for(const q of QB.items){
+      const c = S.cards[q.id];
+      if(!c || !c.n) continue;
+      const m = map[q.unit] || (map[q.unit] = { unit:q.unit, subject:q.subject, n:0, ok:0, seen:0 });
+      m.n += c.n; m.ok += c.ok; m.seen++;
+    }
+    return Object.values(map)
+      .map(m => ({ ...m, acc: Math.round(m.ok / m.n * 100), total: QB.byUnit(m.unit).length }))
+      .sort((a, b) => a.acc - b.acc);
+  }
+
+  /* 전체 요약 */
+  function summary(){
+    const n = S.totalAnswered, ok = S.totalCorrect;
+    return {
+      answered: n,
+      correct: ok,
+      acc: n ? Math.round(ok / n * 100) : 0,
+      seen: Object.keys(S.cards).length,
+      total: QB.items.length,
+      due: dueCards().length,
+      wrong: wrongCards().length,
+      cards: readCount(),
+      cardTotal: QB.theory.length,
+      days: Object.keys(S.dayStats).filter(k => S.dayStats[k].n > 0).length,
+      // 라이트너 박스 분포 — 오른쪽으로 갈수록 장기기억에 안착한 문항
+      boxes: (() => {
+        const b = [0,0,0,0,0,0,0];
+        for(const id in S.cards) b[S.cards[id].box] = (b[S.cards[id].box] || 0) + 1;
+        return b;
+      })()
+    };
   }
 
   /* ── 연속 학습일(streak) ────────────────────────────── */
@@ -244,7 +300,7 @@ const Store = (() => {
   return {
     get s(){ return S; }, save, levelInfo, title, addXp, addCoin,
     record, dueCards, wrongCards, unitResult, subjectProgress,
-    markRead, markDrill, readCount,
+    markRead, markDrill, readCount, recentDays, unitStats, summary, INTERVAL,
     subjectAccuracy, subjectSeen, touchStreak, daily, progressTask,
     checkAch, ACHS, exportData, importData, reset, today
   };

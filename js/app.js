@@ -293,6 +293,12 @@
       if(c){ Sfx.tap(); UI.selectUnit(c.dataset.subject, uid => start('quest', { unit: uid, subject: c.dataset.subject })); }
     });
 
+    $('#btn-stats').addEventListener('click', e => {
+      e.stopPropagation();
+      Sfx.tap();
+      UI.stats((unit, subject) => start('quest', { unit, subject }));
+    });
+
     $$('[data-back]').forEach(b => b.addEventListener('click', () => { Sfx.tap(); UI.back(); }));
     $('#btn-next').addEventListener('click', () => { Sfx.tap(); next(); });
     $('#btn-quit').addEventListener('click', () => {

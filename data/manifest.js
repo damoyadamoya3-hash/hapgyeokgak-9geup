@@ -39,9 +39,11 @@ window.QB_PACKS = [
   /* ── 국어 ── */
   'questions/kor-01-gram',
   'questions/kor-02-word',
+  'questions/kor-03-more',
 
   /* ── 영어 ── */
-  'questions/eng-01-core'
+  'questions/eng-01-core',
+  'questions/eng-02-more'
 ];
 
 (function(){

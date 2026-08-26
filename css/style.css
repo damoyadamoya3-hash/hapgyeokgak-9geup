@@ -387,3 +387,51 @@ body.fever .combo-badge{background:linear-gradient(120deg,#ff2e88,#ffd600);anima
 @media (prefers-reduced-motion: reduce){
   body.fever,body.fever::before,.fever-wrap i,.jp-box,.jp-reel.stop{animation:none !important}
 }
+
+/* ══════════ 학습 분석 ══════════ */
+.stats-wrap{max-width:760px;margin:0 auto;padding:18px 16px 90px}
+.st-sec{background:var(--card);border:2px solid var(--line);border-radius:18px;
+  padding:16px;box-shadow:var(--shadow);margin-bottom:13px}
+.st-sec h3{margin:0 0 12px;font-size:16px}
+.st-sec h3 small{font-family:var(--f-body);font-size:11.5px;color:var(--ink2);font-weight:400;margin-left:6px}
+.st-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:9px}
+.st-tile{background:var(--bg);border-radius:14px;padding:12px 8px;text-align:center}
+.st-tile b{display:block;font-family:var(--f-round);font-size:23px;color:var(--brand);
+  font-variant-numeric:tabular-nums;line-height:1.2}
+.st-tile span{font-size:11px;color:var(--ink2)}
+.st-tile.good b{color:var(--good)} .st-tile.warn b{color:var(--bad)} .st-tile.info b{color:var(--accent)}
+
+/* 최근 학습 추이 */
+.st-chart{display:flex;align-items:flex-end;gap:4px;height:110px;padding-top:6px}
+.st-bar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;gap:3px}
+.st-bar .sb-stack{width:100%;border-radius:5px 5px 0 0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;
+  min-height:3px;background:var(--line)}
+.st-bar .sb-ok{background:var(--good)}
+.st-bar .sb-ng{background:var(--bad)}
+.st-bar .sb-lab{font-size:9px;color:var(--ink2);white-space:nowrap;font-variant-numeric:tabular-nums}
+.st-bar.today .sb-lab{color:var(--brand);font-family:var(--f-round)}
+.st-legend{display:flex;gap:12px;justify-content:center;font-size:11px;color:var(--ink2);margin-top:9px}
+.st-legend i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+
+/* 약점 단원 목록 */
+.st-list{display:grid;gap:8px}
+.st-row{display:flex;align-items:center;gap:10px;background:var(--bg);border-radius:13px;padding:10px 12px;
+  text-align:left;width:100%;border:2px solid transparent;transition:border-color .15s}
+.st-row:active{border-color:var(--brand)}
+.st-row .sr-body{flex:1;min-width:0}
+.st-row h4{margin:0 0 4px;font-size:14px;font-family:var(--f-round)}
+.st-row h4 em{font-style:normal;font-size:11px;color:var(--ink2);margin-left:5px;font-family:var(--f-body)}
+.st-row .sr-bar{height:7px;background:var(--line);border-radius:99px;overflow:hidden}
+.st-row .sr-bar i{display:block;height:100%;border-radius:99px}
+.st-row .sr-acc{font-family:var(--f-round);font-size:16px;flex:0 0 auto;min-width:46px;text-align:right;
+  font-variant-numeric:tabular-nums}
+.st-empty{background:var(--bg);border-radius:13px;padding:22px 14px;text-align:center;
+  font-size:13.5px;color:var(--ink2);line-height:1.7}
+
+/* 라이트너 박스 분포 */
+.st-boxes{display:flex;gap:5px;align-items:flex-end;height:74px}
+.st-box{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;height:100%}
+.st-box .bx{width:100%;border-radius:5px 5px 0 0;min-height:3px;
+  background:linear-gradient(180deg,var(--brand),var(--gold))}
+.st-box .bl{font-size:9.5px;color:var(--ink2);font-variant-numeric:tabular-nums}
+.st-note{font-size:12px;color:var(--ink2);line-height:1.7;margin-top:10px;word-break:keep-all}
