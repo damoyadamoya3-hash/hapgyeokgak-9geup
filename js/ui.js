@@ -45,6 +45,20 @@ const UI = (() => {
         <span>${esc(t.text)} <b style="color:var(--ink2);font-size:11px">(${Math.min(t.prog,t.goal)}/${t.goal})</b></span>
         <span class="dc-rw">+${t.xp}XP · ${t.coin}🪙</span>
       </li>`).join('');
+
+    // 최근 7일 출석 + 다음 연속 보상까지 남은 일수
+    const week = Store.weekAttendance();
+    const goal = Store.nextStreakGoal();
+    const streak = Store.s.streak;
+    $('#dc-streak').innerHTML = `
+      <div class="ds-days">
+        ${week.map(w => `<span class="ds-day ${w.on ? 'on' : ''} ${w.today ? 'now' : ''}">
+          <i>${w.on ? '🔥' : '·'}</i><em>${w.day}</em></span>`).join('')}
+      </div>
+      <p class="ds-msg">${goal
+        ? `<b>${streak}일</b> 연속 학습 중 — <b>${goal.label}</b>까지 ${Math.max(goal.days - streak, 0)}일
+           <span class="ds-rw">+${goal.xp} XP · ${goal.coin}🪙</span>`
+        : `<b>${streak}일</b> 연속 학습 중 — 모든 출석 보상을 받았습니다 👑`}</p>`;
   }
 
   /* ── 모드 카드 태그 ────────────────────────────────── */
@@ -559,6 +573,15 @@ const UI = (() => {
     }
     fin.newAch.forEach((a, i) =>
       setTimeout(() => { Sfx.unlock(); Fx.toast(`${a.e} 업적 달성: ${a.n}`, true, 2800); }, 1200 + i * 800));
+
+    if(fin.streakReward){
+      const r = fin.streakReward;
+      setTimeout(() => {
+        Sfx.levelup();
+        Fx.confetti(60);
+        Fx.toast(`🔥 ${r.label}! +${r.xp} XP · ${r.coin}🪙`, true, 3400);
+      }, 1000);
+    }
 
     show('scr-result');
   }

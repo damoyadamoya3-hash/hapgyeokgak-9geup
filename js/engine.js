@@ -170,7 +170,7 @@ const Engine = (() => {
 
     const leveled = Store.addXp(S.xp);
     Store.addCoin(S.coin);
-    Store.touchStreak();
+    const streakInfo = Store.touchStreak();
 
     // 일일 임무 진행
     Store.progressTask('answered', total);
@@ -186,7 +186,8 @@ const Engine = (() => {
     Store.save();
     const newAch = Store.checkAch();
 
-    return { acc, total, bonusXp, bonusCoin, leveled, stars, newAch };
+    return { acc, total, bonusXp, bonusCoin, leveled, stars, newAch,
+             streak: streakInfo.streak, streakReward: streakInfo.reward };
   }
 
   return { build, current, submit, advance, finish, isCorrect, shuffle, MODE };

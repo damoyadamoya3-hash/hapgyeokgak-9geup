@@ -19,6 +19,8 @@ const Store = (() => {
     dayStats: {},
     // 북마크한 문항: { [qid]: 저장한 날짜 }
     marks: {},
+    // 이미 수령한 연속 출석 보상 단계: { 3:true, 7:true, ... }
+    streakClaimed: {},
     ach: {},
     daily: { date: null, tasks: [] },
     settings: {
@@ -230,16 +232,53 @@ const Store = (() => {
   }
 
   /* ── 연속 학습일(streak) ────────────────────────────── */
+  /* 연속 출석 보상 사다리 — 단계마다 한 번씩만 지급 */
+  const STREAK_REWARDS = [
+    { days:3,  xp:80,   coin:30,  label:'3일 연속' },
+    { days:7,  xp:200,  coin:80,  label:'일주일 개근' },
+    { days:14, xp:450,  coin:180, label:'2주 완주' },
+    { days:30, xp:1200, coin:500, label:'한 달 개근' },
+    { days:100,xp:5000, coin:2000,label:'100일의 기적' }
+  ];
+
   function touchStreak(){
     const t = today();
-    if(S.lastPlay === t) return S.streak;
+    if(S.lastPlay === t) return { streak: S.streak, reward: null };
     const y = new Date(); y.setDate(y.getDate()-1);
     const yy = y.toISOString().slice(0,10);
     S.streak = (S.lastPlay === yy) ? S.streak + 1 : 1;
     S.lastPlay = t;
     if(!S.playedDays.includes(t)) S.playedDays.push(t);
+
+    // 도달한 단계 중 아직 받지 않은 보상을 지급
+    let reward = null;
+    for(const r of STREAK_REWARDS){
+      if(S.streak >= r.days && !S.streakClaimed[r.days]){
+        S.streakClaimed[r.days] = t;
+        S.xp += r.xp; S.coin += r.coin;
+        reward = r;
+      }
+    }
     save();
-    return S.streak;
+    return { streak: S.streak, reward };
+  }
+
+  /* 최근 7일 출석 여부 (과거 → 오늘) */
+  function weekAttendance(){
+    const DAY = ['일','월','화','수','목','금','토'];
+    const out = [];
+    for(let i = 6; i >= 0; i--){
+      const d = new Date(); d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      out.push({ key, day: DAY[d.getDay()], on: !!(S.dayStats[key] && S.dayStats[key].n > 0), today: i === 0 });
+    }
+    return out;
+  }
+
+  /* 다음 연속 출석 목표 */
+  function nextStreakGoal(){
+    for(const r of STREAK_REWARDS) if(!S.streakClaimed[r.days]) return r;
+    return null;
   }
 
   /* ── 일일 임무 ──────────────────────────────────────── */
@@ -324,6 +363,7 @@ const Store = (() => {
     record, dueCards, wrongCards, unitResult, subjectProgress,
     markRead, markDrill, readCount, recentDays, unitStats, summary, INTERVAL,
     isMarked, toggleMark, markedIds, wrongNotes,
+    weekAttendance, nextStreakGoal, STREAK_REWARDS,
     subjectAccuracy, subjectSeen, touchStreak, daily, progressTask,
     checkAch, ACHS, exportData, importData, reset, today
   };

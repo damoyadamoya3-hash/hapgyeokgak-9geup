@@ -36,6 +36,7 @@ window.QB_PACKS = [
   /* ── 행정법총론 ── */
   'questions/law-01-gen',
   'questions/law-02-remedy',
+  'questions/law-03-more',
 
   /* ── 국어 ── */
   'questions/kor-01-gram',

@@ -466,3 +466,20 @@ body.fever .combo-badge{background:linear-gradient(120deg,#ff2e88,#ffd600);anima
 .note-body .nb-tip{background:rgba(242,194,0,.16);border-radius:11px;padding:9px 11px;margin-top:9px;color:var(--ink)}
 .note-body .nb-acts{display:flex;gap:8px;margin-top:11px}
 .note-body .nb-acts button{flex:1;font-size:12.5px;padding:8px}
+
+/* ══════════ 연속 출석 스트립 ══════════ */
+.dc-streak{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
+.ds-days{display:flex;gap:5px}
+.ds-day{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  background:var(--bg);border:2px solid transparent;border-radius:11px;padding:7px 2px}
+.ds-day i{font-style:normal;font-size:15px;line-height:1;color:var(--line)}
+.ds-day em{font-style:normal;font-size:10px;color:var(--ink2)}
+.ds-day.on{background:rgba(242,194,0,.16)}
+.ds-day.on i{color:var(--brand)}
+.ds-day.now{border-color:var(--brand)}
+.ds-day.now em{color:var(--brand);font-family:var(--f-round)}
+.ds-msg{margin:10px 0 0;font-size:12.5px;color:var(--ink2);line-height:1.6;
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ds-msg b{color:var(--brand);font-size:13.5px}
+.ds-rw{margin-left:auto;font-size:11px;color:var(--gold);font-family:var(--f-round);
+  background:rgba(242,194,0,.16);border-radius:99px;padding:3px 10px;white-space:nowrap}
