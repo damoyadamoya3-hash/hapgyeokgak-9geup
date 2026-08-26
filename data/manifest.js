@@ -25,6 +25,7 @@ window.QB_PACKS = [
   'questions/edu-07-soc',
   'questions/edu-08-law',
   'questions/edu-09-more',
+  'questions/edu-10-trap',
 
   /* ── 한국사(한능검) ── */
   'questions/his-01-pre',
@@ -35,6 +36,7 @@ window.QB_PACKS = [
   'questions/his-06-japan',
   'questions/his-07-contemp',
   'questions/his-08-culture',
+  'questions/his-09-trap',
 
   /* ── 행정법총론 ── */
   'questions/law-01-gen',
@@ -46,6 +48,7 @@ window.QB_PACKS = [
   'questions/kor-01-gram',
   'questions/kor-02-word',
   'questions/kor-03-more',
+  'questions/kor-04-trap',
 
   /* ── 영어 ── */
   'questions/eng-01-core',

@@ -29,6 +29,23 @@ const Engine = (() => {
     return scored.slice(0, n).map(x => x.q);
   }
 
+  /* OX 세션의 정답 균형 맞추기
+     문제 은행 자체에 "O"가 많으므로, 한 판에서는 O와 X를 번갈아 섞어
+     "무조건 O 찍기"가 통하지 않게 한다. */
+  function balanceOx(pool, limit){
+    const yes = pool.filter(q => q.a === true);
+    const no  = pool.filter(q => q.a !== true);
+    const half = Math.min(yes.length, no.length, Math.ceil(limit / 2));
+
+    // O와 X를 같은 수만큼 뽑아 이 묶음 "안에서만" 섞는다.
+    // 전체를 다시 섞으면 은행의 원래 편향이 그대로 되살아난다.
+    const balanced = shuffle(yes.slice(0, half).concat(no.slice(0, half)));
+
+    // 부족한 자리는 남은 쪽에서 채운다 (긴 판을 대비한 예비분)
+    const rest = shuffle(yes.slice(half).concat(no.slice(half)));
+    return balanced.concat(rest).slice(0, limit);
+  }
+
   /* ── 세션 생성 ──────────────────────────────────────── */
   const MODE = {
     quest: { label:'스토리 퀘스트', hearts:3, timer:0,  n:10 },
@@ -50,7 +67,7 @@ const Engine = (() => {
     }
     else if(mode === 'ox'){
       pool = QB.items.filter(q => q.type === 'ox' && (!opt.subject || q.subject === opt.subject));
-      pool = shuffle(pool).slice(0, 200);
+      pool = balanceOx(shuffle(pool), 200);
     }
     else if(mode === 'boss'){
       const boss = QB.BOSSES[opt.subject];
