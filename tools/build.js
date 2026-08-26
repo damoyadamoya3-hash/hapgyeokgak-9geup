@@ -95,8 +95,13 @@ function build(){
   /* ── 5-A. 독립 실행용 (dist/index.html) ── */
   fs.writeFileSync(path.join(ROOT, 'dist/index.html'), html, 'utf8');
 
-  /* ── 5-B. Artifact 배포용: doctype/html/head/body 골격 제거 ── */
+  /* ── 5-B. Artifact 배포용 ──
+     Artifact 는 파일 하나만 올라가므로 매니페스트·아이콘 링크가 죽는다.
+     서비스 워커 등록도 매니페스트 링크의 유무로 판단하므로, 링크를
+     떼면 등록 시도 자체가 일어나지 않는다. */
   let art = html
+    .replace(/<link rel="manifest"[^>]*>\s*/i, '')
+    .replace(/<link rel="apple-touch-icon"[^>]*>\s*/i, '')
     .replace(/<!DOCTYPE html>\s*/i, '')
     .replace(/<html[^>]*>\s*/i, '')
     .replace(/<\/html>\s*$/i, '')
@@ -113,6 +118,7 @@ function build(){
   console.log('   dist/index.html   :', kb(Buffer.byteLength(html)));
   console.log('   dist/artifact.html:', kb(Buffer.byteLength(art)));
   console.log('   스크립트 블록      :', blocks.length + '개 · 구문 오류 없음');
+  console.log('   Artifact 매니페스트:', /<link\s+rel="manifest"/i.test(art) ? '⚠️ 남아 있음' : '제거됨');
 }
 
 build();

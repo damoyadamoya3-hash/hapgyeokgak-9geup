@@ -38,6 +38,9 @@ jobs:
           cp dist/index.html _site/index.html
           # 주소창에 아무 경로나 쳐도 앱이 뜨도록
           cp dist/index.html _site/404.html
+          # 홈 화면 설치와 오프라인 실행에 필요한 것들
+          cp manifest.webmanifest sw.js _site/
+          cp -r icons _site/icons
 
       - uses: actions/upload-pages-artifact@v3
         with:
