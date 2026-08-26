@@ -31,6 +31,25 @@ for(const c of QB.theory){
   if(!QB.unit(c.unit)) fail('이론카드 단원 오류 ' + c.unit, c.id);
   for(const cz of c.cloze) if(!/\{\{.+?\}\}/.test(cz.s)) fail('빈칸 표시 없음', c.id);
 }
+/* ── 해설-정답 정합성 점검 ───────────────────────────────
+   해설이 정답과 어긋나면 학습자가 오히려 잘못 외우게 된다. */
+let mismatch = 0;
+for(const q of QB.items){
+  const e = q.exp || '';
+  // OX 정답이 참인데 해설이 '반대다'로 시작하면 둘 중 하나가 잘못된 것
+  if(q.type === 'ox' && q.a === true &&
+     /^(반대|정반대|뒤바뀌|뒤집|틀렸|그것은)/.test(e.replace(/[*\s]/g, ''))){
+    console.log('  ✗ 해설이 정답과 어긋남 —', q.id); mismatch++;
+  }
+  // 해설이 '정답은 ②' 처럼 번호를 명시했는데 실제 인덱스와 다른 경우
+  const m = e.match(/정답은\s*([①②③④⑤])/);
+  if(m && q.type === 'mcq' && '①②③④⑤'.indexOf(m[1]) !== q.a){
+    console.log('  ✗ 해설의 정답 번호 불일치 —', q.id); mismatch++;
+  }
+}
+console.log('해설-정답 정합 :', mismatch ? '⚠️  ' + mismatch + '건' : '이상 없음 ✅');
+bad += mismatch;
+
 /* ── 내용 중복 점검 ─────────────────────────────────────
    같은 논점을 두 번 물으면 학습 시간만 잡아먹는다. */
 const norm = t => String(t).replace(/[\s*"'·,.()\[\]「」]/g, '').slice(0, 45);
