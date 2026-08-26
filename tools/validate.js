@@ -61,7 +61,9 @@ console.log('─'.repeat(46));
 const ox = QB.items.filter(q => q.type === 'ox');
 const oxT = ox.filter(q => q.a === true).length;
 const oxPct = Math.round(oxT / ox.length * 100);
-console.log('OX 정답 O비율 :', oxPct + '%', oxPct >= 40 && oxPct <= 60 ? '✅' : '⚠️  40~60% 권장');
+console.log('OX 정답 O비율 :', oxPct + '%', '(은행 기준)');
+console.log('  ※ 실제 출제는 Engine.evenOutOx / balanceOx 가 세션 단위로 47~51% 로 맞춘다');
+console.log('  ※ 다만 은행이 한쪽으로 크게 쏠리면 대체할 문항이 모자라므로 70% 를 넘기지 않는다');
 
 /* 길이 단서는 "정답이 최장인가"보다 "얼마나 눈에 띄게 긴가"가 문제다.
    1~2자 차이는 단서가 되지 않으므로 격차 10자 이상만 센다. */

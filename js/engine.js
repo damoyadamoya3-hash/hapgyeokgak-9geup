@@ -59,6 +59,35 @@ const Engine = (() => {
     return balanced.concat(rest).slice(0, limit);
   }
 
+  /* 세션 안의 OX 정답 편향 완화
+     문제 은행 자체에 'O'가 많아, 균형을 맞추지 않으면 퀘스트·모의고사에서
+     O만 찍어도 70%가 맞는다. 남아도는 O 문항 몇 개를 같은 단원(없으면 같은
+     과목)의 X 문항으로 바꿔 끼운다.
+     복습·오답 모드는 "그 문항을 다시 보는 것"이 목적이므로 건드리지 않는다. */
+  function evenOutOx(pool, opt){
+    const oxIdx = pool.map((q, i) => q.type === 'ox' ? i : -1).filter(i => i >= 0);
+    if(oxIdx.length < 4) return pool;
+
+    const yes = oxIdx.filter(i => pool[i].a === true);
+    const excess = yes.length - Math.floor(oxIdx.length / 2);
+    if(excess <= 0) return pool;
+
+    const used = new Set(pool.map(q => q.id));
+    const pick = scope => shuffle(QB.items.filter(q =>
+      q.type === 'ox' && q.a !== true && !used.has(q.id) && scope(q)));
+
+    let cand = opt.unit ? pick(q => q.unit === opt.unit) : [];
+    if(cand.length < excess && opt.subject){
+      const more = pick(q => q.subject === opt.subject && !cand.includes(q));
+      cand = cand.concat(more);
+    }
+    if(!cand.length) return pool;
+
+    shuffle(yes).slice(0, Math.min(excess, cand.length))
+                .forEach((pos, k) => { pool[pos] = cand[k]; });
+    return pool;
+  }
+
   /* ── 세션 생성 ──────────────────────────────────────── */
   const MODE = {
     quest: { label:'스토리 퀘스트', hearts:3, timer:0,  n:10 },
@@ -121,6 +150,22 @@ const Engine = (() => {
     }
 
     if(!pool.length) return null;
+
+    // 복습·오답 모드는 특정 문항을 다시 보는 것이 목적이므로 제외한다
+    if(mode === 'quest' || mode === 'exam' || mode === 'boss'){
+      if(mode === 'exam' && opt.subject === 'all'){
+        // 통합 회차는 과목별로 나눠 균형을 맞춘다
+        for(const sub of QB.SUBJECTS){
+          const part = pool.filter(q => q.subject === sub.id);
+          evenOutOx(part, { subject: sub.id });
+          let k = 0;
+          for(let i = 0; i < pool.length; i++)
+            if(pool[i].subject === sub.id) pool[i] = part[k++];
+        }
+      }else{
+        evenOutOx(pool, opt);
+      }
+    }
 
     pool.forEach(shuffleChoices);
 
