@@ -18,17 +18,23 @@
   function boot(){
     applyTheme();
     QB.buildClozeQuestions();     // 이론 카드의 빈칸 → 실제 문항으로 편입
-    let p = 0;
+
+    // 실제 준비는 수십 ms 면 끝난다. 로고를 보여 주되 기다리게 하지는 않는다.
+    // 진행률을 '몇 번 더했는가'가 아니라 '얼마나 지났는가'로 계산한다.
+    // setInterval 은 탭이 뒤로 가면 초 단위로 늦춰져서, 증가량 방식으로는
+    // 같은 부팅이 어떤 때는 몇 초씩 걸린다.
+    const DURATION = 420;
     const fill = $('#boot-fill'), msg = $('#boot-msg');
-    const iv = setInterval(() => {
-      p += 12 + Math.random() * 20;
-      fill.style.width = Math.min(p, 100) + '%';
-      msg.textContent = BOOT_MSGS[Math.min(((p / 100) * BOOT_MSGS.length) | 0, BOOT_MSGS.length - 1)];
-      if(p >= 100){
-        clearInterval(iv);
-        setTimeout(() => { UI.home(); UI.show('scr-home'); }, 260);
-      }
-    }, 190);
+    const t0 = performance.now();
+
+    const step = () => {
+      const k = Math.min((performance.now() - t0) / DURATION, 1);
+      fill.style.width = (k * 100) + '%';
+      msg.textContent = BOOT_MSGS[Math.min((k * BOOT_MSGS.length) | 0, BOOT_MSGS.length - 1)];
+      if(k < 1) requestAnimationFrame(step);
+      else setTimeout(() => { UI.home(); UI.show('scr-home'); }, 90);
+    };
+    requestAnimationFrame(step);
   }
 
   function applyTheme(){
