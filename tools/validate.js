@@ -50,6 +50,34 @@ for(const q of QB.items){
 console.log('해설-정답 정합 :', mismatch ? '⚠️  ' + mismatch + '건' : '이상 없음 ✅');
 bad += mismatch;
 
+/* ── 정답 키 오타 탐지 (경고) ────────────────────────────
+   a: 인덱스를 하나 잘못 적으면 눈으로는 보이지 않는데 틀린 내용을
+   외우게 된다. 용어를 고르는 문항이라면 해설은 거의 언제나 정답을
+   이름으로 부른다. 그래서 '해설에 정답은 없고 다른 선택지가 해설
+   첫머리에 나오는' 문항을 뽑아 준다.
+   해설을 다르게 쓴 정상 문항도 걸리므로 차단하지 않고 알려만 준다. */
+{
+  const clean = t => String(t).replace(/[\s()（）「」·,.\[\]\/*'’‘"—-]|[一-龥]/g, '');
+  const core  = t => clean(t).replace(/(의욕구|하였다|한다|이다|의원칙|의오류|제도$)/g, '');
+  const susp = [];
+  for(const q of QB.items){
+    if(q.type !== 'mcq' || !q.choices || q.cloze) continue;
+    if(!q.choices.every(c => String(c).length <= 14)) continue;   // 용어 고르기형만
+    const body = clean((q.exp || '') + (q.tip || ''));
+    const named = i => { const c = core(q.choices[i]); return c.length >= 2 && body.includes(c); };
+    if(named(q.a)) continue;
+    const head = clean((q.exp || '').slice(0, 26));
+    const other = q.choices.map((_, i) => i).filter(i => i !== q.a)
+      .find(i => { const c = core(q.choices[i]); return c.length >= 2 && head.includes(c); });
+    if(other !== undefined) susp.push([q.id, q.choices[q.a], q.choices[other]]);
+  }
+  if(susp.length){
+    console.log('정답 키 확인 필요 : ' + susp.length + '건 (차단하지 않음)');
+    susp.slice(0, 12).forEach(x =>
+      console.log('   ? ' + x[0] + ' — 키는 “' + x[1] + '” 인데 해설은 “' + x[2] + '” 로 시작'));
+  } else console.log('정답 키 확인 필요 : 없음 ✅');
+}
+
 /* ── 내용 중복 점검 ─────────────────────────────────────
    같은 논점을 두 번 물으면 학습 시간만 잡아먹는다. */
 const norm = t => String(t).replace(/[\s*"'·,.()\[\]「」]/g, '').slice(0, 45);
