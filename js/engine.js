@@ -164,15 +164,23 @@ const Engine = (() => {
       pool = shuffle(pool).slice(0, cfg.n);
     }
     else if(mode === 'exam'){
+      /* 실제 9급 시험은 전부 4지선다다. 평소에는 OX 로 빨리 돌리더라도
+         모의고사만큼은 객관식을 먼저 채워야 실전 감각이 생긴다.
+         객관식이 모자란 과목은 남는 자리만 OX 로 메운다. */
+      const examPick = (sid, n) => {
+        const all  = QB.bySubject(sid);
+        const mcq  = shuffle(all.filter(q => q.type === 'mcq')).slice(0, n);
+        if(mcq.length >= n) return mcq;
+        const ox = shuffle(all.filter(q => q.type !== 'mcq')).slice(0, n - mcq.length);
+        return shuffle(mcq.concat(ox));
+      };
       if(opt.subject === 'all'){
         // 전 과목 통합 회차 — 과목마다 균등하게 뽑아 실제 시험 구성에 맞춘다
         const per = opt.per || 20;
         pool = [];
-        for(const sub of QB.SUBJECTS){
-          pool = pool.concat(shuffle(QB.bySubject(sub.id)).slice(0, per));
-        }
+        for(const sub of QB.SUBJECTS) pool = pool.concat(examPick(sub.id, per));
       }else{
-        pool = shuffle(QB.bySubject(opt.subject)).slice(0, cfg.n);
+        pool = examPick(opt.subject, cfg.n);
       }
     }
 
