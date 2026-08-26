@@ -102,6 +102,34 @@ if(dups.length){
   bad += dups.length;
 } else console.log('중복 문항 : 없음 ✅');
 
+/* ── 빈칸(cloze) 품질 점검 ───────────────────────────────
+   이론 카드가 60장을 넘으면서 같은 문장을 두 카드에서 쓰는 일이 생겼다.
+   같은 빈칸을 두 번 외우는 것은 시간만 잡아먹는다. */
+{
+  const seen = {}, dupZ = [], noGap = [], ansInWrong = [], fewOpts = [];
+  let total = 0;
+  for(const c of QB.theory){
+    for(const z of (c.cloze || [])){
+      total++;
+      const m = String(z.s || '').match(/\{\{(.+?)\}\}/);
+      if(!m){ noGap.push(c.id); continue; }
+      const ans = m[1].trim(), o = (z.o || []).map(x => String(x).trim());
+      if(o.length < 3) fewOpts.push(c.id + ' | ' + ans);
+      if(o.includes(ans)) ansInWrong.push(c.id + ' | ' + ans);
+      const key = z.s.replace(/\s/g, '');
+      if(seen[key]) dupZ.push(seen[key] + ' ↔ ' + c.id + ' | ' + z.s.slice(0, 34));
+      seen[key] = c.id;
+    }
+  }
+  const bad2 = noGap.length + ansInWrong.length + fewOpts.length + dupZ.length;
+  console.log('빈칸 문항 : ' + total + '개', bad2 ? '⚠️  ' + bad2 + '건' : '이상 없음 ✅');
+  noGap.forEach(x     => console.log('  ✗ {{ }} 표시 없음 —', x));
+  ansInWrong.forEach(x=> console.log('  ✗ 정답이 오답 목록에도 있음 —', x));
+  fewOpts.forEach(x   => console.log('  ✗ 오답이 3개 미만 —', x));
+  dupZ.forEach(x      => console.log('  ✗ 같은 빈칸이 두 카드에 —', x));
+  bad += bad2;
+}
+
 /* ── 정답 편향 점검 ─────────────────────────────────────
    한쪽으로 찍어서 맞는 문제가 있으면 인출 연습이 성립하지 않는다. */
 console.log('─'.repeat(46));
