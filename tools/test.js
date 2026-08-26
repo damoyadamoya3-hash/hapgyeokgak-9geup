@@ -34,6 +34,13 @@ const packs = (manifest.match(/window\.QB_PACKS\s*=\s*\[([\s\S]*?)\]/)[1]
 for(const p of packs) eval(rd('data/' + p + '.js'));
 QB.buildClozeQuestions();
 
+/* 선택지를 섞기 전의 '정답 텍스트'를 따로 떠 둔다.
+   섞으면서 a 인덱스를 같이 옮기지 않으면 모든 객관식 정답이 어긋나는데,
+   화면으로는 알아채기 어렵다. */
+const ORIGINAL_ANSWER = new Map();
+for(const q of QB.items)
+  if(q.type === 'mcq' && q.choices) ORIGINAL_ANSWER.set(q.id, String(q.choices[q.a]));
+
 /* 로직 모듈.
    store.js 는 `const Store = (function(){...})()` 형태라 eval 안에서
    선언되면 그 스코프에 갇힌다. 같은 eval 안에서 전역으로 꺼내 준다. */
@@ -234,6 +241,56 @@ t('모의고사 — 한 회차 안에서 같은 문항이 겹치지 않는다', 
   fresh();
   const s = Engine.build('exam', { subject:'all' });
   eq(new Set(s.queue.map(q => q.id)).size, s.queue.length, '중복 출제');
+});
+
+/* ── 선택지 섞기 ─────────────────────────────────────────── */
+t('선택지 섞기 — 섞은 뒤에도 정답 칸이 정답을 가리킨다', () => {
+  fresh();
+  for(let i = 0; i < 40; i++){
+    for(const sub of QB.SUBJECTS) Engine.build('exam', { subject: sub.id });
+    Engine.build('exam', { subject:'all' });
+    for(const u of (QB.UNITS['law'] || [])) Engine.build('quest', { unit:u.id, subject:'law' });
+  }
+  const bad = [];
+  for(const q of QB.items){
+    if(!ORIGINAL_ANSWER.has(q.id)) continue;
+    if(String(q.choices[q.a]) !== ORIGINAL_ANSWER.get(q.id)) bad.push(q.id);
+  }
+  eq(bad.length, 0, '정답이 어긋난 문항: ' + bad.slice(0, 5).join(', '));
+});
+
+t('선택지 섞기 — 번호를 언급한 문항은 순서를 지킨다', () => {
+  const fixed = QB.items.filter(q => q.fixedOrder && q.choices);
+  ok(fixed.length > 0, 'fixedOrder 문항이 하나도 없음');
+  const before = new Map(fixed.map(q => [q.id, q.choices.join('|')]));
+  for(let i = 0; i < 40; i++)
+    for(const sub of QB.SUBJECTS) Engine.build('exam', { subject: sub.id });
+  const moved = fixed.filter(q => q.choices.join('|') !== before.get(q.id));
+  eq(moved.length, 0, '순서가 바뀐 문항: ' + moved.slice(0, 3).map(q => q.id).join(', '));
+});
+
+t('선택지 섞기 — 일반 객관식은 실제로 섞인다', () => {
+  const free = QB.items.filter(q => q.type === 'mcq' && !q.fixedOrder && !q.cloze).slice(0, 20);
+  const before = new Map(free.map(q => [q.id, q.choices.join('|')]));
+  for(let i = 0; i < 60; i++)
+    for(const sub of QB.SUBJECTS) Engine.build('exam', { subject: sub.id });
+  const moved = free.filter(q => q.choices.join('|') !== before.get(q.id));
+  ok(moved.length >= free.length * 0.5, '섞인 문항이 ' + moved.length + '/' + free.length + ' 뿐');
+});
+
+/* ── 업적 ────────────────────────────────────────────────── */
+t('업적 — 조건을 채우면 27개가 모두 달성된다', () => {
+  fresh();
+  Store.s.totalAnswered = 5000; Store.s.totalCorrect = 4600;
+  Store.s.maxCombo = 30; Store.s.streak = 100; Store.s.bossKills = 5;
+  Store.s.bestOx = 60; Store.s.examCount = 10; Store.s.hadPerfect = true;
+  Store.addXp(200000);
+  QB.items.forEach(q => Store.s.cards[q.id] = { n:9, ok:9, ng:0, box:6, due: shift(30), last: Store.today() });
+  QB.theory.forEach(c => Store.s.readCards[c.id] = { read: Store.today(), drill:1 });
+  Store.save();
+  Store.checkAch();
+  const missed = Store.ACHS.filter(a => !Store.s.ach[a.id]);
+  eq(missed.length, 0, '달성되지 않은 업적: ' + missed.map(a => a.n).join(', '));
 });
 
 /* ── 기기 간 이어하기 ────────────────────────────────────── */
