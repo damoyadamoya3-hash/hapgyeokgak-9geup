@@ -17,8 +17,10 @@ window.QB_PACKS = [
   'theory/edu-t-03-law',
   'theory/kor-t-01-core',
   'theory/kor-t-02-word',
+  'theory/kor-t-03-rules',
   'theory/eng-t-01-core',
   'theory/eng-t-02-vocab',
+  'theory/eng-t-03-points',
 
   /* ── 문제 ── */
   'questions/edu-01-phil',
