@@ -42,6 +42,7 @@ window.QB_PACKS = [
   'questions/his-07-contemp',
   'questions/his-08-culture',
   'questions/his-09-trap',
+  'questions/his-10-mcq',
 
   /* ── 행정법총론 ── */
   'questions/law-01-gen',
