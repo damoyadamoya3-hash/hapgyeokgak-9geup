@@ -21,6 +21,8 @@ const Store = (() => {
     marks: {},
     // 이미 수령한 연속 출석 보상 단계: { 3:true, 7:true, ... }
     streakClaimed: {},
+    // 시험일 (YYYY-MM-DD). 설정하면 D-day 와 하루 목표량을 계산한다
+    examDate: null,
     ach: {},
     daily: { date: null, tasks: [] },
     settings: {
@@ -160,6 +162,35 @@ const Store = (() => {
   function readCount(sid){
     const list = sid ? QB.theoryBySubject(sid) : QB.theory;
     return list.filter(c => S.readCards[c.id] && S.readCards[c.id].read).length;
+  }
+
+  /* ── 학습 계획 ──────────────────────────────────────── */
+  function setExamDate(v){ S.examDate = v || null; save(); }
+
+  /* 시험까지 남은 일수와, 남은 문항을 그 안에 다 보려면 하루에 몇 개인지 */
+  function plan(){
+    const total = QB.items.length;
+    const seen  = Object.keys(S.cards).length;
+    const left  = Math.max(total - seen, 0);
+    const todayN = (S.dayStats[today()] || { n:0 }).n;
+
+    if(!S.examDate){
+      return { hasDate:false, total, seen, left, todayN,
+               pct: total ? Math.round(seen / total * 100) : 0,
+               // 시험일이 없으면 하루 30문항을 기본 목표로 제안한다
+               goal: 30, days: null };
+    }
+    const ms = new Date(S.examDate + 'T00:00:00') - new Date(today() + 'T00:00:00');
+    const days = Math.ceil(ms / 86400000);
+
+    // 하루 목표는 10~120문항 사이로 제한한다.
+    // 시험이 코앞이면 산술적으로 수백 문항이 나오는데, 그런 숫자는
+    // 실행할 수 없으므로 상한을 두고 대신 '전략을 바꾸라'고 알린다.
+    const raw = days > 0 ? Math.ceil(left / days) : left;
+    const goal = Math.min(Math.max(raw, 10), 120);
+    return { hasDate:true, date:S.examDate, days, total, seen, left, todayN,
+             pct: total ? Math.round(seen / total * 100) : 0,
+             goal, capped: raw > goal };
   }
 
   /* ── 북마크 ─────────────────────────────────────────── */
@@ -367,7 +398,7 @@ const Store = (() => {
     record, dueCards, wrongCards, unitResult, subjectProgress,
     markRead, markDrill, readCount, recentDays, unitStats, summary, INTERVAL,
     isMarked, toggleMark, markedIds, wrongNotes,
-    weekAttendance, nextStreakGoal, STREAK_REWARDS,
+    weekAttendance, nextStreakGoal, STREAK_REWARDS, setExamDate, plan,
     subjectAccuracy, subjectSeen, touchStreak, daily, progressTask,
     checkAch, ACHS, exportData, importData, reset, today
   };

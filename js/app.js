@@ -310,6 +310,14 @@
 
     const openNote = () => UI.notes((unit, subject) => start('quest', { unit, subject }));
     $('#btn-note').addEventListener('click', e => { e.stopPropagation(); Sfx.tap(); openNote(); });
+
+    // 학습 계획 카드를 누르면 시험일을 정할 수 있는 설정으로 안내
+    $('#plan-card').addEventListener('click', () => {
+      Sfx.tap();
+      $('#set-exam').value = Store.s.examDate || '';
+      modal.classList.remove('hidden');
+      setTimeout(() => $('#set-exam').focus(), 120);
+    });
     $$('.note-tab').forEach(t => t.addEventListener('click', () => {
       Sfx.tap();
       UI.setNoteTab(t.dataset.note, (unit, subject) => start('quest', { unit, subject }));
@@ -347,6 +355,11 @@
 
     // 설정
     const modal = $('#modal-settings');
+    $('#set-exam').addEventListener('change', e => {
+      Store.setExamDate(e.target.value);
+      UI.planCard();
+      if(e.target.value) Fx.toast('🗓️ 시험일이 설정됐어요', true, 1800);
+    });
     $('#btn-settings').addEventListener('click', () => {
       Sfx.tap();
       const st = Store.s.settings;
@@ -354,6 +367,7 @@
       $('#set-dark').checked = st.dark;   $('#set-autoexp').checked = st.autoexp;
       $('#set-tetris').checked = st.tetris !== false;
       $('#set-bgm').checked = st.bgm !== false;
+      $('#set-exam').value = Store.s.examDate || '';
       modal.classList.remove('hidden');
     });
     $('#btn-close-settings').addEventListener('click', () => modal.classList.add('hidden'));

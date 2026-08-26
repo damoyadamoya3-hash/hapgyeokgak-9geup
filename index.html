@@ -52,6 +52,8 @@
   </header>
 
   <main class="home-wrap">
+    <button id="plan-card" class="plan-card"></button>
+
     <div id="daily-card" class="daily-card">
       <div class="dc-head"><span class="dc-icon">📅</span><div><h3>오늘의 임무</h3><p id="dc-date">—</p></div><div id="dc-progress" class="dc-prog">0 / 3</div></div>
       <ul id="dc-list" class="dc-list"></ul>
@@ -205,6 +207,7 @@
     <label class="sw"><span>해설 자동 표시</span><input type="checkbox" id="set-autoexp" checked></label>
     <label class="sw"><span>🧱 테트리스 사이드패널</span><input type="checkbox" id="set-tetris" checked></label>
     <label class="sw"><span>🎵 배경음악</span><input type="checkbox" id="set-bgm" checked></label>
+    <label class="sw"><span>🗓️ 시험일</span><input type="date" id="set-exam" class="set-date"></label>
     <div class="modal-danger">
       <button class="btn-ghost" id="btn-export">📤 진행도 내보내기</button>
       <button class="btn-ghost" id="btn-import">📥 불러오기</button>

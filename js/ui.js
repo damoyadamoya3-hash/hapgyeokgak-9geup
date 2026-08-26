@@ -70,6 +70,35 @@ const UI = (() => {
     $('#hud-coin').textContent   = Store.s.coin;
   }
 
+  /* ── 학습 계획 (D-day) ─────────────────────────────── */
+  function planCard(){
+    const p = Store.plan();
+    const el = $('#plan-card');
+    const done = Math.min(p.todayN, p.goal);
+    const ratio = p.goal ? Math.min(done / p.goal * 100, 100) : 0;
+
+    const head = p.hasDate
+      ? (p.days > 0
+          ? `<b class="pc-dday">D-${p.days}</b><span class="pc-date">${esc(p.date)} 시험</span>`
+          : p.days === 0
+            ? `<b class="pc-dday">D-DAY</b><span class="pc-date">오늘이 시험일입니다</span>`
+            : `<b class="pc-dday">D+${-p.days}</b><span class="pc-date">시험일이 지났어요</span>`)
+      : `<b class="pc-dday pc-set">🗓️ 시험일 설정</b><span class="pc-date">눌러서 D-day를 켜세요</span>`;
+
+    el.innerHTML = `
+      <div class="pc-top">${head}
+        <span class="pc-pct">진도 ${p.pct}%</span>
+      </div>
+      <div class="pc-bar"><i style="width:${p.pct}%"></i></div>
+      <div class="pc-goal">
+        <span>오늘 목표 <b>${done} / ${p.goal}</b>문항</span>
+        <span class="pc-left">남은 문항 ${p.left}개</span>
+      </div>
+      <div class="pc-today"><i style="width:${ratio}%"></i></div>
+      ${p.capped ? `<p class="pc-warn">⚠️ 남은 날에 전부 보기는 어려워요.
+        <b>약한 단원</b>과 <b>오답노트</b> 위주로 좁혀 가세요.</p>` : ''}`;
+  }
+
   /* ── 일일 임무 ─────────────────────────────────────── */
   function daily(){
     const d = Store.daily();
@@ -136,7 +165,7 @@ const UI = (() => {
       </div>`).join('');
   }
 
-  function home(){ hud(); daily(); modeTags(); subjects(); achievements(); }
+  function home(){ hud(); planCard(); daily(); modeTags(); subjects(); achievements(); }
 
   /* ── 선택 화면: 과목 목록 ──────────────────────────── */
   function selectSubject(title, note, cb, extra){
@@ -695,7 +724,7 @@ const UI = (() => {
   }
 
   return { $, $$, esc, show, back, popScreen, setPopHandler, currentScreen,
-           hud, home, daily, subjects, achievements,
+           hud, home, daily, planCard, subjects, achievements,
            modeTags, selectSubject, selectUnit, question, reveal, result,
            codexList, cardDetail, bumpXp, stats, notes, setNoteTab, markSilent };
 })();
