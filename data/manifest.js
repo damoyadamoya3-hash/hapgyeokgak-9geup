@@ -53,6 +53,7 @@ window.QB_PACKS = [
   /* ── 영어 ── */
   'questions/eng-01-core',
   'questions/eng-02-more',
+  'questions/eng-03-fill',
 
   /* ── 보강(국어·영어 독해) ── */
   'questions/mix-01-reading'

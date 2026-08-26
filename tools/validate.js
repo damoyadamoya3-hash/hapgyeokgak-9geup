@@ -36,7 +36,9 @@ for(const c of QB.theory){
 const norm = t => String(t).replace(/[\s*"'·,.()\[\]「」]/g, '').slice(0, 45);
 const stem = {};
 for(const q of QB.items.filter(x => !x.cloze)){
-  const k = norm(q.q);
+  // 지문이 다르면 문두가 같아도 서로 다른 문항이다
+  // ('글의 순서로 가장 적절한 것은?' 처럼 문두와 선택지가 공용인 유형)
+  const k = norm(q.q) + '|' + norm(q.passage || '');
   (stem[k] = stem[k] || []).push(q);
 }
 // 문두가 같아도 선택지가 다르면 별개 문항이므로, OX 는 문두만으로 중복 판정
@@ -61,15 +63,22 @@ const oxT = ox.filter(q => q.a === true).length;
 const oxPct = Math.round(oxT / ox.length * 100);
 console.log('OX 정답 O비율 :', oxPct + '%', oxPct >= 40 && oxPct <= 60 ? '✅' : '⚠️  40~60% 권장');
 
+/* 길이 단서는 "정답이 최장인가"보다 "얼마나 눈에 띄게 긴가"가 문제다.
+   1~2자 차이는 단서가 되지 않으므로 격차 10자 이상만 센다. */
 const mcq = QB.items.filter(q => q.type === 'mcq' && !q.cloze);
-let longest = 0, sameLen = 0;
+let gap10 = 0, gap15 = 0, sameLen = 0;
 for(const q of mcq){
   const L = q.choices.map(c => String(c).length);
-  if(L[q.a] === Math.max(...L)) longest++;
-  if(Math.max(...L) - Math.min(...L) <= 12) sameLen++;
+  const mx = Math.max(...L), mn = Math.min(...L);
+  if(L[q.a] === mx){
+    if(mx - mn >= 10) gap10++;
+    if(mx - mn >= 15) gap15++;
+  }
+  if(mx - mn <= 12) sameLen++;
 }
-const lenPct = Math.round(longest / mcq.length * 100);
-console.log('정답=최장 선택지 :', lenPct + '%', lenPct <= 35 ? '✅' : '⚠️  35% 이하 권장 (오답 선택지를 비슷한 길이로)');
+console.log('정답이 눈에 띄게 긴 문항');
+console.log('  격차 15자 이상 :', gap15 + '건', gap15 === 0 ? '✅' : '⚠️  오답 선택지를 늘려 주세요');
+console.log('  격차 10자 이상 :', gap10 + '건', gap10 <= mcq.length * 0.05 ? '✅' : '⚠️');
 console.log('선택지 길이 균질 :', Math.round(sameLen / mcq.length * 100) + '%');
 console.log('  ※ 정답 위치 편향은 Engine.shuffleChoices 가 실행 시점에 해소한다');
 
