@@ -224,7 +224,9 @@ const UI = (() => {
   /* ══════════ 학습 분석 ══════════ */
   function stats(onPickUnit){
     const s   = Store.summary();
-    const days = Store.recentDays(14);
+    // 아주 좁은 화면(320px대)에서는 14일치 날짜 라벨이 물리적으로 들어가지 않는다.
+    const span = (window.innerWidth || 400) < 380 ? 7 : 14;
+    const days = Store.recentDays(span);
     const us   = Store.unitStats();
     const peak = Math.max(1, ...days.map(d => d.n));
     const maxBox = Math.max(1, ...s.boxes);
@@ -253,7 +255,7 @@ const UI = (() => {
       </div>
 
       <div class="st-sec">
-        <h3>최근 2주 학습량 <small>막대 = 하루에 푼 문제 수</small></h3>
+        <h3>최근 ${span === 7 ? '1주' : '2주'} 학습량 <small>막대 = 하루에 푼 문제 수</small></h3>
         <div class="st-chart">
           ${days.map((d, i) => {
             const h = Math.round(d.n / peak * 92);

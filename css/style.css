@@ -403,13 +403,30 @@ body.fever .combo-badge{background:linear-gradient(120deg,#ff2e88,#ffd600);anima
 
 /* 최근 학습 추이 */
 .st-chart{display:flex;align-items:flex-end;gap:4px;height:110px;padding-top:6px}
-.st-bar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;gap:3px}
+/* min-width:0 이 없으면 flex 항목이 날짜 라벨 너비 아래로 줄지 못해
+   좁은 화면에서 차트가 통째로 넘친다. */
+.st-bar{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;
+  align-items:center;height:100%;gap:3px}
 .st-bar .sb-stack{width:100%;border-radius:5px 5px 0 0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;
   min-height:3px;background:var(--line)}
 .st-bar .sb-ok{background:var(--good)}
 .st-bar .sb-ng{background:var(--bad)}
 .st-bar .sb-lab{font-size:9px;color:var(--ink2);white-space:nowrap;font-variant-numeric:tabular-nums}
 .st-bar.today .sb-lab{color:var(--brand);font-family:var(--f-round)}
+/* 좁은 화면에서는 날짜 라벨을 사흘 간격으로만 남긴다.
+   14개 막대 기준 3n+2 는 2·5·8·11·14 이므로 마지막이 곧 '오늘'이 되어
+   오늘 라벨이 옆 라벨과 붙어 잘리는 일이 없다. */
+@media (max-width:430px){
+  .st-chart{gap:3px}
+  .st-bar .sb-lab{display:none}
+  .st-bar:nth-child(3n+2) .sb-lab,
+  .st-bar.today .sb-lab{display:block}
+}
+/* 380px 미만에서는 막대가 7개뿐이므로 모든 라벨을 그대로 보여준다 */
+@media (max-width:379px){
+  .st-bar .sb-lab{display:block}
+  .sb-lab{font-size:8.5px}
+}
 .st-legend{display:flex;gap:12px;justify-content:center;font-size:11px;color:var(--ink2);margin-top:9px}
 .st-legend i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:4px;vertical-align:-1px}
 
