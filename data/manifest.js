@@ -12,8 +12,12 @@ window.QB_PACKS = [
   'theory/edu-t-01-adm',
   'theory/edu-t-02-core',
   'theory/his-t-01-timeline',
+  'theory/his-t-02-gorjos',
+  'theory/edu-t-03-law',
   'theory/kor-t-01-core',
+  'theory/kor-t-02-word',
   'theory/eng-t-01-core',
+  'theory/eng-t-02-vocab',
 
   /* ── 문제 ── */
   'questions/edu-01-phil',
