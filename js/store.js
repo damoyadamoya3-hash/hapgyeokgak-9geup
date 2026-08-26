@@ -17,6 +17,8 @@ const Store = (() => {
     readCards: {},
     // 일자별 학습량: { 'YYYY-MM-DD': {n:푼 문제, ok:맞힌 문제} }
     dayStats: {},
+    // 북마크한 문항: { [qid]: 저장한 날짜 }
+    marks: {},
     ach: {},
     daily: { date: null, tasks: [] },
     settings: {
@@ -154,6 +156,26 @@ const Store = (() => {
   function readCount(sid){
     const list = sid ? QB.theoryBySubject(sid) : QB.theory;
     return list.filter(c => S.readCards[c.id] && S.readCards[c.id].read).length;
+  }
+
+  /* ── 북마크 ─────────────────────────────────────────── */
+  function isMarked(qid){ return !!S.marks[qid]; }
+  function toggleMark(qid){
+    if(S.marks[qid]) delete S.marks[qid];
+    else S.marks[qid] = today();
+    save();
+    return !!S.marks[qid];
+  }
+  function markedIds(){ return Object.keys(S.marks); }
+
+  /* 오답노트 — 틀린 적 있는 문항을 "많이 틀린 순"으로
+     ng: 틀린 횟수, box가 낮을수록 아직 정착되지 않은 문항 */
+  function wrongNotes(){
+    return Object.keys(S.cards)
+      .filter(id => S.cards[id].ng > 0)
+      .map(id => ({ id, ...S.cards[id], q: QB.byId(id) }))
+      .filter(x => x.q)
+      .sort((a, b) => (b.ng - a.ng) || (a.box - b.box));
   }
 
   /* ── 학습 분석 ──────────────────────────────────────── */
@@ -301,6 +323,7 @@ const Store = (() => {
     get s(){ return S; }, save, levelInfo, title, addXp, addCoin,
     record, dueCards, wrongCards, unitResult, subjectProgress,
     markRead, markDrill, readCount, recentDays, unitStats, summary, INTERVAL,
+    isMarked, toggleMark, markedIds, wrongNotes,
     subjectAccuracy, subjectSeen, touchStreak, daily, progressTask,
     checkAch, ACHS, exportData, importData, reset, today
   };

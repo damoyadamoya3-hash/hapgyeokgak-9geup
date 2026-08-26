@@ -128,6 +128,80 @@ const UI = (() => {
     show('scr-select');
   }
 
+  /* ══════════ 오답노트 ══════════ */
+  let noteTab = 'wrong';
+
+  function noteAnswerText(q){
+    if(q.type === 'ox') return q.a ? 'O' : 'X';
+    return '①②③④⑤'[q.a] + ' ' + (q.choices[q.a] || '');
+  }
+
+  function notes(onSolve){
+    const rows = noteTab === 'wrong'
+      ? Store.wrongNotes()
+      : Store.markedIds().map(id => ({ id, ...(Store.s.cards[id] || {n:0,ok:0,ng:0,box:0}), q: QB.byId(id) }))
+              .filter(x => x.q);
+
+    $$('.note-tab').forEach(t => t.classList.toggle('on', t.dataset.note === noteTab));
+
+    $('#note-body').innerHTML = rows.length ? rows.map(r => {
+      const q = r.q;
+      const sub = QB.subject(q.subject) || { name:'', color:'var(--brand)' };
+      const marked = Store.isMarked(q.id);
+      return `<div class="note-item ${marked ? 'marked' : ''}" data-note-id="${q.id}">
+        <button class="note-head">
+          <span class="nh-body">
+            <span class="nh-meta">
+              <span class="nh-sub" style="background:${sub.color}">${esc(sub.name)}</span>
+              ${r.ng ? `<span class="nh-cnt">${r.ng}번 틀림</span>` : ''}
+              ${marked ? '<span style="font-size:12px">⭐</span>' : ''}
+            </span>
+            <span class="nh-q">${md(q.q.length > 110 ? q.q.slice(0, 110) + '…' : q.q)}</span>
+          </span>
+          <span class="nh-arrow">▼</span>
+        </button>
+        <div class="note-body">
+          <div class="nb-ans">정답 · ${esc(noteAnswerText(q))}</div>
+          <div class="nb-exp">${md(q.exp || '')}</div>
+          ${q.tip ? `<div class="nb-tip">💡 ${md(q.tip)}</div>` : ''}
+          <div class="nb-acts">
+            <button class="btn-ghost" data-note-mark="${q.id}">${marked ? '⭐ 북마크 해제' : '☆ 북마크'}</button>
+            <button class="btn-ghost" data-note-solve="${q.unit}" data-note-subject="${q.subject}">🎯 이 단원 풀기</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('')
+    : `<div class="st-empty">${noteTab === 'wrong'
+        ? '아직 틀린 문제가 없어요.<br>문제를 풀다 보면 여기에 쌓입니다.'
+        : '북마크한 문제가 없어요.<br>문제를 푼 뒤 해설 창의 ☆를 눌러 저장하세요.'}</div>`;
+
+    // 펼치기 / 접기
+    $$('#note-body .note-head').forEach(h =>
+      h.addEventListener('click', () => {
+        Sfx.tap();
+        h.parentElement.classList.toggle('open');
+      }));
+    // 북마크 토글
+    $$('#note-body [data-note-mark]').forEach(b =>
+      b.addEventListener('click', e => {
+        e.stopPropagation();
+        Store.toggleMark(b.dataset.noteMark);
+        Sfx.coin();
+        notes(onSolve);
+      }));
+    // 해당 단원 바로 풀기
+    $$('#note-body [data-note-solve]').forEach(b =>
+      b.addEventListener('click', e => {
+        e.stopPropagation();
+        Sfx.tap();
+        onSolve(b.dataset.noteSolve, b.dataset.noteSubject);
+      }));
+
+    show('scr-note');
+  }
+
+  function setNoteTab(tab, onSolve){ noteTab = tab; notes(onSolve); }
+
   /* ══════════ 학습 분석 ══════════ */
   function stats(onPickUnit){
     const s   = Store.summary();
@@ -405,6 +479,21 @@ const UI = (() => {
     else tip.classList.add('hidden');
     $('#btn-next').textContent = (S.i + 1 >= S.queue.length && S.mode !== 'ox') ? '결과 보기 →' : '다음 →';
 
+    // 북마크 버튼 — 지금 문항을 오답노트에 담아 둘 수 있다
+    const mk = $('#btn-mark');
+    const paint = () => {
+      const on = Store.isMarked(q.id);
+      mk.textContent = on ? '★' : '☆';
+      mk.classList.toggle('on', on);
+    };
+    paint();
+    mk.onclick = () => {
+      const on = Store.toggleMark(q.id);
+      paint();
+      Sfx.coin();
+      Fx.toast(on ? '⭐ 오답노트에 저장했어요' : '북마크를 해제했어요', on, 1500);
+    };
+
     if(res.ok){
       Sfx.correct();
       if(res.combo >= 3) Sfx.combo(res.combo);
@@ -476,5 +565,5 @@ const UI = (() => {
 
   return { $, $$, esc, show, back, hud, home, daily, subjects, achievements,
            modeTags, selectSubject, selectUnit, question, reveal, result,
-           codexList, cardDetail, bumpXp, stats };
+           codexList, cardDetail, bumpXp, stats, notes, setNoteTab };
 })();

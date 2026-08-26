@@ -31,6 +31,7 @@ window.QB_PACKS = [
   'questions/his-05-modern',
   'questions/his-06-japan',
   'questions/his-07-contemp',
+  'questions/his-08-culture',
 
   /* ── 행정법총론 ── */
   'questions/law-01-gen',

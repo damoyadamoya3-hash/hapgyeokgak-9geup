@@ -89,7 +89,7 @@
       </button>
     </div>
 
-    <h2 class="sec-title">📚 과목 현황 <button class="btn-ghost" id="btn-stats" style="float:right;padding:5px 13px;font-size:12.5px">📊 학습 분석</button></h2>
+    <h2 class="sec-title">📚 과목 현황 <span style="float:right;display:flex;gap:6px"><button class="btn-ghost" id="btn-note" style="padding:5px 13px;font-size:12.5px">📕 오답노트</button><button class="btn-ghost" id="btn-stats" style="padding:5px 13px;font-size:12.5px">📊 학습 분석</button></span></h2>
     <div id="subject-grid" class="subject-grid"></div>
 
     <h2 class="sec-title">🏅 업적</h2>
@@ -107,6 +107,18 @@
 <section id="scr-stats" class="screen">
   <header class="subbar"><button class="back-btn" data-back>←</button><h2>📊 학습 분석</h2><span></span></header>
   <main class="stats-wrap"><div id="stats-body"></div></main>
+</section>
+
+<!-- ═══════════ 오답노트 ═══════════ -->
+<section id="scr-note" class="screen">
+  <header class="subbar"><button class="back-btn" data-back>←</button><h2>📕 오답노트</h2><span></span></header>
+  <main class="stats-wrap">
+    <div class="note-tabs">
+      <button class="note-tab on" data-note="wrong">💀 틀린 문제</button>
+      <button class="note-tab" data-note="mark">⭐ 북마크</button>
+    </div>
+    <div id="note-body"></div>
+  </main>
 </section>
 
 <!-- ═══════════ 이론 도감: 카드 상세 ═══════════ -->
@@ -151,7 +163,7 @@
       <div id="q-choices" class="q-choices"></div>
     </div>
     <div id="feedback" class="feedback hidden">
-      <div class="fb-head"><span id="fb-icon">✅</span><b id="fb-title">정답!</b><span id="fb-xp" class="fb-xp">+10 XP</span></div>
+      <div class="fb-head"><span id="fb-icon">✅</span><b id="fb-title">정답!</b><button class="fb-mark" id="btn-mark" title="북마크">☆</button><span id="fb-xp" class="fb-xp">+10 XP</span></div>
       <p id="fb-exp" class="fb-exp"></p>
       <div id="fb-tip" class="fb-tip hidden"></div>
       <button class="btn-primary" id="btn-next">다음 →</button>

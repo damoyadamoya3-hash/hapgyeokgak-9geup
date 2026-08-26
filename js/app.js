@@ -293,6 +293,13 @@
       if(c){ Sfx.tap(); UI.selectUnit(c.dataset.subject, uid => start('quest', { unit: uid, subject: c.dataset.subject })); }
     });
 
+    const openNote = () => UI.notes((unit, subject) => start('quest', { unit, subject }));
+    $('#btn-note').addEventListener('click', e => { e.stopPropagation(); Sfx.tap(); openNote(); });
+    $$('.note-tab').forEach(t => t.addEventListener('click', () => {
+      Sfx.tap();
+      UI.setNoteTab(t.dataset.note, (unit, subject) => start('quest', { unit, subject }));
+    }));
+
     $('#btn-stats').addEventListener('click', e => {
       e.stopPropagation();
       Sfx.tap();
