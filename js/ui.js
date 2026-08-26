@@ -282,6 +282,18 @@ const UI = (() => {
   }
 
   /* ══════════ 상점 ══════════ */
+  /* 문항 출처와 법령 시점 고지.
+     README 에만 적어 두면 사이트만 보고 공부하는 사람은 끝내 모른다.
+     특히 개정이 잦은 영역은 시험 결과에 직접 영향을 준다. */
+  function disclaimer(){
+    return `<p class="src-note">
+      ℹ️ 수록 문항은 국가직·지방직 9급과 한국사능력검정시험에서 <b>반복 출제되는 논점</b>을
+      기준으로 새로 쓴 것입니다. 특정 회차 기출을 그대로 옮긴 것이 아닙니다.<br>
+      법령과 판례는 작성 시점 기준이므로, <b>교육 법규·행정기본법처럼 개정이 잦은 영역</b>은
+      시험 전에 최신 조문을 한 번 확인해 두세요.
+    </p>`;
+  }
+
   /* ── 계정 · 다른 기기에서 이어하기 ────────────────────
      정적 페이지라 계정 서버가 없다. 그래서 '로그인' 대신 진도 전체를
      한 줄의 코드로 옮긴다. 핵심은 불러오기가 덮어쓰기가 아니라
@@ -682,7 +694,8 @@ const UI = (() => {
         </div>
         <p class="st-note">왼쪽은 방금 틀렸거나 처음 본 문항, 오른쪽으로 갈수록 여러 번 연속으로 맞혀
         복습 간격이 길어진 문항입니다. <b>오른쪽 막대가 두꺼워지는 것이 진짜 실력</b>입니다.</p>
-      </div>`;
+      </div>
+      ${disclaimer()}`;
 
     $$('#stats-body [data-weak]').forEach(b =>
       b.addEventListener('click', () => {
@@ -727,7 +740,8 @@ const UI = (() => {
               ${c.cloze.length ? `<span>🧠 빈칸 ${c.cloze.length}</span>` : ''}
               ${c.cases.length ? `<span>⚖️ 판례 ${c.cases.length}</span>` : ''}
             </span></button>`;
-        }).join('')}</div>`).join('')}`;
+        }).join('')}</div>`).join('')}
+      ${disclaimer()}`;
 
     $$('#sel-body [data-card]').forEach(b =>
       b.addEventListener('click', () => { Sfx.tap(); onOpen(b.dataset.card); }));
