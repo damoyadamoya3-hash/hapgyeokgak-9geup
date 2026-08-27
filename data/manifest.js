@@ -14,6 +14,7 @@ window.QB_PACKS = [
   'theory/his-t-01-timeline',
   'theory/his-t-02-gorjos',
   'theory/his-t-03-culture',
+  'theory/his-t-04-econ',
   'theory/edu-t-03-law',
   'theory/kor-t-01-core',
   'theory/kor-t-02-word',
@@ -21,6 +22,7 @@ window.QB_PACKS = [
   'theory/eng-t-01-core',
   'theory/eng-t-02-vocab',
   'theory/eng-t-03-points',
+  'theory/eng-t-04-more',
 
   /* ── 문제 ── */
   'questions/edu-01-phil',
