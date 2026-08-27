@@ -76,7 +76,8 @@ window.QB_PACKS = [
 
   /* ── 보강(국어·영어 독해) ── */
   'questions/mix-01-reading',
-  'questions/mix-02-mcq3'
+  'questions/mix-02-mcq3',
+  'questions/mix-03-ox'
 ];
 
 (function(){
