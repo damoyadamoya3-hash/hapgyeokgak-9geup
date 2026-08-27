@@ -37,7 +37,8 @@ QB.add([
 
 { id:'eng-x-009', subject:'eng', unit:'eng-vocab', type:'ox', src:'기출 함정포인트',
   q:'접두사 "ir-"는 강조의 뜻을 더한다.', a:false,
-  exp:'ir-는 부정 접두사다(irrelevant, irregular). un-, in-, im-, il-, dis-, non-, mis-와 같은 계열이다.' },
+  exp:'ir-는 부정 접두사다(irrelevant, irregular). un-, in-, im-, il-, dis-, non-, mis-와 같은 계열이다.',
+  tip:'부정 접두사 — un·in·im·il·ir·dis·non·mis' },
 
 { id:'eng-x-010', subject:'eng', unit:'eng-vocab', type:'ox', src:'기출 빈출논점',
   q:'"do away with"는 폐지하다라는 뜻이다.', a:true,
@@ -49,7 +50,8 @@ QB.add([
 
 { id:'eng-x-012', subject:'eng', unit:'eng-vocab', type:'ox', src:'기출 함정포인트',
   q:'"account for"는 설명하다와 차지하다 두 가지 뜻으로 모두 쓰인다.', a:true,
-  exp:'The change accounts for the rise(설명) / It accounts for 30%(차지). 두 뜻 다 출제된다.' },
+  exp:'The change accounts for the rise(설명) / It accounts for 30%(차지). 두 뜻 다 출제된다.',
+  tip:'account for = 설명하다 · 차지하다 (두 뜻 다 출제)' },
 
 /* ───────── 생활영어 ───────── */
 { id:'eng-x-013', subject:'eng', unit:'eng-conv', type:'ox', src:'기출 함정포인트',
@@ -88,7 +90,8 @@ QB.add([
 
 { id:'eng-x-021', subject:'eng', unit:'eng-conv', type:'ox', src:'기출 함정포인트',
   q:'"How do you like your coffee?"에는 Yes나 No로 답할 수 있다.', a:false,
-  exp:'기호나 방식을 묻는 의문사 의문문이므로 Yes/No로 답할 수 없다. "Black, please." 처럼 답한다.' },
+  exp:'기호나 방식을 묻는 의문사 의문문이므로 Yes/No로 답할 수 없다. "Black, please." 처럼 답한다.',
+  tip:'의문사 의문문에는 Yes/No 로 답할 수 없다' },
 
 { id:'eng-x-022', subject:'eng', unit:'eng-conv', type:'ox', src:'기출 빈출논점',
   q:'"Could you fill me in?"은 빠진 내용을 알려 달라는 뜻이다.', a:true,
@@ -102,7 +105,8 @@ QB.add([
 
 { id:'eng-x-024', subject:'eng', unit:'eng-gram', type:'ox', src:'기출 함정포인트',
   q:'시간·조건 부사절에서는 미래를 will로 나타낸다.', a:false,
-  exp:'시간·조건 부사절에서는 현재가 미래를 대신한다. When he comes(✕ will come), I will call.' },
+  exp:'시간·조건 부사절에서는 현재가 미래를 대신한다. When he comes(✕ will come), I will call.',
+  tip:'시간·조건 부사절은 현재가 미래를 대신한다' },
 
 { id:'eng-x-025', subject:'eng', unit:'eng-gram', type:'ox', src:'기출 빈출논점',
   q:'계속적 용법(콤마 뒤)에는 관계대명사 that을 쓸 수 없다.', a:true,
@@ -127,7 +131,8 @@ QB.add([
 
 { id:'eng-x-030', subject:'eng', unit:'eng-gram', type:'ox', src:'기출 함정포인트',
   q:'"superior"는 비교 대상 앞에 than을 쓴다.', a:false,
-  exp:'superior·inferior·senior·junior·prior는 than이 아니라 to를 쓴다.' },
+  exp:'superior·inferior·senior·junior·prior는 than이 아니라 to를 쓴다.',
+  tip:'superior·inferior·senior·prior 는 to' },
 
 { id:'eng-x-031', subject:'eng', unit:'eng-gram', type:'ox', src:'기출 빈출논점',
   q:'사역동사 make의 목적보어는 동사원형이지만, 수동태에서는 to부정사가 된다.', a:true,
@@ -139,7 +144,8 @@ QB.add([
 
 { id:'eng-x-033', subject:'eng', unit:'eng-gram', type:'ox', src:'기출 함정포인트',
   q:'감정을 느끼는 사람에게는 -ing 형용사를 쓴다.', a:false,
-  exp:'사람은 -ed(interested), 사물·원인은 -ing(interesting)를 쓴다.' },
+  exp:'사람은 -ed(interested), 사물·원인은 -ing(interesting)를 쓴다.',
+  tip:'사람 -ed / 사물 -ing' },
 
 { id:'eng-x-034', subject:'eng', unit:'eng-gram', type:'ox', src:'기출 빈출논점',
   q:'"It is essential that he be present."에서 be는 옳은 표현이다.', a:true,
@@ -152,7 +158,8 @@ QB.add([
 
 { id:'eng-x-036', subject:'eng', unit:'eng-read', type:'ox', src:'기출 함정포인트',
   q:'통념을 소개하는 첫 문장이 곧 글의 요지다.', a:false,
-  exp:'통념 → 반박 구조에서는 However 뒤의 반박이 요지다. 첫 문장을 고르는 것이 대표적인 오답이다.' },
+  exp:'통념 → 반박 구조에서는 However 뒤의 반박이 요지다. 첫 문장을 고르는 것이 대표적인 오답이다.',
+  tip:'통념 → However → 요지' },
 
 { id:'eng-x-037', subject:'eng', unit:'eng-read', type:'ox', src:'기출 빈출논점',
   q:'"consequently"와 "as a result"는 인과 관계를 나타낸다.', a:true,
@@ -164,7 +171,8 @@ QB.add([
 
 { id:'eng-x-039', subject:'eng', unit:'eng-read', type:'ox', src:'기출 함정포인트',
   q:'내용 일치 문제는 본문을 처음부터 끝까지 읽은 뒤 선택지를 보는 것이 빠르다.', a:false,
-  exp:'선택지를 먼저 읽고 본문에서 해당 부분만 찾아 대조하는 편이 훨씬 빠르다.' },
+  exp:'선택지를 먼저 읽고 본문에서 해당 부분만 찾아 대조하는 편이 훨씬 빠르다.',
+  tip:'일치 문제는 선택지를 먼저 읽는다' },
 
 { id:'eng-x-040', subject:'eng', unit:'eng-read', type:'ox', src:'기출 빈출논점',
   q:'무관한 문장 고르기에서는 소재가 같아도 논지가 다르면 답이 될 수 있다.', a:true,
@@ -176,7 +184,8 @@ QB.add([
 
 { id:'eng-x-042', subject:'eng', unit:'eng-read', type:'ox', src:'기출 함정포인트',
   q:'일치 문제의 선택지에 only, always, never 같은 단정어가 있으면 오답일 가능성이 높다.', a:true,
-  exp:'본문이 조건을 달아 말한 것을 단정으로 바꿔 놓는 것이 흔한 오답 방식이다. 근거 문장을 반드시 확인한다.' },
+  exp:'본문이 조건을 달아 말한 것을 단정으로 바꿔 놓는 것이 흔한 오답 방식이다. 근거 문장을 반드시 확인한다.',
+  tip:'only·always·never 가 보이면 근거 문장을 찾아 확인' },
 
 { id:'eng-x-043', subject:'eng', unit:'eng-read', type:'ox', src:'기출 빈출논점',
   q:'모르는 단어가 나오면 반드시 뜻을 확정하고 넘어가야 한다.', a:false,

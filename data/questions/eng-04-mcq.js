@@ -196,7 +196,8 @@ QB.add([
   passage:'(A) Public libraries have expanded far beyond lending books. (B) Many now offer job training, language classes, and free internet access. (C) The price of used books has fallen sharply in recent years. (D) In this way libraries have become community centers.',
   choices:['(A)','(B)','(C)','(D)'],
   a:2,
-  exp:'글은 도서관이 지역 공동체의 중심이 되었다는 흐름인데, (C)의 중고책 가격은 이 흐름과 무관하다.' },
+  exp:'글은 도서관이 지역 공동체의 중심이 되었다는 흐름인데, (C)의 중고책 가격은 이 흐름과 무관하다.',
+  tip:'무관한 문장은 소재는 같아도 논지가 어긋난 것' },
 
 { id:'eng-m-028', subject:'eng', unit:'eng-read', type:'mcq', src:'기출 빈출논점',
   q:'다음 글에서 필자가 주장하는 바로 가장 적절한 것은?',
