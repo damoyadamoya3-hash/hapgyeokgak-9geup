@@ -425,7 +425,7 @@ t('모의고사 복기 — 내 오답·미응답만 원래 번호와 마지막 �
   eq([rows[1].number, rows[1].answered, rows[1].answer], [3,false,null], '미응답 정보');
   ok(!rows.some(r => r.number === 1), '정답 문항이 복기에 포함됨');
   const ui = rd('js/ui.js');
-  ok(/시험 복기/.test(ui) && /내 답/.test(ui) && /btn-review-all/.test(ui), '상세 복기 화면 없음');
+  ok(/시험 복기/.test(ui) && /내 답/.test(ui) && /bindReviewReveal/.test(ui), '상세 복기 화면 없음');
 });
 
 t('모의고사 검토 — 표시한 정답도 복기 목록에 남고 세션 점수는 바꾸지 않는다', () => {
@@ -440,6 +440,44 @@ t('모의고사 검토 — 표시한 정답도 복기 목록에 남고 세션 �
   eq([s.correct, Store.s.totalCorrect], [1,1], '검토 표시가 채점을 바꿈');
   const app = rd('js/app.js'), html = rd('index.html');
   ok(/toggleExamFlag/.test(app) && /id="btn-exam-flag"/.test(html), '검토 표시 조작 UI 없음');
+});
+
+t('모의고사 보관 — 결과를 떠나도 최근 답안지와 당시 해설이 남는다', () => {
+  fresh();
+  const s = Engine.build('exam', { subject:'his' });
+  const q1 = s.queue[0], q2 = s.queue[1];
+  Engine.submit(s, (q1.a + 1) % q1.choices.length);
+  s.i = 1; Engine.submit(s, q2.a); s.examFlags[1] = true;
+  s.startedAt = Date.now() - 123000;
+  Engine.finish(s);
+  const paper = Store.lastExamPaper(), log = Store.lastExam();
+  ok(paper && paper.rows.length === s.queue.length, '최근 답안지 복기 대상');
+  eq([paper.t, paper.s, paper.n, paper.ok, paper.blank, paper.flagged],
+     [log.t, 'his', s.queue.length, 1, s.queue.length - 2, 1], '답안지 요약');
+  eq([paper.rows[0].id, paper.rows[0].question, paper.rows[0].explanation],
+     [q1.id, q1.q, q1.exp], '당시 문항 스냅샷');
+  ok(paper.rows[0].answer !== paper.rows[0].correctAnswer, '내 오답과 정답 비교');
+  ok(paper.rows[1].correct && paper.rows[1].flagged, '검토한 정답 보관');
+  ok(paper.elapsed >= 120000, '풀이 시간 보관');
+  const copy = Store.lastExamPaper(); copy.rows[0].question = '변조';
+  ok(Store.lastExamPaper().rows[0].question !== '변조', '조회가 저장 원본을 노출함');
+  ok(JSON.stringify(paper).length < 120000, '최근 답안지 크기가 지나치게 큼');
+});
+
+t('모의고사 보관 — 진도 코드를 합치면 더 최근 답안지도 따라온다', () => {
+  fresh();
+  const s = Engine.build('exam', { subject:'law' });
+  Engine.submit(s, s.queue[0].a);
+  Engine.finish(s);
+  const expected = Store.lastExamPaper();
+  const code = Store.exportData();
+  fresh();
+  ok(Store.lastExamPaper() === null, '초기 답안지');
+  Store.mergeData(code);
+  const got = Store.lastExamPaper();
+  eq([got.t, got.s, got.n, got.ok], [expected.t, expected.s, expected.n, expected.ok], '병합된 최근 답안지');
+  const ui = rd('js/ui.js'), html = rd('index.html');
+  ok(/btn-last-exam-paper/.test(ui) && /scr-exam-history/.test(html), '학습 분석 재열람 경로 없음');
 });
 
 /* ── 선택지 섞기 ─────────────────────────────────────────── */

@@ -615,6 +615,7 @@ const UI = (() => {
     const days = Store.recentDays(span);
     const us   = Store.unitStats();
     const recent = Store.recentPerformance(50);
+    const lastPaper = Store.lastExamPaper();
     const peak = Math.max(1, ...days.map(d => d.n));
     const maxBox = Math.max(1, ...s.boxes);
     const accColor = a => a >= 80 ? 'var(--good)' : a >= 60 ? 'var(--gold)' : 'var(--bad)';
@@ -633,6 +634,16 @@ const UI = (() => {
     const examSection = log.length ? `
       <div class="st-sec">
         <h3>모의고사 성적 추이 <small>100점 만점 환산</small></h3>
+        ${lastPaper ? (() => {
+          const score = lastPaper.n ? Math.round(lastPaper.ok / lastPaper.n * 100) : 0;
+          const d = new Date(lastPaper.t);
+          const date = `${d.getMonth() + 1}/${d.getDate()}`;
+          return `<button id="btn-last-exam-paper" class="last-exam-paper">
+            <span class="lep-icon">🧾</span>
+            <span class="lep-body"><b>최근 답안지 다시 보기</b><small>${date} · ${lastPaper.ok}/${lastPaper.n} · ${score}점</small></span>
+            <em>열기 →</em>
+          </button>`;
+        })() : ''}
         <div class="ex-chart">
           ${log.map((e, i) => {
             const sc = Math.round(e.ok / e.n * 100);
@@ -816,6 +827,8 @@ const UI = (() => {
         Sfx.tap();
         onPickUnit(b.dataset.weak, b.dataset.weakSubject);
       }));
+    const paperBtn = $('#btn-last-exam-paper');
+    if(paperBtn) paperBtn.addEventListener('click', () => { Sfx.tap(); examHistory(); });
     show('scr-stats');
   }
 
@@ -1090,22 +1103,20 @@ const UI = (() => {
     return `${'①②③④⑤'[i] || (i + 1)} ${esc((q.choices || [])[i] || '')}`;
   }
 
-  /* 모의고사 직후에는 정답만 던져 주지 않고, 내 답과 해설을 한 화면에서
-     비교하게 한다. 처음 8개만 펼칠 수 있게 두고 나머지는 요청할 때
-     노출해 100문항 회차가 끝나도 결과 화면이 지나치게 길어지지 않는다. */
-  function examReviewHtml(S){
-    const rows = Engine.examReview(S);
+  /* 저장된 답안지와 방금 끝난 답안지가 같은 렌더러를 쓴다. 처음 8개만
+     보이고 나머지는 요청할 때 펼쳐 100문항 회차도 감당한다. */
+  function examPaperHtml(paper){
+    const rows = (paper && paper.rows) || [];
     if(!rows.length)
       return '<div class="sel-note" style="text-align:center">틀린 문제 없음! 완벽합니다 ✨</div>';
 
     const cards = rows.map((r, i) => {
-      const q = r.q;
-      const sub = QB.subject(q.subject) || { name:q.subject, emoji:'📘' };
-      const shortQ = q.q.length > 105 ? q.q.slice(0, 105) + '…' : q.q;
+      const sub = QB.subject(r.subject) || { name:r.subject, emoji:'📘' };
+      const shortQ = r.question.length > 105 ? r.question.slice(0, 105) + '…' : r.question;
       const state = r.correct ? '검토 · 정답'
         : !r.answered ? '미응답'
         : r.flagged ? '검토 · 오답'
-        : `내 답 ${answerHtml(q, r.answer).split(' ')[0]}`;
+        : `내 답 ${String(r.answer).split(' ')[0]}`;
       return `<details class="exam-review-card${!r.answered ? ' blank' : ''}${r.flagged ? ' flagged' : ''}${r.correct ? ' correct' : ''}${i >= 8 ? ' exam-review-extra hidden' : ''}"${i < 2 ? ' open' : ''}>
         <summary>
           <span class="erc-no">${r.number}</span>
@@ -1113,25 +1124,56 @@ const UI = (() => {
           <em class="erc-state">${state}</em>
         </summary>
         <div class="erc-body">
-          ${q.passage ? `<div class="erc-passage">${esc(q.passage)}</div>` : ''}
+          ${r.passage ? `<div class="erc-passage">${esc(r.passage)}</div>` : ''}
           <div class="erc-answers">
-            <p class="mine${r.correct ? ' same' : ''}"><span>내 답</span><strong>${answerHtml(q, r.answer)}</strong></p>
-            <p class="right"><span>정답</span><strong>${answerHtml(q, q.a)}</strong></p>
+            <p class="mine${r.correct ? ' same' : ''}"><span>내 답</span><strong>${esc(r.answer)}</strong></p>
+            <p class="right"><span>정답</span><strong>${esc(r.correctAnswer)}</strong></p>
           </div>
-          <div class="erc-exp"><b>해설</b><div>${md(q.exp || '해설이 없습니다.').replace(/\n/g, '<br>')}</div></div>
-          ${q.tip ? `<div class="erc-tip">💡 ${md(q.tip)}</div>` : ''}
+          <div class="erc-exp"><b>해설</b><div>${md(r.explanation || '해설이 없습니다.').replace(/\n/g, '<br>')}</div></div>
+          ${r.tip ? `<div class="erc-tip">💡 ${md(r.tip)}</div>` : ''}
         </div>
       </details>`;
     }).join('');
     const rest = rows.length - 8;
-    const flagged = Object.keys(S.examFlags || {}).filter(i => S.examFlags[i]).length;
-    const answeredWrong = Math.max(S.wrong - S.examBlank, 0);
+    const answeredWrong = Math.max((paper.n - paper.ok) - paper.blank, 0);
     return `<div class="exam-review-head">
         <h3>🧾 시험 복기 ${rows.length}문항</h3>
-        <p>오답 ${answeredWrong} · 미응답 ${S.examBlank} · 검토 표시 ${flagged}. 정답이어도 검토 표시한 문제는 포함했습니다.</p>
+        <p>오답 ${answeredWrong} · 미응답 ${paper.blank} · 검토 표시 ${paper.flagged}. 정답이어도 검토 표시한 문제는 포함했습니다.</p>
       </div>${cards}${rest > 0
-        ? `<button id="btn-review-all" class="btn-ghost review-all">나머지 ${rest}문항 해설 모두 보기</button>`
+        ? `<button class="btn-ghost review-all">나머지 ${rest}문항 해설 모두 보기</button>`
         : ''}`;
+  }
+
+  function bindReviewReveal(container){
+    const showAll = container && container.querySelector('.review-all');
+    if(!showAll) return;
+    showAll.addEventListener('click', () => {
+      container.querySelectorAll('.exam-review-extra').forEach(el => el.classList.remove('hidden'));
+      showAll.remove();
+      const first = container.querySelector('.exam-review-extra summary');
+      if(first) first.focus();
+    });
+  }
+
+  function examReviewHtml(S){ return examPaperHtml(Engine.examPaper(S)); }
+
+  function examHistory(){
+    const paper = Store.lastExamPaper();
+    if(!paper) return;
+    const d = new Date(paper.t);
+    const date = `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}`;
+    const scope = paper.s === 'all'
+      ? '전 과목 통합 회차'
+      : ((QB.subject(paper.s) || { name:paper.s }).name + ' 모의고사');
+    const sec = Math.round((paper.elapsed || 0) / 1000);
+    const elapsed = sec >= 60 ? `${Math.floor(sec / 60)}분 ${sec % 60}초` : `${sec}초`;
+    const score = paper.n ? Math.round(paper.ok / paper.n * 100) : 0;
+    const body = $('#exam-history-body');
+    body.innerHTML = `<div class="exam-paper-summary">
+        <span>🧾</span><div><h3>${esc(scope)}</h3><p>${date} · ${paper.ok}/${paper.n} · ${score}점 · ${elapsed}</p></div>
+      </div>${examPaperHtml(paper)}`;
+    bindReviewReveal(body);
+    show('scr-exam-history');
   }
 
   /* ── 결과 ──────────────────────────────────────────── */
@@ -1200,13 +1242,7 @@ const UI = (() => {
       : `<div class="sel-note" style="text-align:center">틀린 문제 없음! 완벽합니다 ✨</div>`;
     const review = $('#res-review');
     review.innerHTML = subTable + (S.mode === 'exam' ? examReviewHtml(S) : normalReview);
-    const showAll = $('#btn-review-all');
-    if(showAll) showAll.addEventListener('click', () => {
-      review.querySelectorAll('.exam-review-extra').forEach(el => el.classList.remove('hidden'));
-      showAll.remove();
-      const first = review.querySelector('.exam-review-extra summary');
-      if(first) first.focus();
-    });
+    bindReviewReveal(review);
 
     // 방금 틀린 게 있으면 그 자리에서 바로잡을 길을 열어 준다
     const wrongBtn = $('#btn-res-wrong');

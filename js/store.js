@@ -31,6 +31,9 @@ const Store = (() => {
     // 수험 준비에서 가장 알고 싶은 건 '내가 나아지고 있는가'인데
     // 회차 수만 세고 점수를 버리면 그걸 볼 방법이 없다.
     examLog: [],
+    // 마지막 모의고사의 오답·미응답·검토 문항. 결과 화면을 떠난 뒤에도
+    // 학습 분석에서 당시 답안 그대로 다시 펼쳐 본다.
+    lastExamPaper: null,
     // 진행 중인 한 판. 새로고침·앱 종료 뒤에도 마지막 문제부터 이어 간다.
     // 기기 간 진도 코드에는 넣지 않는다(두 기기에서 같은 판을 이어 풀면 중복 기록됨).
     activeSession: null,
@@ -793,17 +796,20 @@ const Store = (() => {
     }catch(e){ return false; }
   }
   /* 모의고사 한 회차를 기록한다. 오래된 것부터 60회까지만 남긴다. */
-  function logExam(scope, bySub){
+  function logExam(scope, bySub, paper = null){
     let n = 0, ok = 0;
     const sub = {};
     for(const sid in bySub){ sub[sid] = [bySub[sid].ok, bySub[sid].n]; n += bySub[sid].n; ok += bySub[sid].ok; }
     if(!n) return;
-    S.examLog.push({ t: Date.now(), s: scope || 'all', n, ok, sub });
+    const t = Date.now(), s = scope || 'all';
+    S.examLog.push({ t, s, n, ok, sub });
     if(S.examLog.length > 60) S.examLog = S.examLog.slice(-60);
+    if(paper) S.lastExamPaper = { ...paper, t, s };
   }
   /* 최근 회차부터 */
   function examLog(){ return S.examLog.slice().reverse(); }
   function lastExam(){ return S.examLog.length ? S.examLog[S.examLog.length - 1] : null; }
+  function lastExamPaper(){ return S.lastExamPaper ? structuredClone(S.lastExamPaper) : null; }
 
   /* ── 기기 간 이어하기 ───────────────────────────────
      정적 페이지라 계정 서버를 둘 수 없다. 대신 진도 전체를 한 줄의
@@ -880,6 +886,9 @@ const Store = (() => {
       S.examLog.sort((a, b) => a.t - b.t);
       if(S.examLog.length > 60) S.examLog = S.examLog.slice(-60);
     }
+    if(inc.lastExamPaper && (!S.lastExamPaper ||
+       (inc.lastExamPaper.t || 0) > (S.lastExamPaper.t || 0)))
+      S.lastExamPaper = inc.lastExamPaper;
 
     S.playedDays = [...new Set([...(S.playedDays||[]), ...(inc.playedDays||[])])].sort();
     if(inc.examDate && !S.examDate) S.examDate = inc.examDate;
@@ -917,7 +926,7 @@ const Store = (() => {
     markRead, markDrill, readCount, recentDays, unitStats, recentPerformance, summary, INTERVAL, nextCard,
     isMarked, toggleMark, markedIds, wrongNotes,
     weekAttendance, nextStreakGoal, STREAK_REWARDS, setExamDate, plan,
-    SHOP, buy, useItem, has, logExam, examLog, lastExam,
+    SHOP, buy, useItem, has, logExam, examLog, lastExam, lastExamPaper,
     subjectAccuracy, subjectSeen, touchStreak, daily, progressTask,
     checkAch, ACHS, exportData, importData, mergeData, reset, today, dateKey,
     saveSession, restoreSession, sessionInfo, clearSession,

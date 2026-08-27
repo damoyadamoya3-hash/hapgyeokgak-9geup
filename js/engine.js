@@ -364,6 +364,37 @@ const Engine = (() => {
     return out;
   }
 
+  function answerText(q, ans){
+    if(ans === null || ans === undefined) return '미응답';
+    if(q.type === 'ox') return ans ? 'O' : 'X';
+    const i = Number(ans);
+    return `${'①②③④⑤'[i] || (i + 1)} ${(q.choices || [])[i] || ''}`;
+  }
+
+  /* 결과 화면을 떠나도 마지막 시험을 그대로 복기할 수 있게 필요한 정보만
+     한 장으로 압축한다. 문제 은행이 나중에 수정돼도 당시 문항·답·해설이
+     바뀌지 않도록 복기 대상 행은 자체 스냅샷으로 보관한다. */
+  function examPaper(S){
+    if(!S || S.mode !== 'exam' || !S.examGraded) return null;
+    const flagged = Object.keys(S.examFlags || {}).filter(i => S.examFlags[i]).length;
+    return {
+      v:1,
+      n:S.queue.length,
+      ok:S.correct,
+      blank:S.examBlank || 0,
+      flagged,
+      elapsed:Math.max(0, Date.now() - (S.startedAt || Date.now())),
+      rows:examReview(S).map(r => ({
+        id:r.q.id, number:r.number, subject:r.q.subject,
+        question:r.q.q, passage:r.q.passage || '',
+        explanation:r.q.exp || '', tip:r.q.tip || '',
+        answered:r.answered, answer:answerText(r.q, r.answer),
+        correctAnswer:answerText(r.q, r.q.a),
+        correct:r.correct, flagged:r.flagged
+      }))
+    };
+  }
+
   /* ── 다음 문제로, 종료 판정 ────────────────────────── */
   function advance(S){
     S.i++;
@@ -422,11 +453,15 @@ const Engine = (() => {
       b.n++; if(q.__ok) b.ok++;
     }
 
-    if(S.mode === 'exam'){ Store.logExam(S.opt.subject || 'all', bySub); Store.save(); }
+    if(S.mode === 'exam'){
+      Store.logExam(S.opt.subject || 'all', bySub, examPaper(S));
+      Store.save();
+    }
 
     return { acc, total, bonusXp, bonusCoin, leveled, stars, newAch, bySub, doneTasks,
              streak: streakInfo.streak, streakReward: streakInfo.reward };
   }
 
-  return { build, current, submit, gradeExam, examReview, advance, finish, isCorrect, shuffle, MODE };
+  return { build, current, submit, gradeExam, examReview, examPaper,
+           advance, finish, isCorrect, shuffle, MODE };
 })();
