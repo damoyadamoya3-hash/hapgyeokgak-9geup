@@ -14,10 +14,32 @@ const UI = (() => {
   let onPop = null;          // 앱이 가로챌 기회 (풀이 중 이탈 확인 등)
 
   function paint(id){
-    $$('.screen').forEach(s => s.classList.remove('active'));
+    const active = document.activeElement;
+    if(active && active.closest && active.closest('.screen')) active.blur();
+    $$('.screen').forEach(s => {
+      const on = s.id === id;
+      s.classList.toggle('active', on);
+      s.setAttribute('aria-hidden', on ? 'false' : 'true');
+      s.inert = !on;
+    });
     const el = document.getElementById(id);
-    if(el) el.classList.add('active');
     window.scrollTo(0, 0);
+    if(!el) return;
+
+    /* 화면이 바뀌었는데 초점이 이전의 숨은 버튼에 남으면 스크린리더는
+       어디로 왔는지 알 수 없다. 새 화면 제목(없으면 화면 자체)을 읽힌다. */
+    requestAnimationFrame(() => {
+      const heading = id === 'scr-home' ? null : el.querySelector('h1,h2');
+      const target = heading || el;
+      if(heading){
+        if(!heading.id) heading.id = id + '-heading';
+        el.setAttribute('aria-labelledby', heading.id);
+      }else if(!el.hasAttribute('aria-label')){
+        el.setAttribute('aria-label', id === 'scr-home' ? '홈' : '학습 화면');
+      }
+      target.tabIndex = -1;
+      try{ target.focus({ preventScroll:true }); }catch(e){ target.focus(); }
+    });
   }
 
   function show(id, push = true){

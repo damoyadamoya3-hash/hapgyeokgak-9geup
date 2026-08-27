@@ -11,6 +11,7 @@
   let pauseStart = 0;        // 해설을 열어둔 시각(FEVER 시간 보정용)
   let timerLeft = 0;         // 자동 저장·복구에 포함할 남은 시간
   let installPrompt = null;  // Chromium 계열 PWA 설치 요청
+  let modalReturnFocus = null;
 
   /* ── 부팅 ──────────────────────────────────────────── */
   const BOOT_MSGS = [
@@ -71,6 +72,30 @@
     Store.clearSession();
     S = sess; lastPlay = { mode, opt }; locked = false; paused = false;
     enterSession(false);
+  }
+
+  function openSettings(focusExam = false){
+    const modal = $('#modal-settings');
+    modalReturnFocus = document.activeElement;
+    const st = Store.s.settings;
+    $('#set-sound').checked = st.sound; $('#set-haptic').checked = st.haptic;
+    $('#set-dark').checked = st.dark;   $('#set-autoexp').checked = st.autoexp;
+    $('#set-tetris').checked = st.tetris !== false;
+    $('#set-bgm').checked = st.bgm !== false;
+    $('#set-exam').value = Store.s.examDate || '';
+    modal.classList.remove('hidden');
+    requestAnimationFrame(() => {
+      const target = focusExam ? $('#set-exam') : $('#btn-close-settings');
+      target && target.focus();
+    });
+  }
+
+  function closeSettings(restoreFocus = true){
+    $('#modal-settings').classList.add('hidden');
+    if(restoreFocus && modalReturnFocus && modalReturnFocus.isConnected){
+      try{ modalReturnFocus.focus({ preventScroll:true }); }catch(e){ modalReturnFocus.focus(); }
+    }
+    modalReturnFocus = null;
   }
 
   /* 새 판과 복구한 판이 같은 화면 준비 경로를 쓴다. */
@@ -141,6 +166,7 @@
       if(b){ b.classList.add('dimmed'); b.disabled = true; }
     });
     refreshHint();
+    try{ $('#q-text').focus({ preventScroll:true }); }catch(e){ $('#q-text').focus(); }
   }
 
   function checkpoint(awaitingNext){
@@ -575,9 +601,7 @@
 
     $('#plan-card').addEventListener('click', () => {
       Sfx.tap();
-      $('#set-exam').value = Store.s.examDate || '';
-      modal.classList.remove('hidden');
-      setTimeout(() => $('#set-exam').focus(), 120);
+      openSettings(true);
     });
     $$('.note-tab').forEach(t => t.addEventListener('click', () => {
       Sfx.tap();
@@ -630,16 +654,23 @@
     });
     $('#btn-settings').addEventListener('click', () => {
       Sfx.tap();
-      const st = Store.s.settings;
-      $('#set-sound').checked = st.sound; $('#set-haptic').checked = st.haptic;
-      $('#set-dark').checked = st.dark;   $('#set-autoexp').checked = st.autoexp;
-      $('#set-tetris').checked = st.tetris !== false;
-      $('#set-bgm').checked = st.bgm !== false;
-      $('#set-exam').value = Store.s.examDate || '';
-      modal.classList.remove('hidden');
+      openSettings(false);
     });
-    $('#btn-close-settings').addEventListener('click', () => modal.classList.add('hidden'));
-    modal.addEventListener('click', e => { if(e.target === modal) modal.classList.add('hidden'); });
+    $('#btn-close-settings').addEventListener('click', () => closeSettings());
+    modal.addEventListener('click', e => { if(e.target === modal) closeSettings(); });
+    modal.addEventListener('keydown', e => {
+      if(e.key === 'Escape'){
+        e.preventDefault(); closeSettings(); return;
+      }
+      if(e.key !== 'Tab') return;
+      const focusable = Array.from(modal.querySelectorAll(
+        'button:not([disabled]),input:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
+      )).filter(el => el.offsetParent !== null);
+      if(!focusable.length) return;
+      const first = focusable[0], last = focusable[focusable.length - 1];
+      if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+      else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+    });
     const bind = (id, key, after) => $(id).addEventListener('change', e => {
       Store.s.settings[key] = e.target.checked; Store.save(); after && after();
     });
@@ -662,12 +693,12 @@
 
     // 40KB 짜리 코드는 prompt 창에 붙여 넣을 수 없다. 전용 화면으로 보낸다.
     $('#btn-sync').addEventListener('click', () => {
-      modal.classList.add('hidden');
+      closeSettings(false);
       UI.sync(() => { applyTheme(); UI.home(); });
     });
     $('#btn-reset').addEventListener('click', () => {
       if(confirm('모든 진행도가 삭제됩니다. 정말 초기화할까요?')){
-        Store.reset(); applyTheme(); UI.home(); modal.classList.add('hidden');
+        Store.reset(); applyTheme(); UI.home(); closeSettings(false);
         refreshResumeCard();
         Fx.toast('초기화 완료. 처음부터 다시 시작!');
       }
@@ -716,9 +747,7 @@
         '한 판은 10문항입니다. 틀려도 괜찮으니 일단 감을 잡아 보세요.',
         sid => UI.selectUnit(sid, uid => start('quest', { unit: uid, subject: sid })));
     }else if(key === 'exam'){
-      $('#set-exam').value = Store.s.examDate || '';
-      $('#modal-settings').classList.remove('hidden');
-      setTimeout(() => $('#set-exam').focus(), 120);
+      openSettings(true);
     }
   }
 

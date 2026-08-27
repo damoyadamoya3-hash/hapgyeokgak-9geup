@@ -88,6 +88,15 @@ t('PWA — 설치 정보와 1200×630 공유 카드를 함께 배포한다', () 
   eq([png.readUInt32BE(16), png.readUInt32BE(20)], [1200,630], '공유 카드 크기');
 });
 
+t('접근성 — 화면 이동과 설정창에 초점 안내가 있다', () => {
+  const html = rd('index.html');
+  ok(/class="skip-link"/.test(html), '본문 바로가기 없음');
+  ok(/id="modal-settings"[^>]+role="dialog"[^>]+aria-modal="true"/.test(html), '설정 대화상자 의미 없음');
+  ok(/id="feedback"[^>]+aria-live="polite"/.test(html), '채점 결과 알림 없음');
+  const ui = rd('js/ui.js');
+  ok(/\.inert\s*=/.test(ui) && /aria-hidden/.test(ui), '숨은 화면의 초점 차단 없음');
+});
+
 /* ── 진행 중 세션 복구 ───────────────────────────────────── */
 t('세션 복구 — 문제 순서·선택지·점수를 그대로 되살린다', () => {
   fresh();
