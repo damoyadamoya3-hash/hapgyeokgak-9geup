@@ -149,20 +149,23 @@ console.log('  ※ 다만 은행이 한쪽으로 크게 쏠리면 대체할 문�
    단서가 사라지는데도 경고가 뜬다. 그래서 두 번째로 긴 선택지와 비교한다. */
 const mcq = QB.items.filter(q => q.type === 'mcq' && !q.cloze);
 let gap10 = 0, gap15 = 0, sameLen = 0;
+const gap15Ids = [];
 for(const q of mcq){
   const L = q.choices.map(c => String(c).length);
   const ans = L[q.a];
   const runnerUp = Math.max(...L.filter((_, i) => i !== q.a));
   const gap = ans - runnerUp;               // 정답 − 가장 긴 오답
   if(gap >= 10) gap10++;
-  if(gap >= 15) gap15++;
+  if(gap >= 15){ gap15++; gap15Ids.push(`${q.id} (+${gap}자)`); }
   if(Math.max(...L) - Math.min(...L) <= 12) sameLen++;
 }
 console.log('정답이 가장 긴 오답보다 눈에 띄게 긴 문항');
 console.log('  격차 15자 이상 :', gap15 + '건', gap15 === 0 ? '✅' : '⚠️  오답 선택지를 늘려 주세요');
+if(gap15Ids.length) console.log('   ', gap15Ids.join(' · '));
 console.log('  격차 10자 이상 :', gap10 + '건', gap10 <= mcq.length * 0.05 ? '✅' : '⚠️');
 console.log('선택지 길이 균질 :', Math.round(sameLen / mcq.length * 100) + '%');
 console.log('  ※ 정답 위치 편향은 Engine.shuffleChoices 가 실행 시점에 해소한다');
+bad += gap15;   // 답의 내용이 아니라 길이만 보고 맞힐 수 있는 문항은 배포를 막는다
 
 console.log('─'.repeat(46));
 console.log('문항 총계 :', QB.items.length, '(빈칸 파생 포함)');
