@@ -150,6 +150,19 @@ const UI = (() => {
           p.due > p.review ? ` <small>(밀림 ${p.due})</small>` : ''}</span>
         <span class="pc-new" data-go="fresh" role="button" tabindex="0">✨ 새 문제 <b>${p.fresh}</b>문항</span>
       </div>
+      ${(() => {
+        /* 오늘 읽을 이론 카드 — 문제만 풀면 개념이 채워지지 않는다.
+           등급 순으로 한 장씩 짚어 주면 도감이 저절로 채워진다. */
+        const c = Store.nextCard();
+        if(!c) return `<p class="pc-card done">📜 이론 카드를 모두 읽었어요 — 이제 빈칸으로 굳히세요</p>`;
+        const sub = QB.subject(c.subject) || { name:'', emoji:'📘' };
+        return `<button class="pc-card" data-go="codex" data-card="${c.id}">
+          <span class="tier tier-${c.tier}" style="position:static">${c.tier}</span>
+          <span class="pcc-body"><b>오늘 읽을 카드</b>
+            <span>${sub.emoji} ${esc(c.title)}</span></span>
+          <span class="pcc-go">▶</span>
+        </button>`;
+      })()}
       ${p.capped ? `<p class="pc-warn">⚠️ 남은 날에 전부 보기는 어려워요.
         <b>약한 단원</b>과 <b>오답노트</b> 위주로 좁혀 가세요.</p>` : ''}`;
 
@@ -157,7 +170,7 @@ const UI = (() => {
        그 자리에서 바로 시작할 수 있어야 계획이 계획으로 남지 않는다.
        카드 자체를 누르면 시험일 설정이므로 전파를 멈춘다. */
     el.querySelectorAll('[data-go]').forEach(btn => {
-      const go = e => { e.stopPropagation(); onGo && onGo(btn.dataset.go); };
+      const go = e => { e.stopPropagation(); onGo && onGo(btn.dataset.go, btn.dataset.card); };
       btn.addEventListener('click', go);
       btn.addEventListener('keydown', e => {
         if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); go(e); }

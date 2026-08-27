@@ -749,3 +749,17 @@ kbd{display:none}
   .btn-primary kbd{border-color:rgba(255,255,255,.45);background:rgba(255,255,255,.16);color:#fff;margin-left:8px}
 }
 .ox-btn{position:relative}
+
+/* 오늘 읽을 이론 카드 — 문제만 풀면 개념이 채워지지 않는다 */
+.pc-card{display:flex;align-items:center;gap:10px;width:100%;margin-top:8px;
+  padding:9px 12px;border-radius:12px;background:var(--bg);border:2px solid var(--line);
+  text-align:left;transition:border-color .15s,transform .1s}
+.pc-card:hover{border-color:var(--line)}
+.pc-card:active{transform:translateY(1px)}
+.pc-card:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.pcc-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.pcc-body b{font-size:11px;color:var(--muted);font-weight:400}
+.pcc-body>span{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pcc-go{flex:0 0 auto;color:var(--brand-ink);font-size:12px}
+.pc-card.done{display:block;color:var(--muted);font-size:12.5px;text-align:center;cursor:default}
+@media (pointer:coarse){ .pc-card{min-height:44px} }

@@ -366,11 +366,16 @@
       '기본이론과 판례를 카드로 읽고, 바로 <b>세뇌 암기</b>(빈칸 채우기)로 굳히세요. 처음 여는 카드마다 +15 XP.',
       sid => openCodexList(sid));
   }
+  /* 이론 카드 한 장을 연다. 도감 목록과 계획 카드에서 함께 쓴다. */
+  function openCard(cid){
+    UI.cardDetail(cid,
+      c => start('cloze', { card: c }),
+      (unit, subject) => start('quest', { unit, subject }));
+  }
+
   function openCodexList(sid){
     UI.codexList(sid,
-      cid  => UI.cardDetail(cid,
-                c => start('cloze', { card: c }),
-                (unit, subject) => start('quest', { unit, subject })),
+      cid  => openCard(cid),
       uid  => start('cloze', { unit: uid }));
   }
 
@@ -422,7 +427,11 @@
     /* 계획 카드의 두 칸 — 오늘 할 일에서 바로 시작한다.
        새 문제는 '아직 가장 덜 본 단원'으로 데려간다. 어디부터 손댈지
        고르는 일 자체가 시작을 미루게 만들기 때문이다. */
-    UI.setPlanGo(what => {
+    UI.setPlanGo((what, cardId) => {
+      if(what === 'codex'){
+        if(!cardId) return;
+        return openCard(cardId);
+      }
       if(what === 'srs'){
         if(!Store.dueCards().length) return Fx.toast('복습할 카드가 없어요. 새 문제부터!');
         return start('srs', {});

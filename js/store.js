@@ -311,6 +311,22 @@ const Store = (() => {
              goal, capped: raw > goal, ...split(goal) };
   }
 
+  /* 오늘 읽을 이론 카드 한 장.
+     등급이 곧 읽는 순서이므로 S → A → B 로 훑되, 같은 등급이면
+     정답률이 낮은 과목을 먼저 준다. 약한 곳을 이론으로 받쳐 주기 위해서다. */
+  function nextCard(){
+    const unread = QB.theory.filter(c => !(S.readCards[c.id] || {}).read);
+    if(!unread.length) return null;
+    const RANK = { S:0, A:1, B:2 };
+    const accOf = {};
+    for(const sub of QB.SUBJECTS) accOf[sub.id] = subjectAccuracy(sub.id) || 100;
+    return unread.slice().sort((a, b) => {
+      const t = (RANK[a.tier] ?? 9) - (RANK[b.tier] ?? 9);
+      if(t) return t;
+      return accOf[a.subject] - accOf[b.subject];
+    })[0];
+  }
+
   /* ── 북마크 ─────────────────────────────────────────── */
   function isMarked(qid){ return !!S.marks[qid]; }
   function toggleMark(qid){
@@ -727,7 +743,7 @@ const Store = (() => {
   return {
     get s(){ return S; }, save, levelInfo, title, addXp, addCoin,
     record, dueCards, wrongCards, unitResult, subjectProgress,
-    markRead, markDrill, readCount, recentDays, unitStats, summary, INTERVAL,
+    markRead, markDrill, readCount, recentDays, unitStats, summary, INTERVAL, nextCard,
     isMarked, toggleMark, markedIds, wrongNotes,
     weekAttendance, nextStreakGoal, STREAK_REWARDS, setExamDate, plan,
     SHOP, buy, useItem, has, logExam, examLog, lastExam,
