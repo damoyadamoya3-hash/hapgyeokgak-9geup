@@ -13,6 +13,10 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const rd   = p => fs.readFileSync(path.join(ROOT, p), 'utf8');
 
+/* 날짜 회귀 테스트는 실제 주 사용 환경과 같은 한국 시간으로 고정한다.
+   CI 서버가 UTC여도 자정 경계 오류를 재현할 수 있어야 한다. */
+process.env.TZ = 'Asia/Seoul';
+
 /* ── 브라우저 흉내 (필요한 만큼만) ───────────────────────── */
 const store = {};
 global.localStorage = {
@@ -61,6 +65,17 @@ function eq(actual, expected, what){
 function ok(cond, what){ if(!cond) throw new Error(what || '거짓'); }
 const shift = d => new Date(Date.now() + d * 864e5).toISOString().slice(0, 10);
 function fresh(){ Store.reset(); Store.s.xp = 0; Store.s.coin = 0; Store.save(); }
+
+/* ── 현지 날짜 ───────────────────────────────────────────── */
+t('날짜 — 한국 자정 직후를 전날로 기록하지 않는다', () => {
+  const justAfterMidnight = new Date('2026-08-27T00:05:00+09:00');
+  eq(Store.dateKey(justAfterMidnight), '2026-08-27', '현지 날짜');
+});
+
+t('날짜 — 연말 자정에도 현지 연도가 유지된다', () => {
+  const newYear = new Date('2027-01-01T00:05:00+09:00');
+  eq(Store.dateKey(newYear), '2027-01-01', '연말 현지 날짜');
+});
 
 /* ── 일일 임무 ───────────────────────────────────────────── */
 function oneTask(key, goal){

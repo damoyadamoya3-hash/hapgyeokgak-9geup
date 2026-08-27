@@ -95,7 +95,7 @@ const Store = (() => {
     const keys = Object.keys(S.dayStats);
     if(keys.length <= 200) return;
     const cut = new Date(); cut.setDate(cut.getDate() - 180);
-    const limit = cut.toISOString().slice(0, 10);
+    const limit = dateKey(cut);
     for(const k of keys) if(k < limit) delete S.dayStats[k];
   }
 
@@ -143,10 +143,25 @@ const Store = (() => {
 
   /* ── 라이트너 박스 기반 SRS ─────────────────────────── */
   const INTERVAL = [0, 1, 2, 4, 7, 15, 30];  // box index → 며칠 뒤
-  function today(){ return new Date().toISOString().slice(0,10); }
+  /* 날짜 키는 사용자가 실제로 보고 있는 '현지 날짜'를 써야 한다.
+     toISOString()은 UTC 날짜라 한국에서는 자정~오전 9시에 전날로 기록되어
+     일일 임무·출석·복습 시점이 모두 하루씩 어긋났다. */
+  function dateKey(d = new Date()){
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+  function today(){ return dateKey(); }
   function daysFromNow(d){
     const t = new Date(); t.setDate(t.getDate() + d);
-    return t.toISOString().slice(0,10);
+    return dateKey(t);
+  }
+  /* 달력 날짜끼리의 차이는 UTC 자정으로 환산한다. 현지 자정 Date를 직접
+     빼면 일광절약시간제를 쓰는 지역에서 23/25시간짜리 하루가 생긴다. */
+  function dayNumber(key){
+    const [y, m, d] = String(key).split('-').map(Number);
+    return Date.UTC(y, m - 1, d) / 86400000;
   }
 
   function record(qid, ok){
@@ -292,8 +307,7 @@ const Store = (() => {
                pct: total ? Math.round(seen / total * 100) : 0,
                goal: 30, days: null, ...split(30) };
     }
-    const ms = new Date(S.examDate + 'T00:00:00') - new Date(today() + 'T00:00:00');
-    const days = Math.ceil(ms / 86400000);
+    const days = dayNumber(S.examDate) - dayNumber(today());
 
     // 하루 목표는 10~120문항 사이로 제한한다.
     // 시험이 코앞이면 산술적으로 수백 문항이 나오는데, 그런 숫자는
@@ -354,7 +368,7 @@ const Store = (() => {
     const out = [];
     for(let i = n - 1; i >= 0; i--){
       const d = new Date(); d.setDate(d.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
+      const key = dateKey(d);
       const st = S.dayStats[key] || { n:0, ok:0 };
       out.push({ date:key, label:(d.getMonth()+1) + '/' + d.getDate(), n:st.n, ok:st.ok });
     }
@@ -412,7 +426,7 @@ const Store = (() => {
     const t = today();
     if(S.lastPlay === t) return { streak: S.streak, reward: null };
     const y = new Date(); y.setDate(y.getDate()-1);
-    const yy = y.toISOString().slice(0,10);
+    const yy = dateKey(y);
     S.streak = (S.lastPlay === yy) ? S.streak + 1 : 1;
     S.lastPlay = t;
     if(!S.playedDays.includes(t)) S.playedDays.push(t);
@@ -436,7 +450,7 @@ const Store = (() => {
     const out = [];
     for(let i = 6; i >= 0; i--){
       const d = new Date(); d.setDate(d.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
+      const key = dateKey(d);
       out.push({ key, day: DAY[d.getDay()], on: !!(S.dayStats[key] && S.dayStats[key].n > 0), today: i === 0 });
     }
     return out;
@@ -748,7 +762,7 @@ const Store = (() => {
     weekAttendance, nextStreakGoal, STREAK_REWARDS, setExamDate, plan,
     SHOP, buy, useItem, has, logExam, examLog, lastExam,
     subjectAccuracy, subjectSeen, touchStreak, daily, progressTask,
-    checkAch, ACHS, exportData, importData, mergeData, reset, today,
+    checkAch, ACHS, exportData, importData, mergeData, reset, today, dateKey,
     onSaveError, get saveBroken(){ return saveBroken; },
     exportPacked, unpack, CAN_ZIP
   };
