@@ -150,7 +150,8 @@ QB.add([
   q:'글의 순서로 가장 적절한 것은?',
   choices:['(B)-(C)-(A)','(A)-(B)-(C)','(C)-(A)-(B)','(B)-(A)-(C)'],
   a:0,
-  exp:'일반 진술(B: 중앙은 일반적 표현으로 규칙을 쓴다) → therefore 로 이어지는 귀결(C: 지방 공무원이 해석해야 한다) → The result is(A: 집행 강도가 지역마다 달라진다). 연결어가 순서를 정한다.' },
+  exp:'일반 진술(B: 중앙은 일반적 표현으로 규칙을 쓴다) → therefore 로 이어지는 귀결(C: 지방 공무원이 해석해야 한다) → The result is(A: 집행 강도가 지역마다 달라진다). 연결어가 순서를 정한다.',
+  tip:'일반 진술 → therefore 귀결' },
 
 { id:'eng-read-034', subject:'eng', unit:'eng-read', type:'mcq', src:'기출 빈출논점',
   passage:'Teachers often assume that a quiet classroom is a learning classroom. ① Silence, however, tells us little about what is happening inside a student head. ② A student may be following closely, or may have stopped listening ten minutes ago. ③ School buildings constructed before 1980 tend to have poorer sound insulation. ④ What distinguishes the two is not noise level but whether the student can explain the idea afterward.',

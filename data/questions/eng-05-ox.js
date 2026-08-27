@@ -136,7 +136,8 @@ QB.add([
 
 { id:'eng-x-031', subject:'eng', unit:'eng-gram', type:'ox', src:'기출 빈출논점',
   q:'사역동사 make의 목적보어는 동사원형이지만, 수동태에서는 to부정사가 된다.', a:true,
-  exp:'He made me wait. → I was made to wait. 지각동사도 마찬가지다.' },
+  exp:'He made me wait. → I was made to wait. 지각동사도 마찬가지다.',
+  tip:'수동태가 되면 to 가 되살아난다' },
 
 { id:'eng-x-032', subject:'eng', unit:'eng-gram', type:'ox', src:'기출 빈출논점',
   q:'"happen"은 수동태로 쓸 수 있다.', a:false,
@@ -180,7 +181,8 @@ QB.add([
 
 { id:'eng-x-041', subject:'eng', unit:'eng-read', type:'ox', src:'기출 빈출논점',
   q:'순서 배열 문제에서는 대명사와 연결어가 앞 문장을 찾는 단서가 된다.', a:true,
-  exp:'it·they·this가 무엇을 가리키는지, But·Therefore가 무엇을 받는지를 따라가면 순서가 잡힌다.' },
+  exp:'it·they·this가 무엇을 가리키는지, But·Therefore가 무엇을 받는지를 따라가면 순서가 잡힌다.',
+  tip:'대명사와 연결어가 앞 문장을 가리킨다' },
 
 { id:'eng-x-042', subject:'eng', unit:'eng-read', type:'ox', src:'기출 함정포인트',
   q:'일치 문제의 선택지에 only, always, never 같은 단정어가 있으면 오답일 가능성이 높다.', a:true,

@@ -41,7 +41,8 @@ QB.add([
 { id:'edu-meth-008', subject:'edu', unit:'edu-meth', type:'ox', src:'기출 빈출논점',
   q:'ADDIE 모형의 단계는 분석 - 설계 - 개발 - 실행 - 평가 순이다.',
   a:true,
-  exp:'Analysis → Design → Development → Implementation → Evaluation. 교수설계(ISD)의 일반 모형이며, 딕과 캐리(Dick & Carey) 모형이 이를 체제적으로 구체화한 대표 모형이다.' },
+  exp:'Analysis → Design → Development → Implementation → Evaluation. 교수설계(ISD)의 일반 모형이며, 딕과 캐리(Dick & Carey) 모형이 이를 체제적으로 구체화한 대표 모형이다.',
+  tip:'A·D·D·I·E = 분석·설계·개발·실행·평가' },
 
 { id:'edu-meth-009', subject:'edu', unit:'edu-meth', type:'ox', src:'AI 파생문제',
   q:'구성주의 학습환경에서 교사는 지식의 전달자가 아니라 학습의 촉진자·안내자 역할을 한다.',
@@ -82,7 +83,8 @@ QB.add([
 { id:'edu-meth-016', subject:'edu', unit:'edu-meth', type:'ox', src:'AI 파생문제',
   q:'메릴(Merrill)의 내용요소제시이론(CDT)은 내용 차원을 사실·개념·절차·원리로, 수행 차원을 기억·활용·발견으로 구분한다.',
   a:true,
-  exp:'CDT는 내용×수행의 이차원 매트릭스로 목표를 분류하고, 1차 제시형(일반성/사례 × 설명식/탐구식)과 2차 제시형을 통해 수업을 처방한다.' },
+  exp:'CDT는 내용×수행의 이차원 매트릭스로 목표를 분류하고, 1차 제시형(일반성/사례 × 설명식/탐구식)과 2차 제시형을 통해 수업을 처방한다.',
+  tip:'CDT = 내용(사실·개념·절차·원리) × 수행(기억·활용·발견)' },
 
 { id:'edu-meth-017', subject:'edu', unit:'edu-meth', type:'ox', src:'AI 파생문제',
   q:'라이겔루스(Reigeluth)의 정교화 이론은 가장 세부적인 내용부터 제시한 뒤 점차 일반적 내용으로 확장한다.',
