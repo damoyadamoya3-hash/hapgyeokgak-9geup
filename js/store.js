@@ -29,6 +29,9 @@ const Store = (() => {
     // 수험 준비에서 가장 알고 싶은 건 '내가 나아지고 있는가'인데
     // 회차 수만 세고 점수를 버리면 그걸 볼 방법이 없다.
     examLog: [],
+    // 진행 중인 한 판. 새로고침·앱 종료 뒤에도 마지막 문제부터 이어 간다.
+    // 기기 간 진도 코드에는 넣지 않는다(두 기기에서 같은 판을 이어 풀면 중복 기록됨).
+    activeSession: null,
     // 상점에서 산 소모품 보유량
     inv: { hint:0, heart:0, boost:0 },
     ach: {},
@@ -361,6 +364,90 @@ const Store = (() => {
       .sort((a, b) => (b.ng - a.ng) || (a.box - b.box));
   }
 
+  /* ── 진행 중 세션 자동 저장 ─────────────────────────
+     문항 id만 저장하면 객관식 선택지가 새로 섞여 정답 칸이 달라질 수 있다.
+     그래서 그 판에서 보던 선택지 순서와 정답 인덱스도 함께 보관한다. */
+  const SESSION_TTL = 7 * 86400000;
+  function saveSession(sess, meta = {}){
+    if(!sess || sess.over) return clearSession();
+    S.activeSession = {
+      v:1, savedAt:Date.now(),
+      mode:sess.mode, opt:{ ...(sess.opt || {}) }, cfg:{ ...(sess.cfg || {}) },
+      queue:sess.queue.map(q => [
+        q.id,
+        Array.isArray(q.choices) ? q.choices.slice() : null,
+        q.a
+      ]),
+      i:sess.i, correct:sess.correct, wrong:sess.wrong,
+      combo:sess.combo, maxCombo:sess.maxCombo,
+      hearts:sess.hearts, xp:sess.xp, coin:sess.coin,
+      bossHp:sess.bossHp, bossMax:sess.bossMax,
+      wrongIds:(sess.wrongList || []).map(q => q.id),
+      answered:(sess.answered || []).map(x => ({ subject:x.subject, __ok:!!x.__ok })),
+      hints:{ ...(sess.hints || {}) }, boost:sess.boost || 1,
+      elapsed:Math.max(0, Date.now() - (sess.startedAt || Date.now())),
+      timerLeft:Math.max(0, Number(meta.timerLeft) || 0),
+      awaitingNext:!!meta.awaitingNext
+    };
+    save();
+    return true;
+  }
+
+  function sessionInfo(){
+    const x = S.activeSession;
+    if(!x) return null;
+    if(!x.savedAt || Date.now() - x.savedAt > SESSION_TTL || !Array.isArray(x.queue)){
+      clearSession();
+      return null;
+    }
+    return {
+      mode:x.mode,
+      label:(x.cfg || {}).label || '학습',
+      current:Math.min((x.i || 0) + (x.awaitingNext ? 1 : 0) + 1, x.queue.length),
+      total:x.queue.length,
+      awaitingNext:!!x.awaitingNext,
+      savedAt:x.savedAt
+    };
+  }
+
+  function restoreSession(){
+    const x = S.activeSession;
+    if(!sessionInfo() || !x || x.v !== 1) return null;
+    const queue = x.queue.map(row => {
+      const base = QB.byId(row[0]);
+      if(!base) return null;
+      const q = { ...base };
+      if(Array.isArray(row[1])) q.choices = row[1].slice();
+      q.a = row[2];
+      return q;
+    });
+    if(queue.some(q => !q) || !queue.length || x.i < 0 || x.i >= queue.length){
+      clearSession();
+      return null;
+    }
+    return {
+      mode:x.mode, opt:{ ...(x.opt || {}) }, cfg:{ ...(x.cfg || {}) }, queue,
+      i:x.i || 0, correct:x.correct || 0, wrong:x.wrong || 0,
+      combo:x.combo || 0, maxCombo:x.maxCombo || 0,
+      hearts:x.hearts || 0, xp:x.xp || 0, coin:x.coin || 0,
+      bossHp:x.bossHp || 0, bossMax:x.bossMax || 0,
+      wrongList:(x.wrongIds || []).map(id => QB.byId(id)).filter(Boolean),
+      answered:(x.answered || []).map(a => ({ ...a })),
+      hints:{ ...(x.hints || {}) }, boost:x.boost || 1,
+      startedAt:Date.now() - Math.max(0, x.elapsed || 0),
+      over:false, reason:null,
+      resumeTimerLeft:Math.max(0, x.timerLeft || 0),
+      resumeAwaitingNext:!!x.awaitingNext
+    };
+  }
+
+  function clearSession(){
+    if(!S.activeSession) return false;
+    S.activeSession = null;
+    save();
+    return true;
+  }
+
   /* ── 학습 분석 ──────────────────────────────────────── */
 
   /* 최근 n일간의 일자별 학습량 (오늘 포함, 과거 → 현재 순) */
@@ -567,6 +654,7 @@ const Store = (() => {
   function exportData(){
     const packed = { v:3, s:{ ...S } };
     delete packed.s.cards;
+    delete packed.s.activeSession;
 
     // 날짜 문자열이 문항마다 반복되므로 사전으로 묶어 번호로 대체한다.
     // last 는 다음 풀이 때 다시 기록되므로 내보내지 않는다.
@@ -763,6 +851,7 @@ const Store = (() => {
     SHOP, buy, useItem, has, logExam, examLog, lastExam,
     subjectAccuracy, subjectSeen, touchStreak, daily, progressTask,
     checkAch, ACHS, exportData, importData, mergeData, reset, today, dateKey,
+    saveSession, restoreSession, sessionInfo, clearSession,
     onSaveError, get saveBroken(){ return saveBroken; },
     exportPacked, unpack, CAN_ZIP
   };

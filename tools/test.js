@@ -77,6 +77,41 @@ t('날짜 — 연말 자정에도 현지 연도가 유지된다', () => {
   eq(Store.dateKey(newYear), '2027-01-01', '연말 현지 날짜');
 });
 
+/* ── 진행 중 세션 복구 ───────────────────────────────────── */
+t('세션 복구 — 문제 순서·선택지·점수를 그대로 되살린다', () => {
+  fresh();
+  const s = Engine.build('quest', { unit:'kor-gram', subject:'kor' });
+  s.i = 2; s.correct = 2; s.combo = 2; s.xp = 31;
+  const ids = s.queue.map(q => q.id);
+  const answers = s.queue.map(q => q.type === 'mcq' ? q.choices[q.a] : q.a);
+  Store.saveSession(s, { timerLeft:77, awaitingNext:false });
+  const got = Store.restoreSession();
+  eq(got.queue.map(q => q.id), ids, '문항 순서');
+  eq(got.queue.map(q => q.type === 'mcq' ? q.choices[q.a] : q.a), answers, '정답');
+  eq([got.i, got.correct, got.combo, got.xp, got.resumeTimerLeft], [2,2,2,31,77], '세션 상태');
+});
+
+t('세션 복구 — 채점 직후 상태를 표시해 중복 답안을 막는다', () => {
+  fresh();
+  const s = Engine.build('quest', { unit:'kor-gram', subject:'kor' });
+  Engine.submit(s, s.queue[0].a);
+  Store.saveSession(s, { awaitingNext:true });
+  const answeredBefore = Store.s.totalAnswered;
+  const got = Store.restoreSession();
+  ok(got.resumeAwaitingNext, '채점 완료 표시가 사라짐');
+  eq(got.correct + got.wrong, 1, '채점 결과');
+  Engine.advance(got);                 // 앱 복구 경로는 제출하지 않고 다음으로 이동한다
+  eq(Store.s.totalAnswered, answeredBefore, '복구하면서 같은 답안을 다시 기록함');
+});
+
+t('세션 복구 — 진도 이동 코드에는 진행 중인 판을 넣지 않는다', () => {
+  fresh();
+  const s = Engine.build('quest', { unit:'kor-gram', subject:'kor' });
+  Store.saveSession(s, {});
+  const raw = JSON.parse(decodeURIComponent(escape(atob(Store.exportData()))));
+  ok(!('activeSession' in raw.s), '진도 코드에 진행 중 세션이 포함됨');
+});
+
 /* ── 일일 임무 ───────────────────────────────────────────── */
 function oneTask(key, goal){
   fresh();

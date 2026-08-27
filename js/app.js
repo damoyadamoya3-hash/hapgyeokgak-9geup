@@ -9,6 +9,7 @@
   let locked = false;        // 중복 입력 방지
   let paused = false;        // 해설 열람 중 — 타이머·테트리스 정지
   let pauseStart = 0;        // 해설을 열어둔 시각(FEVER 시간 보정용)
+  let timerLeft = 0;         // 자동 저장·복구에 포함할 남은 시간
 
   /* ── 부팅 ──────────────────────────────────────────── */
   const BOOT_MSGS = [
@@ -33,7 +34,7 @@
       fill.style.width = (k * 100) + '%';
       msg.textContent = BOOT_MSGS[Math.min((k * BOOT_MSGS.length) | 0, BOOT_MSGS.length - 1)];
       if(k < 1) requestAnimationFrame(step);
-      else setTimeout(() => { UI.home(); UI.show('scr-home'); }, 90);
+      else setTimeout(() => { UI.home(); refreshResumeCard(); UI.show('scr-home'); }, 90);
     };
     requestAnimationFrame(step);
   }
@@ -66,46 +67,64 @@
              : '아직 이 범위의 문항이 준비 중이에요');
       return;
     }
+    Store.clearSession();
     S = sess; lastPlay = { mode, opt }; locked = false; paused = false;
+    enterSession(false);
+  }
+
+  /* 새 판과 복구한 판이 같은 화면 준비 경로를 쓴다. */
+  function enterSession(resumed){
     $('#pb-timer').classList.remove('paused');
 
     // 보스 무대
     const bs = $('#boss-stage');
-    if(mode === 'boss'){
-      const b = QB.BOSSES[opt.subject];
+    if(S.mode === 'boss'){
+      const b = QB.BOSSES[S.opt.subject];
       bs.classList.remove('hidden');
       $('#boss-name').textContent = b.name;
       $('#boss-sprite').textContent = b.sprite;
-      $('#boss-hp-fill').style.width = '100%';
-      Sfx.boss();
-      Fx.toast(`${b.sprite} ${b.name}: "${b.taunt}"`, true, 3000);
+      $('#boss-hp-fill').style.width = (S.bossHp / S.bossMax * 100) + '%';
+      if(!resumed){
+        Sfx.boss();
+        Fx.toast(`${b.sprite} ${b.name}: "${b.taunt}"`, true, 3000);
+      }
     } else bs.classList.add('hidden');
 
     // 타이머
     stopTimer();
     const tEl = $('#pb-timer');
     if(S.cfg.timer){
-      let left = S.cfg.timer;
+      timerLeft = resumed ? S.resumeTimerLeft : S.cfg.timer;
       tEl.classList.remove('hidden');
-      tEl.querySelector('b').textContent = fmt(left);
+      tEl.querySelector('b').textContent = fmt(timerLeft);
       timerId = setInterval(() => {
         if(paused) return;                     // 해설 읽는 동안 시간 정지
-        left--;
-        tEl.querySelector('b').textContent = fmt(left);
-        tEl.classList.toggle('warn', left <= 10);
-        if(left <= 5 && left > 0) Sfx.tick();
-        if(left <= 0){ stopTimer(); S.reason = 'time'; end(); }
+        timerLeft--;
+        tEl.querySelector('b').textContent = fmt(timerLeft);
+        tEl.classList.toggle('warn', timerLeft <= 10);
+        if(timerLeft > 0 && timerLeft % 10 === 0) checkpoint(locked);
+        if(timerLeft <= 5 && timerLeft > 0) Sfx.tick();
+        if(timerLeft <= 0){ stopTimer(); S.reason = 'time'; end(); }
       }, 1000);
-    } else tEl.classList.add('hidden');
+    } else { timerLeft = 0; tEl.classList.add('hidden'); }
 
     // XP 부스터가 있으면 이번 판에 쓴다
-    S.boost = Store.has('boost') && Store.useItem('boost') ? 1.5 : 1;
-    if(S.boost > 1) Fx.toast('⚡ XP 부스터 적용 — 이번 판 1.5배', true, 2000);
+    if(!resumed){
+      S.boost = Store.has('boost') && Store.useItem('boost') ? 1.5 : 1;
+      if(S.boost > 1) Fx.toast('⚡ XP 부스터 적용 — 이번 판 1.5배', true, 2000);
+    }
 
     UI.show('scr-play');
-    render();
     tetrisStart();
     Hype.Bgm.start();
+    if(resumed && S.resumeAwaitingNext){
+      Fx.toast('▶ 저장된 지점에서 이어갑니다', true, 1700);
+      next();                         // 이미 채점한 문제는 건너뛰어 중복 기록을 막는다
+    }else{
+      render();
+      checkpoint(false);
+      if(resumed) Fx.toast('▶ 저장된 지점에서 이어갑니다', true, 1700);
+    }
   }
   function fmt(s){ return s >= 60 ? `${(s/60)|0}:${String(s%60).padStart(2,'0')}` : s; }
   function stopTimer(){ if(timerId){ clearInterval(timerId); timerId = null; } }
@@ -113,7 +132,39 @@
   function render(){
     if(!S || S.i >= S.queue.length){ end(); return; }
     UI.question(S, onAnswer);
+    // 50:50을 쓴 뒤 새로고침한 경우 제거했던 선택지를 다시 잠근다
+    const q = Engine.current(S);
+    const removed = (S.hints || {})[q.id] || [];
+    removed.forEach(i => {
+      const b = $('#q-choices').children[i];
+      if(b){ b.classList.add('dimmed'); b.disabled = true; }
+    });
     refreshHint();
+  }
+
+  function checkpoint(awaitingNext){
+    if(S) Store.saveSession(S, { timerLeft, awaitingNext });
+  }
+
+  function refreshResumeCard(){
+    const card = $('#resume-card');
+    const info = Store.sessionInfo();
+    card.classList.toggle('hidden', !info);
+    if(!info) return;
+    $('#rc-title').textContent = info.awaitingNext ? `${info.label} · 채점 마무리` : `${info.label} 이어 풀기`;
+    $('#rc-detail').textContent = `${info.current} / ${info.total}문항 지점에서 자동 저장됨`;
+  }
+
+  function resumeSession(){
+    const sess = Store.restoreSession();
+    if(!sess){
+      refreshResumeCard();
+      return Fx.toast('이어 풀 기록을 불러오지 못했어요');
+    }
+    S = sess;
+    lastPlay = { mode:S.mode, opt:S.opt };
+    locked = false; paused = false; pauseStart = 0;
+    enterSession(true);
   }
 
   /* 50:50 힌트 — 객관식에서만, 보유 중일 때만 쓸 수 있다 */
@@ -141,10 +192,14 @@
       el.classList.add('dimmed');
       el.disabled = true;
     });
+    S.hints = S.hints || {};
+    S.hints[q.id] = Array.from(box.children)
+      .map((el, i) => el.classList.contains('dimmed') ? i : -1).filter(i => i >= 0);
     Sfx.tap();
     Fx.burstAt($('#btn-hint'), ['🔍','✨'], 8);
     refreshHint();
     UI.hud();
+    checkpoint(false);
   }
 
   /* ── 답안 제출 ─────────────────────────────────────── */
@@ -155,6 +210,7 @@
     pauseStart = Date.now();
     $('#pb-timer').classList.add('paused');
     const res = Engine.submit(S, ans);
+    checkpoint(true);              // 채점 직후 닫혀도 같은 문제를 두 번 기록하지 않는다
 
     if(S.cfg.silent){
       // 실전 모의고사 — 정오를 알려주지 않고 바로 다음 문항으로 넘어간다
@@ -209,7 +265,7 @@
       // 잭팟 릴 — 확률적으로만 돌아간다(변동비율 강화)
       Hype.jackpot(res.combo, mult => {
         const bonus = res.gain * (mult - 1);
-        if(S){ S.xp += bonus; S.coin += mult; }
+        if(S){ S.xp += bonus; S.coin += mult; checkpoint(locked); }
         UI.bumpXp(bonus);
       });
 
@@ -221,6 +277,7 @@
     }
 
     offerCodex(res.q);
+    checkpoint(true);
 
     // 테트리스 낙하도 멈춰 두고, 폭발 연출만 마저 보여준다
     setTimeout(() => { if(paused) Tetris.pause(); }, 900);
@@ -283,7 +340,7 @@
         return;
       }
       end();
-    } else render();
+    } else { checkpoint(false); render(); }
   }
 
   /* ── 종료 ──────────────────────────────────────────── */
@@ -294,6 +351,8 @@
     Hype.stopFever();
     Hype.Bgm.stop();
     S.over = true;
+    Store.clearSession();
+    refreshResumeCard();
     if(S.mode === 'cloze' && S.opt.card) Store.markDrill(S.opt.card);
     const fin = Engine.finish(S);
     UI.hud();
@@ -353,7 +412,7 @@
 
     // 라인 클리어 보상 — 도파민 + 실이익
     const xp = n * 8, coin = n * 3;
-    if(S){ S.xp += xp; S.coin += coin; }
+    if(S){ S.xp += xp; S.coin += coin; checkpoint(locked); }
     else { Store.addXp(xp); Store.addCoin(coin); }
     const r = $('#tetris-cvs').getBoundingClientRect();
     Fx.floatText(r.left + r.width/2 - 22, r.top + 30, '+' + xp, '#6b9bff');
@@ -420,6 +479,7 @@
 
     const openNote = () => UI.notes((unit, subject) => start('quest', { unit, subject }));
     $('#btn-note').addEventListener('click', e => { e.stopPropagation(); Sfx.tap(); openNote(); });
+    $('#resume-card').addEventListener('click', () => { Sfx.tap(); resumeSession(); });
     $('#btn-shop').addEventListener('click', () => { Sfx.tap(); UI.shop(); });
     $('#btn-hint').addEventListener('click', useHint);
 
@@ -569,9 +629,17 @@
     $('#btn-reset').addEventListener('click', () => {
       if(confirm('모든 진행도가 삭제됩니다. 정말 초기화할까요?')){
         Store.reset(); applyTheme(); UI.home(); modal.classList.add('hidden');
+        refreshResumeCard();
         Fx.toast('초기화 완료. 처음부터 다시 시작!');
       }
     });
+
+    /* 모바일 OS가 앱을 예고 없이 정리하는 경우를 대비한다. 숨겨질 때와
+       창을 닫기 직전에 현재 문제·남은 시간을 한 번 더 기록한다. */
+    document.addEventListener('visibilitychange', () => {
+      if(document.visibilityState === 'hidden') checkpoint(locked);
+    });
+    window.addEventListener('beforeunload', () => checkpoint(locked));
   }
 
   /* 폰의 뒤로가기 — 풀이 중이면 바로 나가지 않고 확인부터 받는다 */
