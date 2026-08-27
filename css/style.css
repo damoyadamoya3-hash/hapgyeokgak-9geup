@@ -808,6 +808,7 @@ body.fever .combo-badge{background:linear-gradient(120deg,#ff2e88,#ffd600);anima
 .exam-paper-summary>span{font-size:32px;flex:0 0 auto}
 .exam-paper-summary h3{margin:0 0 3px;font-size:17px}
 .exam-paper-summary p{margin:0;color:var(--ink2);font-size:12.5px;font-variant-numeric:tabular-nums}
+.exam-paper-quiz{margin:0 0 13px}
 .ex-chart{display:flex;gap:6px;align-items:flex-end;min-width:0;overflow-x:auto;padding:4px 0 0}
 .ex-col{flex:1 1 0;min-width:26px;display:flex;flex-direction:column;align-items:center;gap:4px}
 .ex-sc{font-family:var(--f-round);font-size:11px;color:var(--ink2)}

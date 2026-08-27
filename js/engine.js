@@ -110,6 +110,7 @@ const Engine = (() => {
     boss:  { label:'보스 레이드',   hearts:3, timer:0,  n:999 },
     srs:   { label:'망각곡선 복습', hearts:0, timer:0,  n:15 },
     exam:  { label:'실전 모의고사', hearts:0, timer:1200, n:20, silent:true },
+    paper: { label:'시험 복기 퀴즈', hearts:0, timer:0, n:999 },
     wrong: { label:'오답 지옥',     hearts:0, timer:0,  n:15 },
     cloze: { label:'세뇌 암기',     hearts:0, timer:0,  n:30 }
   };
@@ -160,6 +161,18 @@ const Engine = (() => {
     else if(mode === 'wrong'){
       const ids = Store.wrongCards();
       pool = shuffle(ids.map(id => QB.byId(id)).filter(Boolean)).slice(0, cfg.n);
+    }
+    else if(mode === 'paper'){
+      // 최근 시험에서 틀렸거나 비워 뒀거나 검토 표시한 문항만 당시 번호
+      // 순서대로 다시 푼다. 중복·삭제된 id는 조용히 제거한다.
+      const seen = new Set();
+      pool = (Array.isArray(opt.ids) ? opt.ids : [])
+        .filter(id => {
+          if(!id || seen.has(id)) return false;
+          seen.add(id); return true;
+        })
+        .map(id => QB.byId(id)).filter(Boolean);
+      cfg = { ...cfg, n:pool.length };
     }
     else if(mode === 'cloze'){
       // 특정 카드 / 단원 / 과목의 빈칸 문항만 모아 반복 암기

@@ -505,7 +505,7 @@
     if(S.mode === 'cloze' && S.opt.card) Store.markDrill(S.opt.card);
     const fin = Engine.finish(S);
     UI.hud();
-    UI.result(S, fin);
+    UI.result(S, fin, ids => start('paper', { ids }));
     const done = S;
     S = null;
     return done;
@@ -704,7 +704,10 @@
     $('#btn-stats').addEventListener('click', e => {
       e.stopPropagation();
       Sfx.tap();
-      UI.stats((unit, subject) => start('quest', { unit, subject }));
+      UI.stats(
+        (unit, subject) => start('quest', { unit, subject }),
+        ids => start('paper', { ids })
+      );
     });
 
     $$('[data-back]').forEach(b => b.addEventListener('click', () => { Sfx.tap(); UI.back(); }));

@@ -480,6 +480,26 @@ t('모의고사 보관 — 진도 코드를 합치면 더 최근 답안지도 �
   ok(/btn-last-exam-paper/.test(ui) && /scr-exam-history/.test(html), '학습 분석 재열람 경로 없음');
 });
 
+t('시험 복기 퀴즈 — 최근 복기 대상만 원래 순서로 다시 푼다', () => {
+  fresh();
+  const source = Engine.build('exam', { subject:'eng' });
+  const ids = [source.queue[2].id, source.queue[0].id, source.queue[2].id, 'missing-id'];
+  const s = Engine.build('paper', { ids });
+  ok(s, '복기 퀴즈 생성 실패');
+  eq([s.mode, s.cfg.label, s.cfg.timer, s.cfg.silent],
+     ['paper','시험 복기 퀴즈',0,undefined], '복기 모드 설정');
+  eq(s.queue.map(q => q.id), ids.slice(0, 2), '중복·삭제 문항 정리와 순서');
+  Engine.submit(s, s.queue[0].a);
+  eq([s.correct, Store.s.totalAnswered], [1,1], '복기 답안 학습 기록');
+  Store.saveSession(s, {});
+  const got = Store.restoreSession();
+  eq([got.mode, got.opt.ids], ['paper',ids], '복기 퀴즈 이어 풀기');
+  eq(Engine.build('paper', { ids:[] }), null, '빈 복기 퀴즈');
+  const ui = rd('js/ui.js'), html = rd('index.html'), app = rd('js/app.js');
+  ok(/btn-exam-history-quiz/.test(ui) && /id="btn-res-paper"/.test(html) &&
+     /start\('paper'/.test(app), '복기 퀴즈 시작 경로 없음');
+});
+
 /* ── 선택지 섞기 ─────────────────────────────────────────── */
 t('선택지 섞기 — 섞은 뒤에도 정답 칸이 정답을 가리킨다', () => {
   fresh();

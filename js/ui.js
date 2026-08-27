@@ -608,7 +608,7 @@ const UI = (() => {
   }
 
   /* ══════════ 학습 분석 ══════════ */
-  function stats(onPickUnit){
+  function stats(onPickUnit, onPaperQuiz){
     const s   = Store.summary();
     // 아주 좁은 화면(320px대)에서는 14일치 날짜 라벨이 물리적으로 들어가지 않는다.
     const span = (window.innerWidth || 400) < 380 ? 7 : 14;
@@ -828,7 +828,7 @@ const UI = (() => {
         onPickUnit(b.dataset.weak, b.dataset.weakSubject);
       }));
     const paperBtn = $('#btn-last-exam-paper');
-    if(paperBtn) paperBtn.addEventListener('click', () => { Sfx.tap(); examHistory(); });
+    if(paperBtn) paperBtn.addEventListener('click', () => { Sfx.tap(); examHistory(onPaperQuiz); });
     show('scr-stats');
   }
 
@@ -1157,7 +1157,7 @@ const UI = (() => {
 
   function examReviewHtml(S){ return examPaperHtml(Engine.examPaper(S)); }
 
-  function examHistory(){
+  function examHistory(onPaperQuiz){
     const paper = Store.lastExamPaper();
     if(!paper) return;
     const d = new Date(paper.t);
@@ -1171,13 +1171,20 @@ const UI = (() => {
     const body = $('#exam-history-body');
     body.innerHTML = `<div class="exam-paper-summary">
         <span>🧾</span><div><h3>${esc(scope)}</h3><p>${date} · ${paper.ok}/${paper.n} · ${score}점 · ${elapsed}</p></div>
-      </div>${examPaperHtml(paper)}`;
+      </div>${paper.rows.length && onPaperQuiz
+        ? `<button id="btn-exam-history-quiz" class="btn-primary exam-paper-quiz">🔁 복기 문항 ${paper.rows.length}개 다시 풀기</button>`
+        : ''}${examPaperHtml(paper)}`;
     bindReviewReveal(body);
+    const quiz = $('#btn-exam-history-quiz');
+    if(quiz) quiz.addEventListener('click', () => {
+      Sfx.tap();
+      if(onPaperQuiz) onPaperQuiz(paper.rows.map(r => r.id));
+    });
     show('scr-exam-history');
   }
 
   /* ── 결과 ──────────────────────────────────────────── */
-  function result(S, fin){
+  function result(S, fin, onPaperQuiz){
     const win = S.mode === 'boss' ? S.reason === 'kill' : fin.acc >= 60;
     $('#res-emoji').textContent = fin.acc === 100 ? '🏆' : win ? '🎉' : '😵';
     $('#res-title').textContent = S.mode === 'boss'
@@ -1243,6 +1250,15 @@ const UI = (() => {
     const review = $('#res-review');
     review.innerHTML = subTable + (S.mode === 'exam' ? examReviewHtml(S) : normalReview);
     bindReviewReveal(review);
+
+    const paperBtn = $('#btn-res-paper');
+    const paper = S.mode === 'exam' ? Engine.examPaper(S) : null;
+    const paperIds = paper ? paper.rows.map(r => r.id) : [];
+    paperBtn.classList.toggle('hidden', !paperIds.length || !onPaperQuiz);
+    paperBtn.textContent = paperIds.length ? `🧾 복기 문항 다시 풀기 (${paperIds.length})` : '🧾 복기 문항 다시 풀기';
+    paperBtn.onclick = paperIds.length && onPaperQuiz
+      ? () => { Sfx.tap(); onPaperQuiz(paperIds); }
+      : null;
 
     // 방금 틀린 게 있으면 그 자리에서 바로잡을 길을 열어 준다
     const wrongBtn = $('#btn-res-wrong');
