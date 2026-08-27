@@ -357,6 +357,38 @@ t('모의고사 OMR — 답을 바꿔도 마지막 답만 한 번 기록한다',
   eq([s.correct, s.wrong], [1, s.queue.length - 1], '최종 답안 채점');
 });
 
+t('모의고사 OMR — 선택한 답을 지우면 다시 미응답이 되고 검토 표시는 남는다', () => {
+  fresh();
+  const s = Engine.build('exam', { subject:'kor' });
+  Engine.submit(s, s.queue[0].a);
+  s.examFlags[0] = true;
+  ok(Engine.clearExamAnswer(s, 0), '작성한 답안 지우기 실패');
+  ok(!Object.prototype.hasOwnProperty.call(s.examAnswers, 0), '지운 답안이 남음');
+  ok(s.examFlags[0], '답안 지우기가 검토 표시도 지움');
+  ok(!Engine.clearExamAnswer(s, 0), '빈 답안을 또 지웠다고 보고');
+  Engine.finish(s);
+  eq([s.examAnsweredCount, s.examBlank, Store.s.totalAnswered], [0,s.queue.length,0], '지운 답안 채점');
+  const app = rd('js/app.js'), html = rd('index.html');
+  ok(/id="btn-exam-clear"/.test(html) && /Backspace/.test(app) && /const picked/.test(app),
+     '답안 지우기 버튼·키보드·재선택 경로 없음');
+});
+
+t('모의고사 OMR — 미응답과 검토 문항 번호를 정오 노출 없이 찾는다', () => {
+  fresh();
+  const s = Engine.build('exam', { subject:'eng' });
+  Engine.submit(s, s.queue[0].a);
+  s.i = 2; Engine.submit(s, s.queue[2].a);
+  s.examFlags[1] = true; s.examFlags[3] = true;
+  eq(Engine.examIndexes(s, 'unanswered').slice(0, 4), [1,3,4,5], '미응답 번호');
+  eq(Engine.examIndexes(s, 'flagged'), [1,3], '검토 번호');
+  eq(Engine.examIndexes(s, 'unknown'), [], '알 수 없는 점검 종류');
+  Engine.gradeExam(s);
+  eq([Engine.examIndexes(s, 'unanswered'), Engine.examIndexes(s, 'flagged')], [[],[]], '제출 뒤 번호 노출');
+  const ui = rd('js/ui.js'), html = rd('index.html');
+  ok(/id="btn-exam-unanswered"/.test(html) && /id="btn-exam-flagged"/.test(html) &&
+     /jumpExamStatus/.test(rd('js/app.js')) && /미응답/.test(ui), '빠른 점검 이동 UI 없음');
+});
+
 t('모의고사 OMR — 미응답은 점수만 오답이고 SRS에는 넣지 않는다', () => {
   fresh();
   const s = Engine.build('exam', { subject:'eng' });

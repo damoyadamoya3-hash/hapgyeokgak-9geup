@@ -313,6 +313,32 @@ const Engine = (() => {
     return { ok, q, gain, combo: S.combo };
   }
 
+  /* OMR은 제출 전까지 답을 바꿀 수 있을 뿐 아니라 지워서 다시 미응답으로
+     돌릴 수도 있어야 한다. 검토 표시는 답안과 독립된 메모이므로 남긴다. */
+  function clearExamAnswer(S, index = S && S.i){
+    if(!S || S.mode !== 'exam' || S.examGraded) return false;
+    const answers = S.examAnswers || (S.examAnswers = {});
+    if(!Object.prototype.hasOwnProperty.call(answers, index)) return false;
+    delete answers[index];
+    return true;
+  }
+
+  /* 답안지의 빠른 점검 버튼에서 사용할 원래 문항 번호 목록. 정오 정보는
+     제출 전에는 보지 않고, 작성 여부와 사용자가 남긴 검토 표시만 읽는다. */
+  function examIndexes(S, kind){
+    if(!S || S.mode !== 'exam' || S.examGraded) return [];
+    if(kind === 'unanswered'){
+      const answers = S.examAnswers || {};
+      return S.queue.map((_, i) => i)
+        .filter(i => !Object.prototype.hasOwnProperty.call(answers, i));
+    }
+    if(kind === 'flagged'){
+      const flags = S.examFlags || {};
+      return S.queue.map((_, i) => i).filter(i => !!flags[i]);
+    }
+    return [];
+  }
+
   /* ── 모의고사 일괄 채점 ───────────────────────────────
      빈칸은 시험 점수에서는 오답이지만, 실제로 풀지 않은 문항을 SRS 오답으로
      만들지는 않는다. 여러 경로(제출·시간 종료·그만두기)가 이 함수를 불러도
@@ -485,6 +511,7 @@ const Engine = (() => {
              streak: streakInfo.streak, streakReward: streakInfo.reward, paperReview };
   }
 
-  return { build, current, submit, gradeExam, examReview, examPaper,
+  return { build, current, submit, clearExamAnswer, examIndexes,
+           gradeExam, examReview, examPaper,
            advance, finish, isCorrect, shuffle, MODE };
 })();

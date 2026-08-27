@@ -224,6 +224,7 @@
     <nav id="exam-nav" class="exam-nav hidden" aria-label="모의고사 문항 이동">
       <button id="btn-exam-prev" class="btn-ghost">← 이전</button>
       <button id="btn-exam-flag" class="btn-ghost exam-flag" aria-pressed="false">⚑ 검토 <kbd>F</kbd></button>
+      <button id="btn-exam-clear" class="btn-ghost exam-clear" disabled>지우기 <kbd>Del</kbd></button>
       <button id="btn-exam-sheet" class="exam-sheet-open">
         <span>OMR 답안지</span><b><span id="exam-answered">0</span>/<span id="exam-total">20</span></b>
       </button>
@@ -273,7 +274,11 @@
       </div>
       <button id="btn-close-exam-sheet" class="sheet-close" aria-label="답안지 닫기">×</button>
     </div>
-    <p class="exam-sheet-help">번호를 누르면 해당 문제로 이동합니다. 제출 전까지 답을 바꿀 수 있습니다.</p>
+    <p class="exam-sheet-help">번호를 누르면 해당 문제로 이동합니다. 빠른 이동은 현재 번호 다음의 미응답·검토 문항을 찾아 줍니다.</p>
+    <div class="exam-sheet-quick" aria-label="점검할 문항 빠른 이동">
+      <button id="btn-exam-unanswered" class="btn-ghost">빈칸으로 이동 <b id="exam-unanswered-count">0</b></button>
+      <button id="btn-exam-flagged" class="btn-ghost">검토로 이동 <b id="exam-flagged-count">0</b></button>
+    </div>
     <div id="exam-sheet-grid" class="exam-sheet-grid" aria-label="문항별 답안 작성 상태"></div>
     <div class="exam-sheet-actions">
       <button id="btn-exam-resume" class="btn-ghost">계속 풀기</button>

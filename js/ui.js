@@ -1057,13 +1057,12 @@ const UI = (() => {
 
   /* 실전 모의고사 — 정오를 숨기고 "선택했다"는 표시만 남긴다 */
   function markSilent(btn){
-    if(!btn) return;
     Array.from($('#q-choices').children).forEach(b => {
       const on = b === btn;
       b.classList.toggle('exam-picked', on);
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
-    Sfx.tap();
+    if(btn) Sfx.tap();
   }
 
   /* OMR 답안지 — 번호와 작성 여부만 보여 주고 정오 정보는 제출 전까지
@@ -1073,7 +1072,12 @@ const UI = (() => {
     const flags = S.examFlags || {};
     const answered = Object.keys(answers).length;
     const flagged = Object.keys(flags).filter(i => flags[i]).length;
-    $('#exam-sheet-status').textContent = `${answered} / ${S.queue.length}문항 작성 · 검토 ${flagged}문항`;
+    const unanswered = S.queue.length - answered;
+    $('#exam-sheet-status').textContent = `작성 ${answered}/${S.queue.length} · 미응답 ${unanswered} · 검토 ${flagged}`;
+    $('#exam-unanswered-count').textContent = unanswered;
+    $('#exam-flagged-count').textContent = flagged;
+    $('#btn-exam-unanswered').disabled = unanswered === 0;
+    $('#btn-exam-flagged').disabled = flagged === 0;
     const grid = $('#exam-sheet-grid');
     grid.innerHTML = S.queue.map((q, i) => {
       const has = Object.prototype.hasOwnProperty.call(answers, i);

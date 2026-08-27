@@ -188,6 +188,8 @@
     $('#exam-total').textContent = S.queue.length;
     $('#btn-exam-prev').disabled = S.i <= 0;
     $('#btn-exam-next').textContent = S.i + 1 >= S.queue.length ? '답안지 →' : '다음 →';
+    const hasAnswer = Object.prototype.hasOwnProperty.call(S.examAnswers || {}, S.i);
+    $('#btn-exam-clear').disabled = !hasAnswer;
     const flag = $('#btn-exam-flag');
     const flagged = !!(S.examFlags || {})[S.i];
     flag.setAttribute('aria-pressed', flagged ? 'true' : 'false');
@@ -203,6 +205,34 @@
     checkpoint(false);
   }
 
+  function clearExamAnswer(){
+    if(!S || S.mode !== 'exam') return;
+    if(examMoveTimer){ clearTimeout(examMoveTimer); examMoveTimer = null; }
+    locked = false;
+    if(!Engine.clearExamAnswer(S)) return;
+    UI.markSilent(null);
+    refreshExamNav();
+    checkpoint(false);
+    Sfx.tap();
+    Fx.toast(`${S.i + 1}번 답안을 지웠어요`, true, 1500);
+  }
+
+  function jumpExamStatus(kind){
+    if(!S || S.mode !== 'exam') return;
+    const indexes = Engine.examIndexes(S, kind);
+    if(!indexes.length) return;
+    // 현재 번호 뒤를 먼저 찾고, 끝까지 갔으면 첫 대상부터 다시 돈다.
+    const target = indexes.find(i => i > S.i) ?? indexes[0];
+    S.i = target;
+    closeExamSheet(false);
+    checkpoint(false);
+    render();
+    Sfx.tap();
+    Fx.toast(kind === 'unanswered'
+      ? `${target + 1}번 미응답으로 이동했어요`
+      : `${target + 1}번 검토 문항으로 이동했어요`, true, 1500);
+  }
+
   function openExamSheet(){
     if(!S || S.mode !== 'exam') return;
     if(examMoveTimer){ clearTimeout(examMoveTimer); examMoveTimer = null; }
@@ -216,7 +246,12 @@
     });
     const modal = $('#modal-exam-sheet');
     modal.classList.remove('hidden');
-    requestAnimationFrame(() => $('#btn-exam-resume').focus());
+    requestAnimationFrame(() => {
+      const firstCheck = $('#btn-exam-unanswered').disabled
+        ? ($('#btn-exam-flagged').disabled ? $('#btn-exam-resume') : $('#btn-exam-flagged'))
+        : $('#btn-exam-unanswered');
+      firstCheck.focus();
+    });
   }
 
   function closeExamSheet(restoreFocus = true){
@@ -347,6 +382,13 @@
 
     if(S.mode === 'exam'){
       // 답안만 OMR에 기록하고 정오·점수·SRS 기록은 제출 전까지 건드리지 않는다.
+      const picked = Object.prototype.hasOwnProperty.call(S.examAnswers || {}, S.i) &&
+        S.examAnswers[S.i] === ans;
+      if(picked){
+        locked = false;
+        clearExamAnswer();
+        return;
+      }
       Engine.submit(S, ans);
       UI.markSilent(btn);
       refreshExamNav();
@@ -714,10 +756,13 @@
     $('#btn-next').addEventListener('click', () => { Sfx.tap(); next(); });
     $('#btn-exam-prev').addEventListener('click', () => { Sfx.tap(); examMove(-1); });
     $('#btn-exam-flag').addEventListener('click', toggleExamFlag);
+    $('#btn-exam-clear').addEventListener('click', clearExamAnswer);
     $('#btn-exam-next').addEventListener('click', () => { Sfx.tap(); examMove(1); });
     $('#btn-exam-sheet').addEventListener('click', () => { Sfx.tap(); openExamSheet(); });
     $('#btn-exam-resume').addEventListener('click', () => closeExamSheet());
     $('#btn-close-exam-sheet').addEventListener('click', () => closeExamSheet());
+    $('#btn-exam-unanswered').addEventListener('click', () => jumpExamStatus('unanswered'));
+    $('#btn-exam-flagged').addEventListener('click', () => jumpExamStatus('flagged'));
     $('#btn-exam-submit').addEventListener('click', submitExam);
     $('#btn-quit').addEventListener('click', () => {
       if(!S) { UI.show('scr-home'); return; }
@@ -752,6 +797,7 @@
         else if(e.key === 'ArrowRight'){ e.preventDefault(); examMove(1); }
         else if(e.key === 'Enter'){ e.preventDefault(); openExamSheet(); }
         else if(e.key === 'f' || e.key === 'F'){ e.preventDefault(); toggleExamFlag(); }
+        else if(e.key === 'Delete' || e.key === 'Backspace'){ e.preventDefault(); clearExamAnswer(); }
         else if(/^[1-5]$/.test(e.key)){ box.children[+e.key - 1]?.click(); }
         return;
       }
