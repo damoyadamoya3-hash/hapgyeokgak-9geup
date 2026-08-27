@@ -1080,6 +1080,51 @@ const UI = (() => {
     });
   }
 
+  function answerHtml(q, ans){
+    if(ans === null || ans === undefined) return '미응답';
+    if(q.type === 'ox') return ans ? 'O' : 'X';
+    const i = Number(ans);
+    return `${'①②③④⑤'[i] || (i + 1)} ${esc((q.choices || [])[i] || '')}`;
+  }
+
+  /* 모의고사 직후에는 정답만 던져 주지 않고, 내 답과 해설을 한 화면에서
+     비교하게 한다. 처음 8개만 펼칠 수 있게 두고 나머지는 요청할 때
+     노출해 100문항 회차가 끝나도 결과 화면이 지나치게 길어지지 않는다. */
+  function examReviewHtml(S){
+    const rows = Engine.examReview(S);
+    if(!rows.length)
+      return '<div class="sel-note" style="text-align:center">틀린 문제 없음! 완벽합니다 ✨</div>';
+
+    const cards = rows.map((r, i) => {
+      const q = r.q;
+      const sub = QB.subject(q.subject) || { name:q.subject, emoji:'📘' };
+      const shortQ = q.q.length > 105 ? q.q.slice(0, 105) + '…' : q.q;
+      return `<details class="exam-review-card${!r.answered ? ' blank' : ''}${i >= 8 ? ' exam-review-extra hidden' : ''}"${i < 2 ? ' open' : ''}>
+        <summary>
+          <span class="erc-no">${r.number}</span>
+          <span class="erc-main"><b>${sub.emoji} ${esc(sub.name)}</b><span>${md(shortQ)}</span></span>
+          <em class="erc-state">${r.answered ? `내 답 ${answerHtml(q, r.answer).split(' ')[0]}` : '미응답'}</em>
+        </summary>
+        <div class="erc-body">
+          ${q.passage ? `<div class="erc-passage">${esc(q.passage)}</div>` : ''}
+          <div class="erc-answers">
+            <p class="mine"><span>내 답</span><strong>${answerHtml(q, r.answer)}</strong></p>
+            <p class="right"><span>정답</span><strong>${answerHtml(q, q.a)}</strong></p>
+          </div>
+          <div class="erc-exp"><b>해설</b><div>${md(q.exp || '해설이 없습니다.').replace(/\n/g, '<br>')}</div></div>
+          ${q.tip ? `<div class="erc-tip">💡 ${md(q.tip)}</div>` : ''}
+        </div>
+      </details>`;
+    }).join('');
+    const rest = rows.length - 8;
+    return `<div class="exam-review-head">
+        <h3>🧾 시험 복기 ${rows.length}문항</h3>
+        <p>문제를 펼쳐 내 답과 정답, 해설을 바로 비교하세요.${S.examBlank ? ` 미응답 ${S.examBlank}문항도 포함했습니다.` : ''}</p>
+      </div>${cards}${rest > 0
+        ? `<button id="btn-review-all" class="btn-ghost review-all">나머지 ${rest}문항 해설 모두 보기</button>`
+        : ''}`;
+  }
+
   /* ── 결과 ──────────────────────────────────────────── */
   function result(S, fin){
     const win = S.mode === 'boss' ? S.reason === 'kill' : fin.acc >= 60;
@@ -1136,14 +1181,23 @@ const UI = (() => {
               })()
             : `<p class="cut-ok">✅ 40점 미만 과목이 없습니다. 과락 위험은 넘겼습니다.</p>`}` : '';
 
-    $('#res-review').innerHTML = subTable + (S.wrongList.length
-      ? `<h3 style="font-size:15px;margin:0 0 4px">📌 다시 볼 문제 ${S.wrongList.length}개${S.examBlank ? ` (미응답 ${S.examBlank}개 포함)` : ''}</h3>` +
+    const normalReview = S.wrongList.length
+      ? `<h3 style="font-size:15px;margin:0 0 4px">📌 다시 볼 문제 ${S.wrongList.length}개</h3>` +
         S.wrongList.slice(0, 8).map(q => `
           <div class="rev-item">
             <div class="rq">${md(q.q.length > 90 ? q.q.slice(0,90) + '…' : q.q)}</div>
-            <div class="ra">정답: ${q.type === 'ox' ? (q.a ? 'O' : 'X') : ('①②③④⑤'[q.a] + ' ' + esc(q.choices[q.a]||''))}</div>
+            <div class="ra">정답: ${answerHtml(q, q.a)}</div>
           </div>`).join('')
-      : `<div class="sel-note" style="text-align:center">틀린 문제 없음! 완벽합니다 ✨</div>`);
+      : `<div class="sel-note" style="text-align:center">틀린 문제 없음! 완벽합니다 ✨</div>`;
+    const review = $('#res-review');
+    review.innerHTML = subTable + (S.mode === 'exam' ? examReviewHtml(S) : normalReview);
+    const showAll = $('#btn-review-all');
+    if(showAll) showAll.addEventListener('click', () => {
+      review.querySelectorAll('.exam-review-extra').forEach(el => el.classList.remove('hidden'));
+      showAll.remove();
+      const first = review.querySelector('.exam-review-extra summary');
+      if(first) first.focus();
+    });
 
     // 방금 틀린 게 있으면 그 자리에서 바로잡을 길을 열어 준다
     const wrongBtn = $('#btn-res-wrong');

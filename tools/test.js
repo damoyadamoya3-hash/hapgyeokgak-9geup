@@ -406,6 +406,26 @@ t('모의고사 OMR — 일괄 채점은 여러 번 불러도 한 번만 기록�
   eq(Store.s.totalAnswered, 2, '기록된 실제 답안 수');
 });
 
+t('모의고사 복기 — 내 오답·미응답만 원래 번호와 마지막 답으로 돌려준다', () => {
+  fresh();
+  const s = Engine.build('exam', { subject:'kor' });
+  const first = s.queue[0], second = s.queue[1];
+  Engine.submit(s, first.a);                    // 정답은 복기 목록에서 제외
+  s.i = 1;
+  const wrong = (second.a + 1) % second.choices.length;
+  Engine.submit(s, second.a);
+  Engine.submit(s, wrong);                      // 마지막에 고친 답이 남아야 한다
+  eq(Engine.examReview(s), [], '제출 전 정오 노출');
+  Engine.gradeExam(s);
+  const rows = Engine.examReview(s);
+  eq(rows.length, s.queue.length - 1, '복기 문항 수');
+  eq([rows[0].number, rows[0].answered, rows[0].answer], [2,true,wrong], '오답 정보');
+  eq([rows[1].number, rows[1].answered, rows[1].answer], [3,false,null], '미응답 정보');
+  ok(!rows.some(r => r.number === 1), '정답 문항이 복기에 포함됨');
+  const ui = rd('js/ui.js');
+  ok(/시험 복기/.test(ui) && /내 답/.test(ui) && /btn-review-all/.test(ui), '상세 복기 화면 없음');
+});
+
 /* ── 선택지 섞기 ─────────────────────────────────────────── */
 t('선택지 섞기 — 섞은 뒤에도 정답 칸이 정답을 가리킨다', () => {
   fresh();

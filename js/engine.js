@@ -345,6 +345,22 @@ const Engine = (() => {
     return S;
   }
 
+  /* 제출 뒤 복기용 데이터. 정답 문항은 제외하고, 사용자가 마지막에 고른
+     답과 미응답을 원래 시험 번호에 맞춰 돌려준다. 제출 전에는 정오가
+     노출되지 않도록 빈 배열을 반환한다. */
+  function examReview(S){
+    if(!S || S.mode !== 'exam' || !S.examGraded) return [];
+    const answers = S.examAnswers || {};
+    const out = [];
+    S.queue.forEach((q, i) => {
+      const answered = Object.prototype.hasOwnProperty.call(answers, i);
+      const answer = answered ? answers[i] : null;
+      if(answered && isCorrect(q, answer)) return;
+      out.push({ number:i + 1, q, answered, answer });
+    });
+    return out;
+  }
+
   /* ── 다음 문제로, 종료 판정 ────────────────────────── */
   function advance(S){
     S.i++;
@@ -409,5 +425,5 @@ const Engine = (() => {
              streak: streakInfo.streak, streakReward: streakInfo.reward };
   }
 
-  return { build, current, submit, gradeExam, advance, finish, isCorrect, shuffle, MODE };
+  return { build, current, submit, gradeExam, examReview, advance, finish, isCorrect, shuffle, MODE };
 })();

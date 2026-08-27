@@ -331,6 +331,44 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 .rev-item{background:var(--card);border:2px solid var(--line);border-left:5px solid var(--bad);border-radius:12px;padding:11px 13px}
 .rev-item .rq{font-size:13.5px;line-height:1.6;word-break:keep-all}
 .rev-item .ra{font-size:12px;color:var(--good);margin-top:5px;font-family:var(--f-round)}
+.exam-review-head{margin:2px 0 3px}
+.exam-review-head h3{font-size:16px;margin:0 0 4px}
+.exam-review-head p{font-size:12.5px;line-height:1.6;color:var(--ink2);margin:0}
+.exam-review-card{background:var(--card);border:2px solid var(--line);border-left:5px solid var(--bad);
+  border-radius:13px;overflow:hidden}
+.exam-review-card[open]{border-color:var(--bad)}
+.exam-review-card.blank{border-left-color:var(--muted)}
+.exam-review-card>summary{display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer;list-style:none}
+.exam-review-card>summary::-webkit-details-marker{display:none}
+.exam-review-card>summary::after{content:'›';font-family:var(--f-round);font-size:22px;color:var(--ink2);
+  transition:transform .16s;flex:0 0 auto}
+.exam-review-card[open]>summary::after{transform:rotate(90deg)}
+.erc-no{display:grid;place-items:center;width:30px;height:30px;flex:0 0 auto;border-radius:9px;
+  background:rgba(208,47,60,.12);color:var(--bad-ink);font-family:var(--f-round);font-size:13px}
+.exam-review-card.blank .erc-no{background:var(--bg);color:var(--muted)}
+.erc-main{display:flex;flex:1;min-width:0;flex-direction:column;gap:2px}
+.erc-main b{font-family:var(--f-body);font-weight:700;font-size:11px;color:var(--ink2)}
+.erc-main>span{font-size:13px;line-height:1.45;word-break:keep-all}
+.erc-state{font-style:normal;flex:0 0 auto;border-radius:99px;padding:3px 8px;
+  background:rgba(208,47,60,.11);color:var(--bad-ink);font-family:var(--f-round);font-size:10.5px}
+.exam-review-card.blank .erc-state{background:var(--bg);color:var(--muted)}
+.erc-body{border-top:1px solid var(--line);padding:12px;background:color-mix(in srgb,var(--bg) 60%,var(--card))}
+.erc-passage{white-space:pre-wrap;background:var(--card);border-left:3px solid var(--accent);border-radius:0 9px 9px 0;
+  padding:9px 11px;margin-bottom:10px;font-size:12.5px;line-height:1.7;color:var(--ink2)}
+.erc-answers{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.erc-answers p{margin:0;padding:9px 10px;border-radius:10px;display:flex;flex-direction:column;gap:3px}
+.erc-answers span{font-size:10.5px;color:var(--ink2)}
+.erc-answers strong{font-size:12.5px;line-height:1.5;font-family:var(--f-body)}
+.erc-answers .mine{background:rgba(208,47,60,.10)}
+.erc-answers .mine strong{color:var(--bad-ink)}
+.erc-answers .right{background:rgba(30,158,98,.11)}
+.erc-answers .right strong{color:var(--good-ink)}
+.erc-exp{font-size:13px;line-height:1.72;word-break:keep-all}
+.erc-exp>b{display:block;margin-bottom:3px;color:var(--accent);font-size:11.5px}
+.erc-exp>div{color:var(--ink2)}
+.erc-tip{margin-top:9px;padding:8px 10px;border-radius:9px;background:rgba(242,194,0,.16);
+  color:var(--ink2);font-size:12.5px;line-height:1.6}
+.review-all{width:100%;margin-top:2px}
 /* 버튼이 둘일 때도 셋일 때도(오답이 있으면 '틀린 것만 다시'가 는다)
    같은 비율로 놓이도록 그리드 대신 플렉스를 쓴다. */
 .res-btns{display:flex;flex-wrap:wrap;gap:10px}
@@ -385,6 +423,8 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
   .exam-nav{grid-template-columns:.8fr 1.35fr .8fr}
   .exam-nav button{font-size:12px;padding:8px 6px}
   .exam-sheet-grid{grid-template-columns:repeat(5,1fr);gap:8px}
+  .erc-state{display:none}
+  .erc-answers{grid-template-columns:1fr}
 }
 
 /* ══════════ 도파민 레이어: 잭팟 · FEVER ══════════ */
