@@ -1053,14 +1053,17 @@ const UI = (() => {
      절대 노출하지 않는다. */
   function examSheet(S, onJump){
     const answers = S.examAnswers || {};
+    const flags = S.examFlags || {};
     const answered = Object.keys(answers).length;
-    $('#exam-sheet-status').textContent = `${answered} / ${S.queue.length}문항 작성`;
+    const flagged = Object.keys(flags).filter(i => flags[i]).length;
+    $('#exam-sheet-status').textContent = `${answered} / ${S.queue.length}문항 작성 · 검토 ${flagged}문항`;
     const grid = $('#exam-sheet-grid');
     grid.innerHTML = S.queue.map((q, i) => {
       const has = Object.prototype.hasOwnProperty.call(answers, i);
+      const flag = !!flags[i];
       const current = i === S.i;
-      const state = has ? '답안 작성됨' : '미응답';
-      return `<button class="${has ? 'answered ' : ''}${current ? 'current' : ''}"
+      const state = (has ? '답안 작성됨' : '미응답') + (flag ? ', 검토 표시' : '');
+      return `<button class="${has ? 'answered ' : ''}${flag ? 'flagged ' : ''}${current ? 'current' : ''}"
         data-exam-index="${i}" aria-label="${i + 1}번 ${state}${current ? ', 현재 문제' : ''}"
         ${current ? 'aria-current="true"' : ''}>${i + 1}</button>`;
     }).join('');
@@ -1099,16 +1102,20 @@ const UI = (() => {
       const q = r.q;
       const sub = QB.subject(q.subject) || { name:q.subject, emoji:'📘' };
       const shortQ = q.q.length > 105 ? q.q.slice(0, 105) + '…' : q.q;
-      return `<details class="exam-review-card${!r.answered ? ' blank' : ''}${i >= 8 ? ' exam-review-extra hidden' : ''}"${i < 2 ? ' open' : ''}>
+      const state = r.correct ? '검토 · 정답'
+        : !r.answered ? '미응답'
+        : r.flagged ? '검토 · 오답'
+        : `내 답 ${answerHtml(q, r.answer).split(' ')[0]}`;
+      return `<details class="exam-review-card${!r.answered ? ' blank' : ''}${r.flagged ? ' flagged' : ''}${r.correct ? ' correct' : ''}${i >= 8 ? ' exam-review-extra hidden' : ''}"${i < 2 ? ' open' : ''}>
         <summary>
           <span class="erc-no">${r.number}</span>
           <span class="erc-main"><b>${sub.emoji} ${esc(sub.name)}</b><span>${md(shortQ)}</span></span>
-          <em class="erc-state">${r.answered ? `내 답 ${answerHtml(q, r.answer).split(' ')[0]}` : '미응답'}</em>
+          <em class="erc-state">${state}</em>
         </summary>
         <div class="erc-body">
           ${q.passage ? `<div class="erc-passage">${esc(q.passage)}</div>` : ''}
           <div class="erc-answers">
-            <p class="mine"><span>내 답</span><strong>${answerHtml(q, r.answer)}</strong></p>
+            <p class="mine${r.correct ? ' same' : ''}"><span>내 답</span><strong>${answerHtml(q, r.answer)}</strong></p>
             <p class="right"><span>정답</span><strong>${answerHtml(q, q.a)}</strong></p>
           </div>
           <div class="erc-exp"><b>해설</b><div>${md(q.exp || '해설이 없습니다.').replace(/\n/g, '<br>')}</div></div>
@@ -1117,9 +1124,11 @@ const UI = (() => {
       </details>`;
     }).join('');
     const rest = rows.length - 8;
+    const flagged = Object.keys(S.examFlags || {}).filter(i => S.examFlags[i]).length;
+    const answeredWrong = Math.max(S.wrong - S.examBlank, 0);
     return `<div class="exam-review-head">
         <h3>🧾 시험 복기 ${rows.length}문항</h3>
-        <p>문제를 펼쳐 내 답과 정답, 해설을 바로 비교하세요.${S.examBlank ? ` 미응답 ${S.examBlank}문항도 포함했습니다.` : ''}</p>
+        <p>오답 ${answeredWrong} · 미응답 ${S.examBlank} · 검토 표시 ${flagged}. 정답이어도 검토 표시한 문제는 포함했습니다.</p>
       </div>${cards}${rest > 0
         ? `<button id="btn-review-all" class="btn-ghost review-all">나머지 ${rest}문항 해설 모두 보기</button>`
         : ''}`;

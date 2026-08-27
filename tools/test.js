@@ -376,9 +376,11 @@ t('모의고사 OMR — 답안과 현재 문항을 이어 풀기로 복구한다
   Engine.submit(s, s.queue[0].a);
   s.i = 7;
   Engine.submit(s, 2);
+  s.examFlags[3] = true;
   Store.saveSession(s, { timerLeft:611, awaitingNext:false });
   const got = Store.restoreSession();
   eq(got.examAnswers, s.examAnswers, '저장된 OMR 답안');
+  eq(got.examFlags, s.examFlags, '저장된 검토 표시');
   eq([got.i, got.resumeTimerLeft], [7,611], '복구 위치·남은 시간');
   eq(Store.s.totalAnswered, 0, '복구 전에 채점됨');
 });
@@ -424,6 +426,20 @@ t('모의고사 복기 — 내 오답·미응답만 원래 번호와 마지막 �
   ok(!rows.some(r => r.number === 1), '정답 문항이 복기에 포함됨');
   const ui = rd('js/ui.js');
   ok(/시험 복기/.test(ui) && /내 답/.test(ui) && /btn-review-all/.test(ui), '상세 복기 화면 없음');
+});
+
+t('모의고사 검토 — 표시한 정답도 복기 목록에 남고 세션 점수는 바꾸지 않는다', () => {
+  fresh();
+  const s = Engine.build('exam', { subject:'edu' });
+  Engine.submit(s, s.queue[0].a);
+  s.examFlags[0] = true;
+  Engine.gradeExam(s);
+  const row = Engine.examReview(s).find(r => r.number === 1);
+  ok(row, '검토 표시한 정답이 복기에서 사라짐');
+  eq([row.flagged, row.correct, row.answered], [true,true,true], '검토 문항 상태');
+  eq([s.correct, Store.s.totalCorrect], [1,1], '검토 표시가 채점을 바꿈');
+  const app = rd('js/app.js'), html = rd('index.html');
+  ok(/toggleExamFlag/.test(app) && /id="btn-exam-flag"/.test(html), '검토 표시 조작 UI 없음');
 });
 
 /* ── 선택지 섞기 ─────────────────────────────────────────── */

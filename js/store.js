@@ -393,6 +393,7 @@ const Store = (() => {
         subject:x.subject, __ok:!!x.__ok, __blank:!!x.__blank
       })),
       examAnswers:{ ...(sess.examAnswers || {}) },
+      examFlags:{ ...(sess.examFlags || {}) },
       examAnsweredCount:sess.examAnsweredCount || 0,
       examBlank:sess.examBlank || 0,
       examGraded:!!sess.examGraded,
@@ -451,6 +452,7 @@ const Store = (() => {
       wrongList:(x.wrongIds || []).map(id => QB.byId(id)).filter(Boolean),
       answered:(x.answered || []).map(a => ({ ...a })),
       examAnswers:{ ...(x.examAnswers || {}) },
+      examFlags:{ ...(x.examFlags || {}) },
       examAnsweredCount:x.examAnsweredCount || 0,
       examBlank:x.examBlank || 0,
       examGraded:!!x.examGraded,

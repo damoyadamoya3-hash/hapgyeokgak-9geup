@@ -236,6 +236,7 @@ const Engine = (() => {
       // 모의고사는 답안을 마지막에 한꺼번에 채점한다. 문항 번호를 키로
       // 쓰면 앞뒤로 이동해 답을 바꿔도 같은 칸 하나만 갱신된다.
       examAnswers: {},
+      examFlags: {},
       examAnsweredCount: 0,
       examBlank: 0,
       examGraded: false,
@@ -355,8 +356,10 @@ const Engine = (() => {
     S.queue.forEach((q, i) => {
       const answered = Object.prototype.hasOwnProperty.call(answers, i);
       const answer = answered ? answers[i] : null;
-      if(answered && isCorrect(q, answer)) return;
-      out.push({ number:i + 1, q, answered, answer });
+      const correct = answered && isCorrect(q, answer);
+      const flagged = !!(S.examFlags || {})[i];
+      if(correct && !flagged) return;
+      out.push({ number:i + 1, q, answered, answer, correct, flagged });
     });
     return out;
   }

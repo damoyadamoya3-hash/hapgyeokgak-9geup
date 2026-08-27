@@ -188,6 +188,19 @@
     $('#exam-total').textContent = S.queue.length;
     $('#btn-exam-prev').disabled = S.i <= 0;
     $('#btn-exam-next').textContent = S.i + 1 >= S.queue.length ? '답안지 →' : '다음 →';
+    const flag = $('#btn-exam-flag');
+    const flagged = !!(S.examFlags || {})[S.i];
+    flag.setAttribute('aria-pressed', flagged ? 'true' : 'false');
+    flag.innerHTML = (flagged ? '⚑ 표시됨' : '⚑ 검토') + ' <kbd>F</kbd>';
+  }
+
+  function toggleExamFlag(){
+    if(!S || S.mode !== 'exam') return;
+    const flags = S.examFlags || (S.examFlags = {});
+    if(flags[S.i]) delete flags[S.i]; else flags[S.i] = true;
+    Sfx.tap();
+    refreshExamNav();
+    checkpoint(false);
   }
 
   function openExamSheet(){
@@ -697,6 +710,7 @@
     $$('[data-back]').forEach(b => b.addEventListener('click', () => { Sfx.tap(); UI.back(); }));
     $('#btn-next').addEventListener('click', () => { Sfx.tap(); next(); });
     $('#btn-exam-prev').addEventListener('click', () => { Sfx.tap(); examMove(-1); });
+    $('#btn-exam-flag').addEventListener('click', toggleExamFlag);
     $('#btn-exam-next').addEventListener('click', () => { Sfx.tap(); examMove(1); });
     $('#btn-exam-sheet').addEventListener('click', () => { Sfx.tap(); openExamSheet(); });
     $('#btn-exam-resume').addEventListener('click', () => closeExamSheet());
@@ -734,6 +748,7 @@
         if(e.key === 'ArrowLeft'){ e.preventDefault(); examMove(-1); }
         else if(e.key === 'ArrowRight'){ e.preventDefault(); examMove(1); }
         else if(e.key === 'Enter'){ e.preventDefault(); openExamSheet(); }
+        else if(e.key === 'f' || e.key === 'F'){ e.preventDefault(); toggleExamFlag(); }
         else if(/^[1-5]$/.test(e.key)){ box.children[+e.key - 1]?.click(); }
         return;
       }
