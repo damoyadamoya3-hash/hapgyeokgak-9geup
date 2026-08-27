@@ -40,7 +40,8 @@ const Store = (() => {
       sound: true, haptic: true, autoexp: true, tetris: true, bgm: true,
       // 첫 실행 시엔 기기의 시스템 설정을 따른다
       dark: (typeof matchMedia === 'function' &&
-             matchMedia('(prefers-color-scheme: dark)').matches)
+             matchMedia('(prefers-color-scheme: dark)').matches),
+      installDismissed: false
     }
   };
 

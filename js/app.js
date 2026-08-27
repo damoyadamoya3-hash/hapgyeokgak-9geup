@@ -10,6 +10,7 @@
   let paused = false;        // 해설 열람 중 — 타이머·테트리스 정지
   let pauseStart = 0;        // 해설을 열어둔 시각(FEVER 시간 보정용)
   let timerLeft = 0;         // 자동 저장·복구에 포함할 남은 시간
+  let installPrompt = null;  // Chromium 계열 PWA 설치 요청
 
   /* ── 부팅 ──────────────────────────────────────────── */
   const BOOT_MSGS = [
@@ -153,6 +154,37 @@
     if(!info) return;
     $('#rc-title').textContent = info.awaitingNext ? `${info.label} · 채점 마무리` : `${info.label} 이어 풀기`;
     $('#rc-detail').textContent = `${info.current} / ${info.total}문항 지점에서 자동 저장됨`;
+  }
+
+  function isStandalone(){
+    return matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  }
+
+  function refreshInstallCard(){
+    const card = $('#install-card');
+    const ua = navigator.userAgent || '';
+    const ios = /iphone|ipad|ipod/i.test(ua) ||
+                (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
+    const canGuide = installPrompt || ios;
+    card.classList.toggle('hidden', isStandalone() || Store.s.settings.installDismissed || !canGuide);
+    if(!card.classList.contains('hidden')){
+      $('#install-note').textContent = installPrompt
+        ? '홈 화면에서 바로 열고 오프라인에서도 공부하세요'
+        : 'Safari 공유 버튼 → 홈 화면에 추가를 누르세요';
+      $('.ic-go').textContent = installPrompt ? '설치 →' : '방법 →';
+    }
+  }
+
+  async function requestInstall(){
+    if(installPrompt){
+      const p = installPrompt;
+      installPrompt = null;
+      await p.prompt();
+      try{ await p.userChoice; }catch(e){}
+      refreshInstallCard();
+    }else{
+      Fx.toast('Safari의 공유 버튼을 누른 뒤 “홈 화면에 추가”를 선택하세요', true, 4200);
+    }
   }
 
   function resumeSession(){
@@ -480,6 +512,13 @@
     const openNote = () => UI.notes((unit, subject) => start('quest', { unit, subject }));
     $('#btn-note').addEventListener('click', e => { e.stopPropagation(); Sfx.tap(); openNote(); });
     $('#resume-card').addEventListener('click', () => { Sfx.tap(); resumeSession(); });
+    $('#btn-install').addEventListener('click', () => { Sfx.tap(); requestInstall(); });
+    $('#btn-install-dismiss').addEventListener('click', e => {
+      e.stopPropagation();
+      Store.s.settings.installDismissed = true;
+      Store.save();
+      refreshInstallCard();
+    });
     $('#btn-shop').addEventListener('click', () => { Sfx.tap(); UI.shop(); });
     $('#btn-hint').addEventListener('click', useHint);
 
@@ -640,6 +679,18 @@
       if(document.visibilityState === 'hidden') checkpoint(locked);
     });
     window.addEventListener('beforeunload', () => checkpoint(locked));
+
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      installPrompt = e;
+      refreshInstallCard();
+    });
+    window.addEventListener('appinstalled', () => {
+      installPrompt = null;
+      $('#install-card').classList.add('hidden');
+      Fx.toast('🎓 합격각 설치 완료! 홈 화면에서 바로 만나요', true, 2600);
+    });
+    refreshInstallCard();
   }
 
   /* 폰의 뒤로가기 — 풀이 중이면 바로 나가지 않고 확인부터 받는다 */

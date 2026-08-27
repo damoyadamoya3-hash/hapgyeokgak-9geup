@@ -740,6 +740,20 @@ body.fever .combo-badge{background:linear-gradient(120deg,#ff2e88,#ffd600);anima
 .rc-body small{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rc-go{flex:0 0 auto;font-family:var(--f-round);font-size:12px;color:var(--brand-ink)}
 @media (pointer:coarse){.resume-card{min-height:56px}}
+/* 브라우저 메뉴를 뒤질 필요 없이 홈에서 바로 설치할 수 있게 한다 */
+.install-card{position:relative;display:flex;align-items:stretch;margin-bottom:12px;
+  border:2px dashed var(--good);border-radius:14px;background:var(--card);box-shadow:var(--shadow)}
+.install-main{display:flex;align-items:center;gap:10px;flex:1;min-width:0;padding:11px 42px 11px 13px;
+  color:var(--ink);text-align:left;border-radius:12px}
+.ic-icon{font-size:25px;flex:0 0 auto}
+.ic-body{display:flex;flex:1;min-width:0;flex-direction:column;gap:2px}
+.ic-body b{font-family:var(--f-round);font-size:14px;color:var(--good-ink)}
+.ic-body small{font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ic-go{font-family:var(--f-round);font-size:12px;color:var(--good-ink);flex:0 0 auto}
+.install-dismiss{position:absolute;right:5px;top:50%;transform:translateY(-50%);width:34px;height:34px;
+  border-radius:50%;color:var(--muted);font-size:13px}
+.install-main:focus-visible,.install-dismiss:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+@media (pointer:coarse){.install-main{min-height:56px}.install-dismiss{width:44px;height:44px}}
 /* 문항 출처·법령 시점 고지 — 사이트만 보고 공부해도 알 수 있어야 한다 */
 .src-note{margin:22px 2px 26px;padding:12px 14px;border:2px dashed var(--line);
   border-radius:13px;font-size:12px;line-height:1.75;color:var(--muted)}

@@ -77,6 +77,17 @@ t('날짜 — 연말 자정에도 현지 연도가 유지된다', () => {
   eq(Store.dateKey(newYear), '2027-01-01', '연말 현지 날짜');
 });
 
+/* ── 설치·공유 셸 ────────────────────────────────────────── */
+t('PWA — 설치 정보와 1200×630 공유 카드를 함께 배포한다', () => {
+  const webmanifest = JSON.parse(rd('manifest.webmanifest'));
+  eq(webmanifest.id, './', '앱 식별자');
+  const html = rd('index.html');
+  ok(/property="og:image"[^>]+icons\/og\.png/.test(html), 'Open Graph 이미지 메타 없음');
+  const png = fs.readFileSync(path.join(ROOT, 'icons', 'og.png'));
+  eq(png.toString('ascii', 1, 4), 'PNG', '공유 카드 파일 형식');
+  eq([png.readUInt32BE(16), png.readUInt32BE(20)], [1200,630], '공유 카드 크기');
+});
+
 /* ── 진행 중 세션 복구 ───────────────────────────────────── */
 t('세션 복구 — 문제 순서·선택지·점수를 그대로 되살린다', () => {
   fresh();
