@@ -5,13 +5,15 @@ QB.add([
   q:'밑줄 친 부분과 의미가 가장 가까운 것은?\n\nThe committee decided to ‘scrutinize’ the budget proposal.',
   choices:['approve','examine closely','ignore','summarize'],
   a:1,
-  exp:'scrutinize = 면밀히 조사하다 (= examine closely, inspect, pore over). 명사형 scrutiny도 함께 외운다.' },
+  exp:'scrutinize = 면밀히 조사하다 (= examine closely, inspect, pore over). 명사형 scrutiny도 함께 외운다.',
+  tip:'scrutinize = examine closely · pore over' },
 
 { id:'eng-vocab-012', subject:'eng', unit:'eng-vocab', type:'mcq', src:'기출 빈출논점',
   q:'밑줄 친 부분과 의미가 가장 가까운 것은?\n\nHis remarks were ‘pertinent’ to the discussion.',
   choices:['irrelevant','relevant','offensive','lengthy'],
   a:1,
-  exp:'pertinent = 적절한, 관련 있는 (= relevant, apposite, germane). 반의어는 irrelevant, extraneous.' },
+  exp:'pertinent = 적절한, 관련 있는 (= relevant, apposite, germane). 반의어는 irrelevant, extraneous.',
+  tip:'pertinent = relevant · germane ↔ irrelevant' },
 
 { id:'eng-vocab-013', subject:'eng', unit:'eng-vocab', type:'ox', src:'기출 빈출논점',
   q:'"tentative"는 "확정적인, 최종적인"이라는 뜻이다.',
@@ -30,18 +32,21 @@ QB.add([
   q:'밑줄 친 부분과 의미가 가장 가까운 것은?\n\nShe was ‘reluctant’ to accept the offer.',
   choices:['eager','unwilling','ready','grateful'],
   a:1,
-  exp:'reluctant = 꺼리는, 마지못한 (= unwilling, hesitant, disinclined). 반의어는 eager, willing.' },
+  exp:'reluctant = 꺼리는, 마지못한 (= unwilling, hesitant, disinclined). 반의어는 eager, willing.',
+  tip:'reluctant = unwilling · hesitant ↔ eager' },
 
 { id:'eng-vocab-016', subject:'eng', unit:'eng-vocab', type:'ox', src:'기출 빈출논점',
   q:'"comply with"는 "~을 준수하다"라는 뜻이다.',
   a:true,
-  exp:'comply with = 따르다, 준수하다 (= abide by, conform to, adhere to). 행정 영어에서 자주 나온다: comply with regulations.' },
+  exp:'comply with = 따르다, 준수하다 (= abide by, conform to, adhere to). 행정 영어에서 자주 나온다: comply with regulations.',
+  tip:'comply with = abide by · conform to · adhere to' },
 
 { id:'eng-vocab-017', subject:'eng', unit:'eng-vocab', type:'mcq', src:'기출 빈출논점',
   q:'밑줄 친 부분과 의미가 가장 가까운 것은?\n\nThe policy was implemented to ‘bolster’ the local economy.',
   choices:['weaken','strengthen','replace','analyze'],
   a:1,
-  exp:'bolster = 강화하다, 북돋우다 (= strengthen, reinforce, buttress).' },
+  exp:'bolster = 강화하다, 북돋우다 (= strengthen, reinforce, buttress).',
+  tip:'bolster = strengthen · reinforce · buttress' },
 
 { id:'eng-vocab-018', subject:'eng', unit:'eng-vocab', type:'mcq', src:'기출 빈출논점',
   q:'밑줄 친 구동사의 의미로 가장 적절한 것은?\n\nThe meeting was ‘called off’ at the last minute.',
@@ -53,13 +58,15 @@ QB.add([
 { id:'eng-vocab-019', subject:'eng', unit:'eng-vocab', type:'ox', src:'기출 빈출논점',
   q:'"account for"는 "설명하다" 또는 "차지하다"라는 뜻으로 쓰인다.',
   a:true,
-  exp:'account for = ① 설명하다(explain) ② (비율을) 차지하다. 예: Exports account for 40% of revenue.' },
+  exp:'account for = ① 설명하다(explain) ② (비율을) 차지하다. 예: Exports account for 40% of revenue.',
+  tip:'account for = 설명하다 · 차지하다' },
 
 { id:'eng-vocab-020', subject:'eng', unit:'eng-vocab', type:'mcq', src:'기출 빈출논점',
   q:'밑줄 친 부분과 의미가 가장 가까운 것은?\n\nHe gave a ‘concise’ summary of the report.',
   choices:['brief and clear','vague','lengthy','inaccurate'],
   a:0,
-  exp:'concise = 간결한 (= succinct, terse, brief). 반의어는 verbose, wordy, redundant.' },
+  exp:'concise = 간결한 (= succinct, terse, brief). 반의어는 verbose, wordy, redundant.',
+  tip:'concise = succinct · terse ↔ verbose' },
 
 /* ───────── 생활영어 ───────── */
 { id:'eng-conv-011', subject:'eng', unit:'eng-conv', type:'mcq', src:'기출 빈출논점',
@@ -70,7 +77,8 @@ QB.add([
     'Better late than never.',
     'That\'s a piece of cake.'],
   a:1,
-  exp:'"It hasn\'t sunk in yet."는 "아직 실감이 안 난다"는 뜻으로 승진 소식에 대한 자연스러운 반응이다.' },
+  exp:'"It hasn\'t sunk in yet."는 "아직 실감이 안 난다"는 뜻으로 승진 소식에 대한 자연스러운 반응이다.',
+  tip:'It hasn’t sunk in yet = 아직 실감이 안 난다' },
 
 { id:'eng-conv-012', subject:'eng', unit:'eng-conv', type:'mcq', src:'기출 빈출논점',
   q:'다음 대화 중 어색한 것은?',
@@ -80,7 +88,8 @@ QB.add([
     'A: I\'m afraid I have to leave now. / B: Congratulations!',
     'A: Could you give me a hand? / B: Sure, what do you need?'],
   a:2,
-  exp:'떠나야 한다는 말에 "축하합니다"는 어울리지 않는다. "That\'s too bad." 또는 "See you later." 정도가 자연스럽다.' },
+  exp:'떠나야 한다는 말에 "축하합니다"는 어울리지 않는다. "That\'s too bad." 또는 "See you later." 정도가 자연스럽다.',
+  tip:'떠난다는 말에는 That is too bad · See you around' },
 
 { id:'eng-conv-013', subject:'eng', unit:'eng-conv', type:'ox', src:'기출 빈출논점',
   q:'"You can say that again."은 상대방에게 다시 말해 달라고 요청하는 표현이다.',
@@ -96,7 +105,8 @@ QB.add([
     'It\'s out of the question.',
     'Suit yourself.'],
   a:1,
-  exp:'"I know the feeling."은 "그 심정 안다"는 공감 표현으로, 뒤에서 일을 나눠 맡겠다는 제안과 자연스럽게 이어진다. be swamped with = ~로 눈코 뜰 새 없다.' },
+  exp:'"I know the feeling."은 "그 심정 안다"는 공감 표현으로, 뒤에서 일을 나눠 맡겠다는 제안과 자연스럽게 이어진다. be swamped with = ~로 눈코 뜰 새 없다.',
+  tip:'I know the feeling = 그 심정 안다 (공감)' },
 
 /* ───────── 문법 ───────── */
 { id:'eng-gram-011', subject:'eng', unit:'eng-gram', type:'mcq', src:'기출 빈출논점',
@@ -107,12 +117,14 @@ QB.add([
     'The data suggests that the policy is effective.',
     'Hardly I had arrived when the phone rang.'],
   a:3,
-  exp:'부정어 Hardly가 문두에 오면 **도치**되어야 하므로 "Hardly had I arrived ~"가 옳다.' },
+  exp:'부정어 Hardly가 문두에 오면 **도치**되어야 하므로 "Hardly had I arrived ~"가 옳다.',
+  tip:'Hardly 가 문두면 had + 주어 어순' },
 
 { id:'eng-gram-012', subject:'eng', unit:'eng-gram', type:'ox', src:'기출 빈출논점',
   q:'"The number of applicants have increased."는 어법상 옳다.',
   a:false,
-  exp:'"The number of ~"는 "~의 수"로 **단수** 취급하므로 "has increased"가 옳다. 반대로 "A number of applicants **have** increased"처럼 A number of는 복수 취급한다.' },
+  exp:'"The number of ~"는 "~의 수"로 **단수** 취급하므로 "has increased"가 옳다. 반대로 "A number of applicants **have** increased"처럼 A number of는 복수 취급한다.',
+  tip:'the number of = 단수 / a number of = 복수' },
 
 { id:'eng-gram-013', subject:'eng', unit:'eng-gram', type:'mcq', src:'기출 빈출논점',
   q:'빈칸에 들어갈 말로 가장 적절한 것은?\n\nThe report, ______ was submitted yesterday, contains several errors.',
@@ -141,7 +153,8 @@ QB.add([
 { id:'eng-gram-016', subject:'eng', unit:'eng-gram', type:'ox', src:'기출 빈출논점',
   q:'"Most of the information were useful."은 어법상 옳다.',
   a:false,
-  exp:'information은 **불가산명사**이므로 "was useful"이 옳다. 함께 외울 불가산명사: advice, equipment, furniture, luggage, news, evidence, homework.' },
+  exp:'information은 **불가산명사**이므로 "was useful"이 옳다. 함께 외울 불가산명사: advice, equipment, furniture, luggage, news, evidence, homework.',
+  tip:'불가산 — information · advice · furniture · equipment' },
 
 { id:'eng-gram-017', subject:'eng', unit:'eng-gram', type:'mcq', src:'기출 빈출논점',
   q:'어법상 옳은 것은?',
@@ -151,12 +164,14 @@ QB.add([
     'This method is inferior to that one.',
     'The result was different with what we expected.'],
   a:2,
-  exp:'라틴어 비교급(superior, inferior, senior, junior, prior)은 than이 아니라 **to**를 쓴다. ② prefer A to B, ④ different **from**이 옳다.' },
+  exp:'라틴어 비교급(superior, inferior, senior, junior, prior)은 than이 아니라 **to**를 쓴다. ② prefer A to B, ④ different **from**이 옳다.',
+  tip:'superior·inferior·senior·junior·prior 는 to' },
 
 { id:'eng-gram-018', subject:'eng', unit:'eng-gram', type:'ox', src:'기출 빈출논점',
   q:'"It is no use to cry over spilt milk."는 어법상 옳다.',
   a:false,
-  exp:'"It is no use + -ing"가 옳은 형태이므로 "It is no use **crying**"이다. 유사 관용구: There is no -ing(~할 수 없다), be worth -ing, cannot help -ing.' },
+  exp:'"It is no use + -ing"가 옳은 형태이므로 "It is no use **crying**"이다. 유사 관용구: There is no -ing(~할 수 없다), be worth -ing, cannot help -ing.',
+  tip:'It is no use + -ing' },
 
 /* ───────── 독해 ───────── */
 { id:'eng-read-011', subject:'eng', unit:'eng-read', type:'mcq', src:'기출 빈출논점',
@@ -176,14 +191,16 @@ QB.add([
   q:'빈칸에 들어갈 말로 가장 적절한 것은?\n\nThe passage suggests that praise should focus on ______.',
   choices:['innate ability','process and effort','test scores','peer comparison'],
   a:1,
-  exp:'능력 칭찬은 회피 성향을, 노력 칭찬은 도전 성향을 낳는다는 대비가 핵심이다. 드웩(Dweck)의 성장 마인드셋 연구로, 교육학의 귀인이론과도 연결된다.' },
+  exp:'능력 칭찬은 회피 성향을, 노력 칭찬은 도전 성향을 낳는다는 대비가 핵심이다. 드웩(Dweck)의 성장 마인드셋 연구로, 교육학의 귀인이론과도 연결된다.',
+  tip:'능력 칭찬=회피 / 노력 칭찬=도전 (드웩)' },
 
 { id:'eng-read-013', subject:'eng', unit:'eng-read', type:'mcq', src:'기출 빈출논점',
   passage:'Sleep is not merely a period of rest. During sleep, the brain consolidates memories formed during the day, transferring them from temporary storage to more durable networks. Studies show that people who sleep after learning retain far more than those who stay awake for the same interval. ______, cutting sleep to gain study time is often counterproductive.',
   q:'빈칸에 들어갈 연결어로 가장 적절한 것은?',
   choices:['Nevertheless','Therefore','In contrast','For example'],
   a:1,
-  exp:'앞 문장(수면이 기억을 공고화한다)에서 결론(수면을 줄여 공부 시간을 얻는 것은 역효과)이 도출되므로 인과의 Therefore가 적절하다.' },
+  exp:'앞 문장(수면이 기억을 공고화한다)에서 결론(수면을 줄여 공부 시간을 얻는 것은 역효과)이 도출되므로 인과의 Therefore가 적절하다.',
+  tip:'앞이 원인, 뒤가 결론이면 인과 연결어' },
 
 { id:'eng-read-014', subject:'eng', unit:'eng-read', type:'mcq', src:'기출 빈출논점',
   passage:'(A) As a result, the same policy can succeed in one district and fail in another.\n(B) Educational reforms are usually designed at the national level.\n(C) However, they are carried out by teachers whose working conditions vary widely.',
@@ -196,5 +213,6 @@ QB.add([
 { id:'eng-read-015', subject:'eng', unit:'eng-read', type:'ox', src:'기출 빈출논점',
   q:'글의 제목을 고르는 문제에서는 지문에 나온 단어가 그대로 많이 포함된 선택지가 정답일 가능성이 높다.',
   a:false,
-  exp:'지문의 어휘를 그대로 반복한 선택지는 오히려 **부분 정보에 국한된 오답**인 경우가 많다. 제목은 글 전체를 포괄해야 하므로 보통 **패러프레이즈된 표현**으로 제시된다.' }
+  exp:'지문의 어휘를 그대로 반복한 선택지는 오히려 **부분 정보에 국한된 오답**인 경우가 많다. 제목은 글 전체를 포괄해야 하므로 보통 **패러프레이즈된 표현**으로 제시된다.',
+  tip:'지문 어휘를 그대로 반복한 선택지는 부분 정보일 때가 많다' }
 ]);

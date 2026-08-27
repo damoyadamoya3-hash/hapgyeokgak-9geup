@@ -12,29 +12,34 @@ QB.add([
   q:'밑줄 친 부분과 의미가 가장 가까운 것은?\n\nHer explanation was so ‘ambiguous’ that no one understood it.',
   choices:['obvious','unclear','detailed','persuasive'],
   a:1,
-  exp:'ambiguous = 모호한, 애매한 (= vague, obscure, unclear). 반의어는 clear, explicit, unequivocal.' },
+  exp:'ambiguous = 모호한, 애매한 (= vague, obscure, unclear). 반의어는 clear, explicit, unequivocal.',
+  tip:'ambiguous = vague · obscure ↔ clear · explicit' },
 
 { id:'eng-vocab-003', subject:'eng', unit:'eng-vocab', type:'ox', src:'기출 빈출논점',
   q:'"meticulous"는 "꼼꼼한, 세심한"이라는 뜻이다.',
   a:true,
-  exp:'meticulous = 꼼꼼한 (= scrupulous, thorough, painstaking). 반의어는 careless, sloppy.' },
+  exp:'meticulous = 꼼꼼한 (= scrupulous, thorough, painstaking). 반의어는 careless, sloppy.',
+  tip:'meticulous = scrupulous · thorough ↔ careless' },
 
 { id:'eng-vocab-004', subject:'eng', unit:'eng-vocab', type:'mcq', src:'기출 빈출논점',
   q:'빈칸에 들어갈 말로 가장 적절한 것은?\n\nThe new policy will ______ the existing regulations.',
   choices:['supersede','subside','subscribe','suppress'],
   a:0,
-  exp:'supersede = 대체하다, 대신하다. subside = 가라앉다, subscribe = 구독하다, suppress = 억압하다.' },
+  exp:'supersede = 대체하다, 대신하다. subside = 가라앉다, subscribe = 구독하다, suppress = 억압하다.',
+  tip:'supersede = 대체하다 (subside 가라앉다와 구별)' },
 
 { id:'eng-vocab-005', subject:'eng', unit:'eng-vocab', type:'ox', src:'기출 빈출논점',
   q:'"put off"는 "연기하다"라는 뜻의 구동사이다.',
   a:true,
-  exp:'put off = postpone, delay. 자주 나오는 구동사: call off(취소하다), carry out(수행하다), turn down(거절하다), look into(조사하다), come up with(생각해 내다), do away with(폐지하다).' },
+  exp:'put off = postpone, delay. 자주 나오는 구동사: call off(취소하다), carry out(수행하다), turn down(거절하다), look into(조사하다), come up with(생각해 내다), do away with(폐지하다).',
+  tip:'put off 연기 / call off 취소 / carry out 수행' },
 
 { id:'eng-vocab-006', subject:'eng', unit:'eng-vocab', type:'mcq', src:'기출 빈출논점',
   q:'밑줄 친 부분과 의미가 가장 가까운 것은?\n\nWe should ‘do away with’ outdated rules.',
   choices:['abolish','reinforce','postpone','revise'],
   a:0,
-  exp:'do away with = 없애다, 폐지하다 (= abolish, eliminate, get rid of).' },
+  exp:'do away with = 없애다, 폐지하다 (= abolish, eliminate, get rid of).',
+  tip:'do away with = abolish = get rid of' },
 
 /* ───────── 생활영어 ───────── */
 { id:'eng-conv-001', subject:'eng', unit:'eng-conv', type:'mcq', src:'기출 빈출논점',
@@ -56,7 +61,8 @@ QB.add([
     'A: How do you like your coffee? / B: Yes, I like it.',
     'A: I\'m sorry to hear that. / B: Thank you for your concern.'],
   a:2,
-  exp:'"How do you like ~?"는 기호나 방식을 묻는 표현이므로 Yes/No로 답할 수 없다. "With cream and sugar, please."처럼 답해야 한다.' },
+  exp:'"How do you like ~?"는 기호나 방식을 묻는 표현이므로 Yes/No로 답할 수 없다. "With cream and sugar, please."처럼 답해야 한다.',
+  tip:'How do you like ~ 는 Yes/No 불가' },
 
 { id:'eng-conv-003', subject:'eng', unit:'eng-conv', type:'ox', src:'기출 빈출논점',
   q:'"Would you mind opening the window?"에 승낙하는 답변은 "Yes, I would."이다.',
@@ -72,7 +78,8 @@ QB.add([
     'It serves you right.',
     'That\'s none of my business.'],
   a:1,
-  exp:'뒤에서 도와주겠다고 하므로 상대를 안심시키는 표현이 자연스럽다. "It serves you right"은 "쌤통이다", "That\'s none of my business"는 "내 알 바 아니다"로 문맥에 어긋난다.' },
+  exp:'뒤에서 도와주겠다고 하므로 상대를 안심시키는 표현이 자연스럽다. "It serves you right"은 "쌤통이다", "That\'s none of my business"는 "내 알 바 아니다"로 문맥에 어긋난다.',
+  tip:'안심시키는 말 — It serves you right 은 쌤통이라는 뜻' },
 
 /* ───────── 문법 ───────── */
 { id:'eng-gram-001', subject:'eng', unit:'eng-gram', type:'mcq', src:'기출 빈출논점',
@@ -113,12 +120,14 @@ QB.add([
     'The book which I bought it is interesting.',
     'She has been to Paris three times last year.'],
   a:1,
-  exp:'① Despite는 전치사이므로 "of"를 붙이지 않는다(Despite the rain). ③ 관계대명사 which가 목적어 역할을 하므로 "it"을 또 쓸 수 없다. ④ "last year"라는 명백한 과거 표현과 현재완료는 함께 쓸 수 없다(went 사용). ②는 옳다.' },
+  exp:'① Despite는 전치사이므로 "of"를 붙이지 않는다(Despite the rain). ③ 관계대명사 which가 목적어 역할을 하므로 "it"을 또 쓸 수 없다. ④ "last year"라는 명백한 과거 표현과 현재완료는 함께 쓸 수 없다(went 사용). ②는 옳다.',
+  tip:'Despite는 전치사 — of 를 붙이지 않는다' },
 
 { id:'eng-gram-006', subject:'eng', unit:'eng-gram', type:'ox', src:'기출 빈출논점',
   q:'"Hardly had he arrived when it began to rain."에서 hardly가 문두에 오면 주어와 동사가 도치된다.',
   a:true,
-  exp:'부정어(never, hardly, scarcely, seldom, little, no sooner)가 문두에 오면 도치가 일어난다. "Hardly[Scarcely] ~ when[before]", "No sooner ~ than" 구문이 자주 출제된다.' },
+  exp:'부정어(never, hardly, scarcely, seldom, little, no sooner)가 문두에 오면 도치가 일어난다. "Hardly[Scarcely] ~ when[before]", "No sooner ~ than" 구문이 자주 출제된다.',
+  tip:'부정어 문두 → 도치 (Hardly had he ~)' },
 
 /* ───────── 독해 ───────── */
 { id:'eng-read-001', subject:'eng', unit:'eng-read', type:'mcq', src:'기출 빈출논점',
@@ -142,7 +151,8 @@ QB.add([
     'Retrieval practice strengthens memory more than passive review.',
     'Feedback afterward has no effect on the testing effect at all.'],
   a:2,
-  exp:'두 번째 문장이 근거다. 오답을 내더라도 피드백만 있으면 효과가 나타난다고 했으므로 ②④도 틀리다. — 이 원리가 바로 이 앱의 "문제 풀고 즉시 해설 보기" 방식의 근거다.' },
+  exp:'두 번째 문장이 근거다. 오답을 내더라도 피드백만 있으면 효과가 나타난다고 했으므로 ②④도 틀리다. — 이 원리가 바로 이 앱의 "문제 풀고 즉시 해설 보기" 방식의 근거다.',
+  tip:'근거 문장을 찾아 대조한다' },
 
 { id:'eng-read-003', subject:'eng', unit:'eng-read', type:'mcq', src:'기출 빈출논점',
   passage:'(A) However, this assumption has been challenged by recent studies.\n(B) For a long time, people believed that intelligence was fixed at birth.\n(C) They show that the brain remains capable of forming new connections throughout life.',
@@ -155,5 +165,6 @@ QB.add([
 { id:'eng-read-004', subject:'eng', unit:'eng-read', type:'ox', src:'기출 빈출논점',
   q:'글의 요지를 묻는 문제에서는 예시(for example)로 제시된 세부 정보가 정답이 되는 경우가 많다.',
   a:false,
-  exp:'예시는 주제를 뒷받침하는 세부 정보일 뿐이므로 요지가 될 수 없다. 요지는 일반적 진술, 특히 역접(However, But)이나 결론(Therefore, In short) 뒤의 문장에서 찾는 것이 효율적이다.' }
+  exp:'예시는 주제를 뒷받침하는 세부 정보일 뿐이므로 요지가 될 수 없다. 요지는 일반적 진술, 특히 역접(However, But)이나 결론(Therefore, In short) 뒤의 문장에서 찾는 것이 효율적이다.',
+  tip:'요지는 일반 진술 — 예시는 뒷받침일 뿐' }
 ]);
