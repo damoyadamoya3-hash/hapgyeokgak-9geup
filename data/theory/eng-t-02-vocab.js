@@ -53,6 +53,12 @@ QB.addTheory([
       '명사화: -tion, -ment, -ness, -ity / 형용사화: -ous, -ful, -less, -able / 동사화: -ize, -ify, -en'
     ]}
   ],
+  cases:[
+    { t:'접두사만으로 절반',
+      d:'irrelevant, misinterpret 처럼 **부정 접두사** 하나만 알아도 방향이 잡힌다. 모르는 단어에 멈추지 말고 방향만 잡고 지나간다.' },
+    { t:'헷갈리는 구동사 세 짝',
+      d:'**call off**(취소) ↔ **put off**(연기), **look into**(조사) ↔ **look after**(돌봄), **turn down**(거절) ↔ **turn in**(제출).' }
+  ],
   cloze:[
     { s:'"면밀히 조사하다"에 해당하는 단어는 {{scrutinize}}이다.', o:['stipulate','speculate','substantiate'] },
     { s:'악화시키다는 뜻의 단어는 {{exacerbate}}이다.', o:['alleviate','mitigate','allay'] },
@@ -110,6 +116,12 @@ QB.addTheory([
       ['**Not again!**','또야! (짜증)'],
       ['**Can\'t complain.**','그런대로 괜찮다']
     ]}
+  ],
+  cases:[
+    { t:'mind 물음의 함정',
+      d:'Would you mind ~? 는 ‘꺼리십니까’라는 뜻이다. 그래서 **승낙이 No**다. Yes 라고 답하면 거절이 된다.' },
+    { t:'the 하나로 뒤집히는 표현',
+      d:'**out of question** = 문제없다 / **out of the question** = 절대 안 된다. 정반대다.' }
   ],
   cloze:[
     { s:'"Would you mind opening the window?"에 승낙하려면 {{No}}로 답한다.', o:['Yes','Sure, I would','Of course I do'] },

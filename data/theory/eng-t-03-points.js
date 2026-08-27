@@ -69,6 +69,12 @@ QB.addTheory([
       '다만 **사실을 전달하는 뜻**이면 원형을 쓰지 않는다: He insisted that he **was** innocent'
     ]}
   ],
+  cases:[
+    { t:'수동태가 되면 to 가 돌아온다',
+      d:'He made me wait. → I **was made to wait**. 사역·지각동사의 목적보어는 원형이지만 수동태에서는 to 가 되살아난다.' },
+    { t:'전치사를 붙이면 틀리는 자리',
+      d:'discuss **about**, mention **about**, marry **with**, reach **to** — 모두 틀렸다. 이들은 타동사라 목적어를 바로 받는다.' }
+  ],
   cloze:[
     { s:'“a number of + 복수명사”는 {{복수}} 취급한다.', o:['단수','불가산','중성'] },
     { s:'시간·조건 부사절에서는 {{현재}}가 미래를 대신한다.', o:['미래','과거','현재완료'] },
