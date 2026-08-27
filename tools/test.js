@@ -132,6 +132,24 @@ t('세션 복구 — 진도 이동 코드에는 진행 중인 판을 넣지 않�
   ok(!('activeSession' in raw.s), '진도 코드에 진행 중 세션이 포함됨');
 });
 
+/* ── 최근 성과 흐름 ───────────────────────────────────────── */
+t('학습 분석 — 최근 50문항을 직전 50문항과 비교한다', () => {
+  fresh();
+  const q = QB.items.find(x => x.subject === 'kor');
+  for(let i = 0; i < 50; i++) Store.record(q.id, i < 25);  // 50%
+  for(let i = 0; i < 50; i++) Store.record(q.id, i < 40);  // 80%
+  const r = Store.recentPerformance(50);
+  eq([r.previous.acc, r.current.acc, r.diff], [50,80,30], '최근 흐름');
+  eq(r.subjects.find(x => x.id === 'kor').diff, 30, '과목 흐름');
+});
+
+t('학습 분석 — 최근 답안은 500개까지만 보관한다', () => {
+  fresh();
+  const q = QB.items[0];
+  for(let i = 0; i < 530; i++) Store.record(q.id, true);
+  eq(Store.s.answerLog.length, 500, '최근 답안 상한');
+});
+
 /* ── 일일 임무 ───────────────────────────────────────────── */
 function oneTask(key, goal){
   fresh();

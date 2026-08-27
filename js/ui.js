@@ -614,6 +614,7 @@ const UI = (() => {
     const span = (window.innerWidth || 400) < 380 ? 7 : 14;
     const days = Store.recentDays(span);
     const us   = Store.unitStats();
+    const recent = Store.recentPerformance(50);
     const peak = Math.max(1, ...days.map(d => d.n));
     const maxBox = Math.max(1, ...s.boxes);
     const accColor = a => a >= 80 ? 'var(--good)' : a >= 60 ? 'var(--gold)' : 'var(--bad)';
@@ -683,6 +684,38 @@ const UI = (() => {
         })() : ''}
       </div>` : '';
 
+    const recentSection = recent.current.n ? `
+      <div class="st-sec">
+        <h3>최근 문제 감각 <small>최근 ${recent.current.n}문항 · 최대 50문항</small></h3>
+        <div class="momentum-head">
+          <div class="momentum-score ${recent.current.acc >= 80 ? 'good' : recent.current.acc < 60 ? 'warn' : ''}">
+            <b>${recent.current.acc}%</b><span>최근 정답률</span>
+          </div>
+          <p>${recent.diff == null
+            ? `100문항을 채우면 직전 50문항과 비교합니다. <b>${recent.current.n + recent.previous.n}/100</b>`
+            : recent.diff > 0
+              ? `직전 50문항보다 <b class="trend-up">${recent.diff}%p 상승</b>했어요.`
+              : recent.diff < 0
+                ? `직전 50문항보다 <b class="trend-down">${-recent.diff}%p 하락</b>했어요. 약한 과목부터 짚어 보세요.`
+                : '직전 50문항과 같은 흐름이에요.'}</p>
+        </div>
+        <div class="momentum-list">
+          ${recent.subjects.map(x => {
+            const sub = QB.subject(x.id) || { name:x.id, emoji:'📘' };
+            const diff = x.diff;
+            return `<button class="momentum-row" data-subj="${x.id}">
+              <span>${sub.emoji} ${esc(sub.name)}</span>
+              <small>${x.current.n}문항</small>
+              <b style="color:${accColor(x.current.acc)}">${x.current.acc}%</b>
+              <em class="${diff == null || diff === 0 ? '' : diff > 0 ? 'up' : 'down'}">${
+                diff == null ? '–' : diff > 0 ? `▲ ${diff}` : diff < 0 ? `▼ ${-diff}` : '―'
+              }</em>
+            </button>`;
+          }).join('')}
+        </div>
+        <p class="st-note">누적 평균과 달리 최근 풀이만 보므로, 지금 공부법이 효과가 있는지 빠르게 확인할 수 있습니다.</p>
+      </div>` : '';
+
     $('#stats-body').innerHTML = `
       <div class="st-sec">
         <h3>한눈에 보기</h3>
@@ -696,6 +729,8 @@ const UI = (() => {
           <div class="st-tile"><b>${s.cards}<small style="font-size:12px;color:var(--ink2)">/${s.cardTotal}</small></b><span>도감 수집</span></div>
         </div>
       </div>
+
+      ${recentSection}
 
       ${examSection}
 

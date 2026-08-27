@@ -17,6 +17,8 @@ const Store = (() => {
     readCards: {},
     // 일자별 학습량: { 'YYYY-MM-DD': {n:푼 문제, ok:맞힌 문제} }
     dayStats: {},
+    // 최근 답안 500개. 누적 평균에 묻히는 '요즘 실력'을 따로 본다.
+    answerLog: [],
     // 북마크한 문항: { [qid]: 저장한 날짜 }
     marks: {},
     // 이미 수령한 연속 출석 보상 단계: { 3:true, 7:true, ... }
@@ -81,6 +83,7 @@ const Store = (() => {
         const keys = Object.keys(S.dayStats).sort();
         if(keys.length > 30) for(const k of keys.slice(0, keys.length - 30)) delete S.dayStats[k];
         if(S.examLog.length > 20) S.examLog = S.examLog.slice(-20);
+        if(S.answerLog.length > 200) S.answerLog = S.answerLog.slice(-200);
         localStorage.setItem(KEY, JSON.stringify(S));
         saveBroken = false;
         return true;
@@ -96,6 +99,7 @@ const Store = (() => {
 
   /* 일자별 기록은 분석에 180일이면 충분하다. 그대로 두면 해마다 늘어난다. */
   function prune(){
+    if(S.answerLog.length > 500) S.answerLog = S.answerLog.slice(-500);
     const keys = Object.keys(S.dayStats);
     if(keys.length <= 200) return;
     const cut = new Date(); cut.setDate(cut.getDate() - 180);
@@ -179,6 +183,7 @@ const Store = (() => {
     const d = S.dayStats[c.last] || { n:0, ok:0 };
     d.n++; if(ok) d.ok++;
     S.dayStats[c.last] = d;
+    S.answerLog.push({ t:Date.now(), id:qid, ok:!!ok });
     save();
     return c;
   }
@@ -475,6 +480,41 @@ const Store = (() => {
     return Object.values(map)
       .map(m => ({ ...m, acc: Math.round(m.ok / m.n * 100), total: QB.byUnit(m.unit).length }))
       .sort((a, b) => a.acc - b.acc);
+  }
+
+  /* 가장 최근 n문항과 그 직전 n문항을 비교한다. 전체 누적 정답률은
+     초반 수천 문항의 영향이 너무 커서 요즘 오르는지 떨어지는지 못 보여 준다. */
+  function recentPerformance(n = 50){
+    const log = Array.isArray(S.answerLog) ? S.answerLog : [];
+    const currentRows = log.slice(-n);
+    const previousRows = log.slice(-n * 2, -n);
+    const fold = rows => {
+      const out = { n:0, ok:0, acc:0, bySubject:{} };
+      for(const row of rows){
+        const q = QB.byId(row.id);
+        if(!q) continue;
+        out.n++; if(row.ok) out.ok++;
+        const s = out.bySubject[q.subject] || (out.bySubject[q.subject] = { n:0, ok:0, acc:0 });
+        s.n++; if(row.ok) s.ok++;
+      }
+      out.acc = out.n ? Math.round(out.ok / out.n * 100) : 0;
+      for(const sid in out.bySubject){
+        const s = out.bySubject[sid];
+        s.acc = Math.round(s.ok / s.n * 100);
+      }
+      return out;
+    };
+    const current = fold(currentRows), previous = fold(previousRows);
+    const subjects = QB.SUBJECTS.map(sub => {
+      const cur = current.bySubject[sub.id] || { n:0, ok:0, acc:0 };
+      const prev = previous.bySubject[sub.id] || { n:0, ok:0, acc:0 };
+      return { id:sub.id, current:cur, previous:prev,
+               diff:prev.n >= 5 && cur.n >= 5 ? cur.acc - prev.acc : null };
+    }).filter(x => x.current.n > 0);
+    return {
+      current, previous, subjects,
+      diff:previous.n === n && current.n === n ? current.acc - previous.acc : null
+    };
   }
 
   /* 전체 요약 */
@@ -793,6 +833,17 @@ const Store = (() => {
       S.dayStats[d] = (a && a.n >= b.n) ? a : b;
     }
 
+    // 최근 답안은 시각·문항·정오가 같은 항목만 중복으로 본다.
+    if(inc.answerLog && inc.answerLog.length){
+      const rows = [...(S.answerLog || []), ...inc.answerLog];
+      const seenLog = new Set();
+      S.answerLog = rows.filter(x => {
+        const key = `${x.t}|${x.id}|${x.ok ? 1 : 0}`;
+        if(seenLog.has(key)) return false;
+        seenLog.add(key); return true;
+      }).sort((a, b) => a.t - b.t).slice(-500);
+    }
+
     // 열람·북마크·업적·출석 보상은 합집합
     for(const c in (inc.readCards || {})){
       const a = S.readCards[c], b = inc.readCards[c];
@@ -846,7 +897,7 @@ const Store = (() => {
   return {
     get s(){ return S; }, save, levelInfo, title, addXp, addCoin,
     record, dueCards, wrongCards, unitResult, subjectProgress,
-    markRead, markDrill, readCount, recentDays, unitStats, summary, INTERVAL, nextCard,
+    markRead, markDrill, readCount, recentDays, unitStats, recentPerformance, summary, INTERVAL, nextCard,
     isMarked, toggleMark, markedIds, wrongNotes,
     weekAttendance, nextStreakGoal, STREAK_REWARDS, setExamDate, plan,
     SHOP, buy, useItem, has, logExam, examLog, lastExam,
