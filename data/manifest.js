@@ -16,6 +16,7 @@ window.QB_PACKS = [
   'theory/his-t-03-culture',
   'theory/his-t-04-econ',
   'theory/edu-t-03-law',
+  'theory/edu-t-04-psyeval',
   'theory/kor-t-01-core',
   'theory/kor-t-02-word',
   'theory/kor-t-03-rules',
