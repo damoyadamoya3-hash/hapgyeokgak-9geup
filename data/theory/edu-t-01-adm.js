@@ -49,7 +49,7 @@ QB.addTheory([
 },
 
 {
-  id:'edu-t-adm-02', subject:'edu', unit:'edu-adm', tier:'S',
+  id:'edu-t-adm-02', subject:'edu', unit:'edu-adm', tier:'A',
   title:'교육행정 이론의 발달 — 고전 → 인간관계 → 행동과학 → 대안',
   summary:'**과학적 관리론 → 인간관계론 → 행동과학론(체제론) → 해석적·비판적 대안이론** 순으로 전개된다.',
   tip:'**"능률 → 사람 → 체제 → 의미"** 흐름으로 기억하자.',
@@ -92,7 +92,7 @@ QB.addTheory([
 },
 
 {
-  id:'edu-t-adm-03', subject:'edu', unit:'edu-adm', tier:'S',
+  id:'edu-t-adm-03', subject:'edu', unit:'edu-adm', tier:'A',
   title:'동기이론 총정리 (내용이론 vs 과정이론)',
   summary:'**무엇이** 동기를 유발하는가(내용이론) vs **어떻게** 동기가 형성되는가(과정이론).',
   tip:'내용 = **매·허·앨·맥** (매슬로우·허즈버그·앨더퍼·맥클리랜드) / 과정 = **브·아·로·기** (브룸·아담스·로크·기대)',
@@ -135,7 +135,7 @@ QB.addTheory([
 },
 
 {
-  id:'edu-t-adm-04', subject:'edu', unit:'edu-adm', tier:'S',
+  id:'edu-t-adm-04', subject:'edu', unit:'edu-adm', tier:'A',
   title:'지도성(리더십) 이론의 흐름',
   summary:'**특성론 → 행위론 → 상황론 → 변혁적/분산적 지도성**으로 발전했다.',
   tip:'피들러 = **LPC 점수**로 유형 판정 / 허시·블랜차드 = **구성원 성숙도**가 기준',
@@ -179,7 +179,7 @@ QB.addTheory([
 },
 
 {
-  id:'edu-t-adm-05', subject:'edu', unit:'edu-adm', tier:'A',
+  id:'edu-t-adm-05', subject:'edu', unit:'edu-adm', tier:'B',
   title:'교육기획 · 의사결정 · 정책 모형',
   summary:'교육기획의 원리와, 합리모형부터 **쓰레기통 모형**까지의 의사결정 모형 스펙트럼.',
   tip:'합리 → 만족 → 점증 → 혼합 → 최적 → 쓰레기통 (**합만점혼최쓰**)',
@@ -223,7 +223,7 @@ QB.addTheory([
 },
 
 {
-  id:'edu-t-adm-06', subject:'edu', unit:'edu-adm', tier:'S',
+  id:'edu-t-adm-06', subject:'edu', unit:'edu-adm', tier:'A',
   title:'교육재정과 학교회계',
   summary:'교육재정의 특성, **지방교육재정교부금** 구조, **학교회계**의 절차와 회계연도.',
   tip:'**학교회계연도 = 3월 1일 ~ 다음 해 2월 말일** (국가 회계연도와 다름!)',
@@ -280,7 +280,7 @@ QB.addTheory([
 },
 
 {
-  id:'edu-t-adm-07', subject:'edu', unit:'edu-adm', tier:'A',
+  id:'edu-t-adm-07', subject:'edu', unit:'edu-adm', tier:'B',
   title:'교육인사행정 · 장학 · 학교경영',
   summary:'교원의 신분·자격·연수 체계와, **장학의 유형**, 학교경영 기법.',
   tip:'장학 5종: **임상 · 동료 · 자기 · 약식 · 선택적** + 요즘의 **컨설팅 장학**',

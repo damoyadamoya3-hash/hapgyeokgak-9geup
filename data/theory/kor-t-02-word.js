@@ -1,7 +1,7 @@
 /* 이론 도감 · 국어 — 어휘·한자성어 / 비문학 독해 */
 QB.addTheory([
 {
-  id:'kor-t-word-01', subject:'kor', unit:'kor-word', tier:'A',
+  id:'kor-t-word-01', subject:'kor', unit:'kor-word', tier:'S',
   title:'한자성어 주제별 묶음',
   summary:'낱개로 외우면 흩어진다. **뜻이 같은 것끼리 묶어** 한 덩어리로 외운다.',
   tip:'문제는 대개 "다음 상황에 어울리는 것" 또는 "나머지와 뜻이 다른 것"이다. 묶음으로 외우면 둘 다 잡힌다.',
@@ -65,7 +65,7 @@ QB.addTheory([
 },
 
 {
-  id:'kor-t-read-01', subject:'kor', unit:'kor-read', tier:'A',
+  id:'kor-t-read-01', subject:'kor', unit:'kor-read', tier:'S',
   title:'비문학 독해와 공문서 작성',
   summary:'독해는 **주제문의 위치**와 **접속어**로 뚫고, 공문서는 **간결·명확·두괄식**이 원칙이다.',
   tip:'주제문 신호: "**그러나 / 따라서 / 결국 관건은 / ~인 이유가 여기에 있다**" 뒤를 본다.',

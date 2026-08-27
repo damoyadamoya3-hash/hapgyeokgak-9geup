@@ -1,7 +1,7 @@
 /* 이론 도감 · 영어 — 어휘·숙어 / 생활영어 */
 QB.addTheory([
 {
-  id:'eng-t-vocab-01', subject:'eng', unit:'eng-vocab', tier:'A',
+  id:'eng-t-vocab-01', subject:'eng', unit:'eng-vocab', tier:'S',
   title:'9급 빈출 어휘와 구동사',
   summary:'낱개 암기보다 **뜻이 같은 무리**와 **반의 짝**으로 묶는 편이 오래 간다. 동의어 문제는 대개 이 묶음 안에서 나온다.',
   tip:'접두사만 알아도 절반은 찍힌다. **부정(un-, in-, dis-, mis-) · 방향(pre-, post-, sub-, super-) · 함께(co-, con-)**',
@@ -70,7 +70,7 @@ QB.addTheory([
 },
 
 {
-  id:'eng-t-conv-01', subject:'eng', unit:'eng-conv', tier:'A',
+  id:'eng-t-conv-01', subject:'eng', unit:'eng-conv', tier:'S',
   title:'생활영어 관용 표현 정리',
   summary:'생활영어는 **문맥에 맞는 반응**을 고르는 문제다. 표현의 뜻만 알면 대부분 풀린다.',
   tip:'"Would/Do you mind ~?"에 **승낙은 No**. 이 하나만 틀려도 한 문제가 날아간다.',

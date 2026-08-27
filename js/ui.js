@@ -754,6 +754,14 @@ const UI = (() => {
   /* 굵게: **텍스트** → <b> */
   function md(s){ return esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>'); }
 
+  /* 등급은 곧 읽는 순서다. S 를 맨 앞에 놓아 어디부터 볼지 고민하지 않게 한다.
+     S = 그 단원에서 가장 먼저 읽을 한 장 · A = 본편 · B = 배경·심화 */
+  const TIER_ORDER = { S:0, A:1, B:2 };
+  function tierSorted(cards){
+    return cards.slice().sort((x, y) =>
+      (TIER_ORDER[x.tier] ?? 9) - (TIER_ORDER[y.tier] ?? 9));
+  }
+
   function codexList(sid, onOpen, onDrillUnit){
     const sub = QB.subject(sid);
     const cards = QB.theoryBySubject(sid);
@@ -773,7 +781,7 @@ const UI = (() => {
         <h3 style="font-size:16px;margin:20px 0 10px">${u.emoji} ${esc(u.name)}
           <button class="btn-ghost" data-drill-unit="${u.id}"
             style="float:right;padding:4px 12px;font-size:12px">🧠 단원 세뇌</button></h3>
-        <div class="codex-grid">${QB.theoryByUnit(u.id).map(c => {
+        <div class="codex-grid">${tierSorted(QB.theoryByUnit(u.id)).map(c => {
           const r = Store.s.readCards[c.id];
           return `<button class="tcard ${r && r.read ? 'read' : ''}" data-card="${c.id}">
             <span class="tier tier-${c.tier}">${c.tier}</span>

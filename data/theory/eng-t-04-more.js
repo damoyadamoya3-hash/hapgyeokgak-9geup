@@ -1,7 +1,7 @@
 /* 이론 도감 · 영어 — 동사 패턴 / 시험장에서 쓰는 문법 판별 순서 */
 QB.addTheory([
 {
-  id:'eng-t-more-01', subject:'eng', unit:'eng-gram', tier:'S',
+  id:'eng-t-more-01', subject:'eng', unit:'eng-gram', tier:'A',
   title:'동사가 문장을 결정한다 — 5형식과 자주 틀리는 동사',
   summary:'영어 문장의 뼈대는 **동사가 무엇을 요구하는가**로 정해진다. 목적어를 받는지, 보어를 받는지, 전치사가 필요한지만 알면 어순 문제는 거의 풀린다.',
   tip:'헷갈리면 **동사 뒤에 무엇이 오는지**만 본다. `discuss`는 about 없이 바로, `explain`은 사람 앞에 to 가 필요하다.',
@@ -63,7 +63,7 @@ QB.addTheory([
 },
 
 {
-  id:'eng-t-more-02', subject:'eng', unit:'eng-gram', tier:'A',
+  id:'eng-t-more-02', subject:'eng', unit:'eng-gram', tier:'B',
   title:'문법 문제를 푸는 순서 — 밑줄부터 보지 않는다',
   summary:'밑줄 친 곳을 하나씩 뜯어보면 시간이 모자란다. **주어와 동사를 먼저 짝짓고**, 그다음 정해진 순서로 훑으면 대부분 걸린다.',
   tip:'순서는 **수 일치 → 시제 → 태 → 준동사 → 접속·관계사 → 어순·병렬**. 앞 세 가지에서 절반이 걸린다.',

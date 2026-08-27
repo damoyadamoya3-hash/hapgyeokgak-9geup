@@ -1,7 +1,7 @@
 /* 이론 도감 · 국어 — 어문규정 / 문법 / 문학사 */
 QB.addTheory([
 {
-  id:'kor-t-gram-01', subject:'kor', unit:'kor-gram', tier:'S',
+  id:'kor-t-gram-01', subject:'kor', unit:'kor-gram', tier:'A',
   title:'헷갈리는 맞춤법 총정리',
   summary:'시험에 반복해서 나오는 표기 짝을 한 장에 모았다. **눈으로 외우지 말고 판별 규칙으로 외운다.**',
   tip:'되/돼는 **하/해 대입법**, 안/않은 **빼보기**, 맞히다/맞추다는 **정답이냐 대조냐**.',
@@ -73,7 +73,7 @@ QB.addTheory([
 },
 
 {
-  id:'kor-t-gram-02', subject:'kor', unit:'kor-gram', tier:'A',
+  id:'kor-t-gram-02', subject:'kor', unit:'kor-gram', tier:'B',
   title:'문장 성분과 안긴문장 · 높임법',
   summary:'문장 구조 문제는 **안긴문장의 종류**와 **높임의 대상**만 정확히 잡으면 풀린다.',
   tip:'명사절 -(으)ㅁ/-기 · 관형절 -(으)ㄴ/-는/-(으)ㄹ · 부사절 -이/-게/-도록 · 인용절 -고/-라고 · 서술절은 **표지 없음**.',
@@ -125,7 +125,7 @@ QB.addTheory([
 },
 
 {
-  id:'kor-t-lit-01', subject:'kor', unit:'kor-lit', tier:'A',
+  id:'kor-t-lit-01', subject:'kor', unit:'kor-lit', tier:'S',
   title:'고전문학 갈래와 현대문학사 연표',
   summary:'갈래는 **시대 + 형식 + 향유층**으로 묶어 외우고, 현대문학은 **10년 단위 흐름**으로 잡는다.',
   tip:'고려가요(평민·후렴구) ↔ 경기체가(사대부·"景 긔 엇더ᄒᆞ니잇고"). 이 대비가 단골.',

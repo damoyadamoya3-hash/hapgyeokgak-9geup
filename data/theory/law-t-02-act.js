@@ -1,7 +1,7 @@
 /* 이론 도감 · 행정법총론 ② 행정행위 */
 QB.addTheory([
 {
-  id:'law-t-act-01', subject:'law', unit:'law-act', tier:'S',
+  id:'law-t-act-01', subject:'law', unit:'law-act', tier:'A',
   title:'행정행위의 종류 — 법률행위적 / 준법률행위적',
   summary:'행정행위는 효과의사 유무에 따라 **법률행위적**(명령적·형성적)과 **준법률행위적**으로 나뉜다. 특히 **허가·특허·인가**의 구별이 최빈출.',
   tip:'허가 = **자연적 자유의 회복** / 특허 = **새로운 권리 설정** / 인가 = **타인의 법률행위 보충**',
@@ -55,7 +55,7 @@ QB.addTheory([
 },
 
 {
-  id:'law-t-act-02', subject:'law', unit:'law-act', tier:'S',
+  id:'law-t-act-02', subject:'law', unit:'law-act', tier:'A',
   title:'기속행위와 재량행위 · 판단여지',
   summary:'재량행위는 **재량권의 일탈·남용**이 있을 때만 위법이 되고, 법원의 심사 방식도 달라진다.',
   tip:'기속행위 = 법원이 **직접 결론 도출 후 비교** / 재량행위 = 법원은 **일탈·남용만 심사**',
@@ -147,7 +147,7 @@ QB.addTheory([
 },
 
 {
-  id:'law-t-act-04', subject:'law', unit:'law-act', tier:'S',
+  id:'law-t-act-04', subject:'law', unit:'law-act', tier:'A',
   title:'행정행위의 하자 — 무효와 취소의 구별 · 하자의 승계',
   summary:'하자가 **중대하고 명백**하면 무효, 그에 이르지 않으면 취소사유. 하자 승계는 **둘이 하나의 효과를 목적**으로 하는지가 기준.',
   tip:'승계 **인정**: 대집행 절차 상호간, 조세 체납처분 상호간, 개별공시지가→과세처분 / **부정**: 표준지공시지가→수용재결(원칙), 사업인정→수용재결, 직위해제→직권면직',
@@ -197,7 +197,7 @@ QB.addTheory([
 },
 
 {
-  id:'law-t-act-05', subject:'law', unit:'law-act', tier:'A',
+  id:'law-t-act-05', subject:'law', unit:'law-act', tier:'B',
   title:'행정행위의 부관',
   summary:'주된 행정행위에 부가되는 종된 규율. **부담**만이 독립하여 항고소송의 대상이 된다.',
   tip:'**부담 = 독립 쟁송 가능**, 나머지(조건·기한·철회권유보)는 **진정일부취소소송 불가** → 전체 취소를 구해야.',
@@ -246,7 +246,7 @@ QB.addTheory([
 },
 
 {
-  id:'law-t-act-06', subject:'law', unit:'law-act', tier:'A',
+  id:'law-t-act-06', subject:'law', unit:'law-act', tier:'B',
   title:'행정행위의 취소 · 철회 · 실효',
   summary:'**취소는 원시적 하자**를 이유로 소급 소멸, **철회는 후발적 사유**로 장래를 향해 소멸.',
   tip:'취소=**처음부터 문제** / 철회=**나중에 사정 변경**. 철회권자는 **처분청만**!',

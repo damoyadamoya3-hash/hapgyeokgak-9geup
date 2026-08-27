@@ -1,7 +1,7 @@
 /* 이론 도감 · 영어 — 문법 핵심 / 빈출 어휘 / 독해 전략 */
 QB.addTheory([
 {
-  id:'eng-t-gram-01', subject:'eng', unit:'eng-gram', tier:'S',
+  id:'eng-t-gram-01', subject:'eng', unit:'eng-gram', tier:'A',
   title:'9급 영문법 빈출 포인트 10',
   summary:'출제 지점은 매년 거의 같다. **수일치 · 시제 · 태 · 가정법 · 관계사 · 도치 · 병렬 · 준동사**.',
   tip:'"어법상 옳지 않은 것" 문제는 **동사부터** 본다 — 수·시제·태 순으로 훑으면 절반이 걸린다.',

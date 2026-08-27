@@ -226,7 +226,7 @@ QB.addTheory([
 },
 
 {
-  id:'his-t-con-01', subject:'his', unit:'his-con', tier:'A',
+  id:'his-t-con-01', subject:'his', unit:'his-con', tier:'S',
   title:'현대사 — 정부 수립부터 민주화까지',
   summary:'**광복 → 미소공위 → 5·10 총선 → 정부 수립 → 6·25 → 4·19 → 5·16 → 유신 → 5·18 → 6월 항쟁**.',
   tip:'개헌은 **발췌(직선제) → 사사오입(중임 철폐) → 4·19 후 내각제 → 유신 → 6·29 후 5년 단임 직선제**.',

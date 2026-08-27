@@ -73,7 +73,7 @@ QB.addTheory([
 },
 
 {
-  id:'kor-t-rule-02', subject:'kor', unit:'kor-gram', tier:'S',
+  id:'kor-t-rule-02', subject:'kor', unit:'kor-gram', tier:'A',
   title:'표준어와 표준 발음 — 규정만 알면 찍히지 않는다',
   summary:'표준어 문제는 **규정의 방향**을 알면 대부분 갈린다. 발음 문제는 **받침 규칙 다섯 갈래**가 전부다.',
   tip:'위/윗/웃은 **대립이 있으면 윗-, 없으면 웃-**. 다만 뒤가 된소리·거센소리면 **위-**.',

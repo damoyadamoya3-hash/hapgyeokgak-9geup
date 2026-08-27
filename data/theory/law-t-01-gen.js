@@ -39,7 +39,7 @@ QB.addTheory([
 },
 
 {
-  id:'law-t-gen-02', subject:'law', unit:'law-gen', tier:'S',
+  id:'law-t-gen-02', subject:'law', unit:'law-gen', tier:'A',
   title:'행정법의 일반원칙 (조리)',
   summary:'성문법이 없어도 행정을 구속하는 불문의 원칙. **위반 시 위법**이 되어 취소소송의 대상이 된다.',
   tip:'비례원칙 3단계 = **적-필-상** (적합성→필요성→상당성). 하나라도 어기면 위법!',
@@ -85,7 +85,7 @@ QB.addTheory([
 },
 
 {
-  id:'law-t-gen-03', subject:'law', unit:'law-gen', tier:'A',
+  id:'law-t-gen-03', subject:'law', unit:'law-gen', tier:'B',
   title:'공법관계와 사법관계 · 행정상 법률관계',
   summary:'어떤 법률관계가 **공법관계**이면 행정소송(항고소송·당사자소송), **사법관계**이면 민사소송으로 다툰다.',
   tip:'헷갈리면 "**국가가 우월적 지위에서 일방적으로 정하느냐**"를 기준으로 잡자.',
@@ -127,7 +127,7 @@ QB.addTheory([
 },
 
 {
-  id:'law-t-gen-04', subject:'law', unit:'law-gen', tier:'A',
+  id:'law-t-gen-04', subject:'law', unit:'law-gen', tier:'B',
   title:'행정법의 효력 · 신고',
   summary:'법령의 시행일·소급금지 원칙과, 실무 최빈출인 **자체완성적 신고 vs 수리를 요하는 신고**의 구별.',
   tip:'**수리를 요하는 신고 = 수리 거부가 처분** → 항고소송 가능! 자체완성적 신고는 도달로 끝.',

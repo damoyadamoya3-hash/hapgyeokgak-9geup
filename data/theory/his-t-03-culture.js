@@ -1,7 +1,7 @@
 /* 이론 도감 · 한국사 — 문화사 (탑·불상·역사서·유네스코·인물) */
 QB.addTheory([
 {
-  id:'his-t-cul-01', subject:'his', unit:'his-pre', tier:'S',
+  id:'his-t-cul-01', subject:'his', unit:'his-pre', tier:'A',
   title:'고대 문화 — 탑·불상·승려',
   summary:'한능검 문화재 문제는 **어느 나라 것인지**만 가르면 절반이 풀린다. 백제는 우아하고, 신라는 크고, 발해는 고구려를 닮았다.',
   tip:'탑의 재료로 나라를 가른다. **백제 = 석탑(목탑을 돌로 옮김) · 신라 = 전탑 계열 · 통일신라 = 3층 석탑 · 고려 = 다각 다층**',
@@ -68,7 +68,7 @@ QB.addTheory([
 },
 
 {
-  id:'his-t-cul-02', subject:'his', unit:'his-gor', tier:'S',
+  id:'his-t-cul-02', subject:'his', unit:'his-gor', tier:'A',
   title:'고려 문화 — 역사서·인쇄술·불교·공예',
   summary:'고려 문화사는 **역사서의 사관**과 **인쇄술의 순서** 두 덩어리다. 나머지는 이 둘에 붙여 외운다.',
   tip:'인쇄 순서는 **초조대장경 → 교장 → 상정고금예문 → 팔만대장경 → 직지**. 초조는 거란, 팔만은 몽골 때 만들었다.',
@@ -134,7 +134,7 @@ QB.addTheory([
 },
 
 {
-  id:'his-t-cul-03', subject:'his', unit:'his-jos2', tier:'S',
+  id:'his-t-cul-03', subject:'his', unit:'his-jos2', tier:'A',
   title:'조선 문화 — 성리학·실학·과학·문화재',
   summary:'조선 전기는 **왕이 주도한 관학·과학**, 후기는 **재야 실학과 서민 문화**. 이 대비만 잡으면 시대 구분 문제가 풀린다.',
   tip:'실학은 **중농(경세치용) = 토지 / 중상(이용후생) = 상공업·청**. 정약용은 중농, 박지원·박제가는 중상.',
@@ -208,7 +208,7 @@ QB.addTheory([
 },
 
 {
-  id:'his-t-cul-04', subject:'his', unit:'his-jos', tier:'A',
+  id:'his-t-cul-04', subject:'his', unit:'his-jos', tier:'B',
   title:'조선의 궁궐·의례·통치 기록',
   summary:'궁궐과 기록물은 **어느 왕 때 무슨 일이 있었는지**와 묶어서 나온다. 임진왜란·일제강점기에 무엇이 불탔는지가 핵심.',
   tip:'**법궁 = 경복궁, 이궁 = 창덕궁**. 임진왜란으로 다 타고 **광해군이 창덕궁을 먼저** 다시 세웠기 때문에, 조선 후기의 실제 중심은 창덕궁이다.',

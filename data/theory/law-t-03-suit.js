@@ -1,7 +1,7 @@
 /* 이론 도감 · 행정법총론 ③ 행정쟁송 (행정심판·행정소송) */
 QB.addTheory([
 {
-  id:'law-t-suit-01', subject:'law', unit:'law-suit', tier:'S',
+  id:'law-t-suit-01', subject:'law', unit:'law-suit', tier:'A',
   title:'행정심판 총정리',
   summary:'위법 + **부당**까지 다툴 수 있고, **의무이행심판**이 있다는 점이 행정소송과의 결정적 차이.',
   tip:'심판 = **위법 + 부당** / 소송 = **위법만**. 심판에만 **의무이행심판**이 있다!',
@@ -112,7 +112,7 @@ QB.addTheory([
 },
 
 {
-  id:'law-t-suit-03', subject:'law', unit:'law-suit', tier:'S',
+  id:'law-t-suit-03', subject:'law', unit:'law-suit', tier:'A',
   title:'취소소송의 심리와 판결 — 위법성 판단시점 · 사정판결 · 기속력',
   summary:'**처분시설**(위법 판단 기준시), **사정판결**, 인용판결의 **기속력·기판력**이 핵심.',
   tip:'취소소송 = **처분시** 기준 / 부작위위법확인소송 = **판결시** 기준',

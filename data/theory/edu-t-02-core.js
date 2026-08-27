@@ -62,7 +62,7 @@ QB.addTheory([
 },
 
 {
-  id:'edu-t-psy-02', subject:'edu', unit:'edu-psy', tier:'S',
+  id:'edu-t-psy-02', subject:'edu', unit:'edu-psy', tier:'A',
   title:'학습동기 이론 — 귀인 · 자기결정성 · 목표지향 · 자기효능감',
   summary:'"왜 공부하는가"를 설명하는 네 갈래. **노력 귀인 · 자율성 · 숙달목표 · 성공경험**이 공통 처방이다.',
   tip:'와이너 3차원(**소재·안정성·통제가능성**)에서 **노력**만이 내적·불안정·통제가능 — 그래서 가장 바람직한 귀인이다.',
@@ -232,7 +232,7 @@ QB.addTheory([
 },
 
 {
-  id:'edu-t-meth-01', subject:'edu', unit:'edu-meth', tier:'A',
+  id:'edu-t-meth-01', subject:'edu', unit:'edu-meth', tier:'S',
   title:'교수·학습 이론과 교수설계',
   summary:'**가네(9사태) · 캐롤(학습의 정도) · 블룸(완전학습) · 켈러(ARCS) · ADDIE**가 뼈대.',
   tip:'캐롤 공식은 분모가 **필요 시간** — "사용/필요". 뒤집힌 선지가 단골이다.',
@@ -294,7 +294,7 @@ QB.addTheory([
 },
 
 {
-  id:'edu-t-phil-01', subject:'edu', unit:'edu-phil', tier:'A',
+  id:'edu-t-phil-01', subject:'edu', unit:'edu-phil', tier:'S',
   title:'교육철학 사조와 교육의 개념',
   summary:'**진보 ↔ 본질 / 항존 / 재건**의 네 사조와, **피터스(규범) ↔ 정범모(공학)**의 개념 정의 대립.',
   tip:'진보=아동, 본질=교사와 기본교과, 항존=고전과 이성, 재건=사회 개조.',
