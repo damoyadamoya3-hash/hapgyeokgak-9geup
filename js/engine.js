@@ -308,7 +308,7 @@ const Engine = (() => {
     if(S.maxCombo > Store.s.maxCombo){ Store.s.maxCombo = S.maxCombo; Store.save(); }
 
     // 과목별 집계를 위해 푼 문항을 기록 (원본을 건드리지 않도록 얕은 복사)
-    (S.answered || (S.answered = [])).push({ subject:q.subject, __ok:ok });
+    (S.answered || (S.answered = [])).push({ id:q.id, subject:q.subject, __ok:ok });
 
     return { ok, q, gain, combo: S.combo };
   }
@@ -351,7 +351,7 @@ const Engine = (() => {
         S.xp += has ? 2 : 0;       // 미응답에는 참가상도 주지 않는다
         S.wrongList.push(q);
       }
-      S.answered.push({ subject:q.subject, __ok:ok, __blank:!has });
+      S.answered.push({ id:q.id, subject:q.subject, __ok:ok, __blank:!has });
     });
 
     S.examGraded = true;
@@ -391,19 +391,21 @@ const Engine = (() => {
     if(!S || S.mode !== 'exam' || !S.examGraded) return null;
     const flagged = Object.keys(S.examFlags || {}).filter(i => S.examFlags[i]).length;
     return {
-      v:1,
+      v:2,
       n:S.queue.length,
       ok:S.correct,
       blank:S.examBlank || 0,
       flagged,
       elapsed:Math.max(0, Date.now() - (S.startedAt || Date.now())),
+      reviewedAt:null,
       rows:examReview(S).map(r => ({
         id:r.q.id, number:r.number, subject:r.q.subject,
         question:r.q.q, passage:r.q.passage || '',
         explanation:r.q.exp || '', tip:r.q.tip || '',
         answered:r.answered, answer:answerText(r.q, r.answer),
         correctAnswer:answerText(r.q, r.q.a),
-        correct:r.correct, flagged:r.flagged
+        correct:r.correct, flagged:r.flagged,
+        recovered:false, reviewCount:0, reviewedAt:null
       }))
     };
   }
@@ -466,13 +468,21 @@ const Engine = (() => {
       b.n++; if(q.__ok) b.ok++;
     }
 
+    let paperReview = null;
     if(S.mode === 'exam'){
       Store.logExam(S.opt.subject || 'all', bySub, examPaper(S));
       Store.save();
+    }else if(S.mode === 'paper'){
+      // 복기 퀴즈에서 실제로 답한 문항만 최근 답안지에 반영한다. 중간에
+      // 그만둬도 시도하지 않은 문항은 미완료 상태 그대로 남는다.
+      paperReview = Store.updateExamPaperReview(
+        S.opt.paperT,
+        (S.answered || []).map(a => ({ id:a.id, ok:a.__ok }))
+      );
     }
 
     return { acc, total, bonusXp, bonusCoin, leveled, stars, newAch, bySub, doneTasks,
-             streak: streakInfo.streak, streakReward: streakInfo.reward };
+             streak: streakInfo.streak, streakReward: streakInfo.reward, paperReview };
   }
 
   return { build, current, submit, gradeExam, examReview, examPaper,

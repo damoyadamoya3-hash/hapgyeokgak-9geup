@@ -811,6 +811,43 @@ const Store = (() => {
   function lastExam(){ return S.examLog.length ? S.examLog[S.examLog.length - 1] : null; }
   function lastExamPaper(){ return S.lastExamPaper ? structuredClone(S.lastExamPaper) : null; }
 
+  /* 최근 답안지의 복기 퀴즈 결과를 문항별로 남긴다. paperT 를 함께
+     확인하므로, 오래된 탭에서 끝낸 복기 퀴즈가 그 뒤에 치른 새 시험의
+     답안지를 덮어쓰지 않는다. 정답을 맞혀야 '바로잡음'이 되고, 다시
+     틀리면 미완료로 돌아가 최근 회상 상태를 정직하게 보여 준다. */
+  function updateExamPaperReview(paperT, results){
+    const paper = S.lastExamPaper;
+    if(!paper || !paperT || paper.t !== paperT || !Array.isArray(results)) return null;
+    const byId = new Map();
+    results.forEach(r => {
+      if(r && r.id) byId.set(r.id, !!r.ok);
+    });
+    if(!byId.size) return paperReviewSummary(paper);
+
+    const now = Date.now();
+    let touched = 0;
+    (paper.rows || []).forEach(row => {
+      if(!byId.has(row.id)) return;
+      row.recovered = byId.get(row.id);
+      row.reviewCount = Math.max(0, Number(row.reviewCount) || 0) + 1;
+      row.reviewedAt = now;
+      touched++;
+    });
+    if(touched){
+      paper.v = Math.max(Number(paper.v) || 1, 2);
+      paper.reviewedAt = now;
+      save();
+    }
+    return paperReviewSummary(paper);
+  }
+
+  function paperReviewSummary(paper = S.lastExamPaper){
+    const rows = paper && Array.isArray(paper.rows) ? paper.rows : [];
+    const recovered = rows.filter(r => r.recovered === true).length;
+    const attempted = rows.filter(r => (Number(r.reviewCount) || 0) > 0).length;
+    return { total:rows.length, recovered, remaining:rows.length - recovered, attempted };
+  }
+
   /* ── 기기 간 이어하기 ───────────────────────────────
      정적 페이지라 계정 서버를 둘 수 없다. 대신 진도 전체를 한 줄의
      코드로 뽑아 다른 기기에 붙여 넣는다. 이때 덮어쓰면 안 된다 —
@@ -886,9 +923,31 @@ const Store = (() => {
       S.examLog.sort((a, b) => a.t - b.t);
       if(S.examLog.length > 60) S.examLog = S.examLog.slice(-60);
     }
-    if(inc.lastExamPaper && (!S.lastExamPaper ||
-       (inc.lastExamPaper.t || 0) > (S.lastExamPaper.t || 0)))
-      S.lastExamPaper = inc.lastExamPaper;
+    if(inc.lastExamPaper){
+      if(!S.lastExamPaper || (inc.lastExamPaper.t || 0) > (S.lastExamPaper.t || 0)){
+        S.lastExamPaper = inc.lastExamPaper;
+      }else if((inc.lastExamPaper.t || 0) === (S.lastExamPaper.t || 0)){
+        /* 같은 시험을 두 기기에서 나눠 복기했으면 문항별 최신 시각을
+           비교해 합친다. 답안지 전체를 택하면 다른 기기에서 바로잡은
+           절반이 사라질 수 있다. */
+        const own = new Map((S.lastExamPaper.rows || []).map(r => [r.id, r]));
+        (inc.lastExamPaper.rows || []).forEach(row => {
+          const cur = own.get(row.id);
+          if(!cur) return;
+          if((row.reviewedAt || 0) > (cur.reviewedAt || 0)){
+            cur.recovered = row.recovered === true;
+            cur.reviewCount = Math.max(0, Number(row.reviewCount) || 0);
+            cur.reviewedAt = row.reviewedAt;
+          }
+        });
+        S.lastExamPaper.reviewedAt = Math.max(
+          S.lastExamPaper.reviewedAt || 0, inc.lastExamPaper.reviewedAt || 0
+        ) || null;
+        S.lastExamPaper.v = Math.max(
+          Number(S.lastExamPaper.v) || 1, Number(inc.lastExamPaper.v) || 1
+        );
+      }
+    }
 
     S.playedDays = [...new Set([...(S.playedDays||[]), ...(inc.playedDays||[])])].sort();
     if(inc.examDate && !S.examDate) S.examDate = inc.examDate;
@@ -927,6 +986,7 @@ const Store = (() => {
     isMarked, toggleMark, markedIds, wrongNotes,
     weekAttendance, nextStreakGoal, STREAK_REWARDS, setExamDate, plan,
     SHOP, buy, useItem, has, logExam, examLog, lastExam, lastExamPaper,
+    updateExamPaperReview, paperReviewSummary,
     subjectAccuracy, subjectSeen, touchStreak, daily, progressTask,
     checkAch, ACHS, exportData, importData, mergeData, reset, today, dateKey,
     saveSession, restoreSession, sessionInfo, clearSession,

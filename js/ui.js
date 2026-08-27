@@ -638,9 +638,13 @@ const UI = (() => {
           const score = lastPaper.n ? Math.round(lastPaper.ok / lastPaper.n * 100) : 0;
           const d = new Date(lastPaper.t);
           const date = `${d.getMonth() + 1}/${d.getDate()}`;
+          const recovery = Store.paperReviewSummary(lastPaper);
+          const recoveryText = recovery.attempted
+            ? ` · 복기 ${recovery.recovered}/${recovery.total} 완료`
+            : '';
           return `<button id="btn-last-exam-paper" class="last-exam-paper">
             <span class="lep-icon">🧾</span>
-            <span class="lep-body"><b>최근 답안지 다시 보기</b><small>${date} · ${lastPaper.ok}/${lastPaper.n} · ${score}점</small></span>
+            <span class="lep-body"><b>최근 답안지 다시 보기</b><small>${date} · ${lastPaper.ok}/${lastPaper.n} · ${score}점${recoveryText}</small></span>
             <em>열기 →</em>
           </button>`;
         })() : ''}
@@ -1113,11 +1117,13 @@ const UI = (() => {
     const cards = rows.map((r, i) => {
       const sub = QB.subject(r.subject) || { name:r.subject, emoji:'📘' };
       const shortQ = r.question.length > 105 ? r.question.slice(0, 105) + '…' : r.question;
-      const state = r.correct ? '검토 · 정답'
+      const recovered = r.recovered === true;
+      const state = recovered ? '✅ 바로잡음'
+        : r.correct ? '검토 · 정답'
         : !r.answered ? '미응답'
         : r.flagged ? '검토 · 오답'
         : `내 답 ${String(r.answer).split(' ')[0]}`;
-      return `<details class="exam-review-card${!r.answered ? ' blank' : ''}${r.flagged ? ' flagged' : ''}${r.correct ? ' correct' : ''}${i >= 8 ? ' exam-review-extra hidden' : ''}"${i < 2 ? ' open' : ''}>
+      return `<details class="exam-review-card${!r.answered ? ' blank' : ''}${r.flagged ? ' flagged' : ''}${r.correct ? ' correct' : ''}${recovered ? ' recovered' : ''}${i >= 8 ? ' exam-review-extra hidden' : ''}"${i < 2 ? ' open' : ''}>
         <summary>
           <span class="erc-no">${r.number}</span>
           <span class="erc-main"><b>${sub.emoji} ${esc(sub.name)}</b><span>${md(shortQ)}</span></span>
@@ -1136,10 +1142,18 @@ const UI = (() => {
     }).join('');
     const rest = rows.length - 8;
     const answeredWrong = Math.max((paper.n - paper.ok) - paper.blank, 0);
+    const recovery = Store.paperReviewSummary(paper);
+    const recoveryHtml = recovery.attempted ? `
+      <div class="exam-recovery${recovery.remaining ? '' : ' done'}">
+        <span><b>${recovery.recovered}</b> / ${recovery.total}</span>
+        <div><strong>${recovery.remaining ? `아직 ${recovery.remaining}문항 남음` : '모두 바로잡았습니다'}</strong>
+          <small>복기 퀴즈에서 다시 맞힌 문항 기준</small></div>
+        <i><em style="width:${recovery.total ? Math.round(recovery.recovered / recovery.total * 100) : 0}%"></em></i>
+      </div>` : '';
     return `<div class="exam-review-head">
         <h3>🧾 시험 복기 ${rows.length}문항</h3>
         <p>오답 ${answeredWrong} · 미응답 ${paper.blank} · 검토 표시 ${paper.flagged}. 정답이어도 검토 표시한 문제는 포함했습니다.</p>
-      </div>${cards}${rest > 0
+      </div>${recoveryHtml}${cards}${rest > 0
         ? `<button class="btn-ghost review-all">나머지 ${rest}문항 해설 모두 보기</button>`
         : ''}`;
   }
@@ -1168,17 +1182,23 @@ const UI = (() => {
     const sec = Math.round((paper.elapsed || 0) / 1000);
     const elapsed = sec >= 60 ? `${Math.floor(sec / 60)}분 ${sec % 60}초` : `${sec}초`;
     const score = paper.n ? Math.round(paper.ok / paper.n * 100) : 0;
+    const pendingRows = paper.rows.filter(r => r.recovered !== true);
+    const quizRows = pendingRows.length ? pendingRows : paper.rows;
     const body = $('#exam-history-body');
     body.innerHTML = `<div class="exam-paper-summary">
         <span>🧾</span><div><h3>${esc(scope)}</h3><p>${date} · ${paper.ok}/${paper.n} · ${score}점 · ${elapsed}</p></div>
       </div>${paper.rows.length && onPaperQuiz
-        ? `<button id="btn-exam-history-quiz" class="btn-primary exam-paper-quiz">🔁 복기 문항 ${paper.rows.length}개 다시 풀기</button>`
+        ? `<button id="btn-exam-history-quiz" class="${pendingRows.length ? 'btn-primary' : 'btn-ghost'} exam-paper-quiz">${
+            pendingRows.length
+              ? `🎯 남은 복기 ${pendingRows.length}문항 풀기`
+              : `✅ 복기 완료 · 전체 ${paper.rows.length}문항 다시 확인`
+          }</button>`
         : ''}${examPaperHtml(paper)}`;
     bindReviewReveal(body);
     const quiz = $('#btn-exam-history-quiz');
     if(quiz) quiz.addEventListener('click', () => {
       Sfx.tap();
-      if(onPaperQuiz) onPaperQuiz(paper.rows.map(r => r.id));
+      if(onPaperQuiz) onPaperQuiz(quizRows.map(r => r.id), paper.t);
     });
     show('scr-exam-history');
   }
@@ -1186,8 +1206,14 @@ const UI = (() => {
   /* ── 결과 ──────────────────────────────────────────── */
   function result(S, fin, onPaperQuiz){
     const win = S.mode === 'boss' ? S.reason === 'kill' : fin.acc >= 60;
+    const savedPaper = Store.lastExamPaper();
+    const activePaper = savedPaper && (S.mode === 'exam' ||
+      (S.mode === 'paper' && savedPaper.t === S.opt.paperT)) ? savedPaper : null;
+    const recovery = activePaper ? Store.paperReviewSummary(activePaper) : null;
     $('#res-emoji').textContent = fin.acc === 100 ? '🏆' : win ? '🎉' : '😵';
-    $('#res-title').textContent = S.mode === 'boss'
+    $('#res-title').textContent = S.mode === 'paper' && recovery
+      ? (recovery.remaining ? '약점 복기 중!' : '복기 완료!')
+      : S.mode === 'boss'
       ? (win ? '보스 격파!' : '패배…')
       : (win ? '스테이지 클리어!' : '아쉬워요');
     let sub = '';
@@ -1197,6 +1223,8 @@ const UI = (() => {
       const sec = Math.round((Date.now() - S.startedAt) / 1000);
       sub = `답안 ${S.examAnsweredCount}/${S.queue.length}문항 작성 · ${sec}초 소요`;
     }
+    else if(S.mode === 'paper' && recovery)
+      sub = `시험 복기 ${recovery.recovered}/${recovery.total}문항 바로잡음`;
     else if(S.reason === 'heart') sub = '하트를 모두 잃었어요';
     else sub = `${Math.round((Date.now() - S.startedAt)/1000)}초 소요`;
     $('#res-sub').textContent = sub;
@@ -1247,17 +1275,30 @@ const UI = (() => {
             <div class="ra">정답: ${answerHtml(q, q.a)}</div>
           </div>`).join('')
       : `<div class="sel-note" style="text-align:center">틀린 문제 없음! 완벽합니다 ✨</div>`;
+    const paperProgress = S.mode === 'paper' && recovery ? `
+      <div class="exam-recovery result${recovery.remaining ? '' : ' done'}">
+        <span><b>${recovery.recovered}</b> / ${recovery.total}</span>
+        <div><strong>${recovery.remaining ? `남은 복기 ${recovery.remaining}문항` : '이번 시험 약점 복기 완료'}</strong>
+          <small>${recovery.remaining ? '남은 문제만 이어서 다시 풀 수 있어요' : '시간을 두고 망각곡선 복습으로 굳혀 보세요'}</small></div>
+        <i><em style="width:${recovery.total ? Math.round(recovery.recovered / recovery.total * 100) : 0}%"></em></i>
+      </div>` : '';
     const review = $('#res-review');
-    review.innerHTML = subTable + (S.mode === 'exam' ? examReviewHtml(S) : normalReview);
+    review.innerHTML = subTable + (S.mode === 'exam' ? examReviewHtml(S) : paperProgress + normalReview);
     bindReviewReveal(review);
 
     const paperBtn = $('#btn-res-paper');
-    const paper = S.mode === 'exam' ? Engine.examPaper(S) : null;
-    const paperIds = paper ? paper.rows.map(r => r.id) : [];
+    const paperRows = activePaper
+      ? (S.mode === 'paper' ? activePaper.rows.filter(r => r.recovered !== true) : activePaper.rows)
+      : [];
+    const paperIds = paperRows.map(r => r.id);
     paperBtn.classList.toggle('hidden', !paperIds.length || !onPaperQuiz);
-    paperBtn.textContent = paperIds.length ? `🧾 복기 문항 다시 풀기 (${paperIds.length})` : '🧾 복기 문항 다시 풀기';
+    paperBtn.textContent = paperIds.length
+      ? (S.mode === 'paper'
+          ? `🎯 남은 복기 이어 풀기 (${paperIds.length})`
+          : `🧾 복기 문항 다시 풀기 (${paperIds.length})`)
+      : '🧾 복기 문항 다시 풀기';
     paperBtn.onclick = paperIds.length && onPaperQuiz
-      ? () => { Sfx.tap(); onPaperQuiz(paperIds); }
+      ? () => { Sfx.tap(); onPaperQuiz(paperIds, activePaper.t); }
       : null;
 
     // 방금 틀린 게 있으면 그 자리에서 바로잡을 길을 열어 준다

@@ -500,6 +500,66 @@ t('시험 복기 퀴즈 — 최근 복기 대상만 원래 순서로 다시 푼�
      /start\('paper'/.test(app), '복기 퀴즈 시작 경로 없음');
 });
 
+t('시험 복기 회복 — 다시 맞힌 문항만 완료하고 남은 약점을 이어 푼다', () => {
+  fresh();
+  const source = Engine.build('exam', { subject:'law' });
+  const wrongAnswer = q => q.type === 'ox' ? !q.a : (q.a + 1) % q.choices.length;
+  source.queue.forEach((q, i) => {
+    source.i = i;
+    Engine.submit(source, i < 2 ? wrongAnswer(q) : q.a);
+  });
+  Engine.finish(source);
+  const firstPaper = Store.lastExamPaper();
+  eq(firstPaper.rows.length, 2, '복기 대상 준비');
+
+  const quiz = Engine.build('paper', {
+    ids:firstPaper.rows.map(r => r.id), paperT:firstPaper.t
+  });
+  quiz.i = 0; Engine.submit(quiz, quiz.queue[0].a);
+  quiz.i = 1; Engine.submit(quiz, wrongAnswer(quiz.queue[1]));
+  const first = Engine.finish(quiz).paperReview;
+  eq([first.total, first.recovered, first.remaining, first.attempted], [2,1,1,2], '첫 복기 진척');
+  let stored = Store.lastExamPaper();
+  eq(stored.rows.map(r => [r.recovered, r.reviewCount]), [[true,1],[false,1]], '문항별 복기 상태');
+
+  const pending = stored.rows.filter(r => r.recovered !== true);
+  const retry = Engine.build('paper', { ids:pending.map(r => r.id), paperT:stored.t });
+  retry.i = 0; Engine.submit(retry, retry.queue[0].a);
+  const second = Engine.finish(retry).paperReview;
+  eq([second.recovered, second.remaining], [2,0], '남은 문항 재복기');
+  stored = Store.lastExamPaper();
+  eq(stored.rows.map(r => [r.recovered, r.reviewCount]), [[true,1],[true,2]], '누적 복기 횟수');
+
+  const before = JSON.stringify(stored);
+  ok(Store.updateExamPaperReview(stored.t - 1, [{ id:stored.rows[0].id, ok:false }]) === null,
+     '오래된 복기 결과를 받음');
+  eq(JSON.stringify(Store.lastExamPaper()), before, '오래된 복기가 최근 답안지를 덮음');
+  const ui = rd('js/ui.js');
+  ok(/남은 복기/.test(ui) && /바로잡음/.test(ui) && /paperReviewSummary/.test(ui),
+     '복기 진척 UI 없음');
+});
+
+t('시험 복기 회복 — 같은 답안지를 기기 간 합칠 때 문항별 최신 상태를 남긴다', () => {
+  fresh();
+  const base = { v:2, t:777, s:'law', n:20, ok:18, blank:0, flagged:0, elapsed:1 };
+  Store.s.lastExamPaper = { ...base, reviewedAt:200, rows:[
+    { id:'a', recovered:true,  reviewCount:1, reviewedAt:200 },
+    { id:'b', recovered:false, reviewCount:1, reviewedAt:200 }
+  ] };
+  const incoming = Store.exportData();
+
+  fresh();
+  Store.s.lastExamPaper = { ...base, reviewedAt:300, rows:[
+    { id:'a', recovered:false, reviewCount:1, reviewedAt:100 },
+    { id:'b', recovered:true,  reviewCount:2, reviewedAt:300 }
+  ] };
+  Store.mergeData(incoming);
+  const rows = Store.lastExamPaper().rows;
+  eq(rows.map(r => [r.id, r.recovered, r.reviewCount, r.reviewedAt]), [
+    ['a',true,1,200], ['b',true,2,300]
+  ], '문항별 최신 복기 상태 병합');
+});
+
 /* ── 선택지 섞기 ─────────────────────────────────────────── */
 t('선택지 섞기 — 섞은 뒤에도 정답 칸이 정답을 가리킨다', () => {
   fresh();
