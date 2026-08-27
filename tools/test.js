@@ -86,12 +86,16 @@ t('PWA — 설치 정보와 1200×630 공유 카드를 함께 배포한다', () 
   const png = fs.readFileSync(path.join(ROOT, 'icons', 'og.png'));
   eq(png.toString('ascii', 1, 4), 'PNG', '공유 카드 파일 형식');
   eq([png.readUInt32BE(16), png.readUInt32BE(20)], [1200,630], '공유 카드 크기');
+  const sw = rd('sw.js');
+  ok(/req\.mode === 'navigate'/.test(sw), '문서 네트워크 우선 갱신 없음');
+  ok(/\['script','style','worker'\]\.includes\(req\.destination\)/.test(sw), '코드 네트워크 우선 갱신 없음');
 });
 
 t('접근성 — 화면 이동과 설정창에 초점 안내가 있다', () => {
   const html = rd('index.html');
   ok(/class="skip-link"/.test(html), '본문 바로가기 없음');
   ok(/id="modal-settings"[^>]+role="dialog"[^>]+aria-modal="true"/.test(html), '설정 대화상자 의미 없음');
+  ok(/id="modal-exam-sheet"[^>]+role="dialog"[^>]+aria-modal="true"/.test(html), 'OMR 대화상자 의미 없음');
   ok(/id="feedback"[^>]+aria-live="polite"/.test(html), '채점 결과 알림 없음');
   const ui = rd('js/ui.js');
   ok(/\.inert\s*=/.test(ui) && /aria-hidden/.test(ui), '숨은 화면의 초점 차단 없음');
@@ -329,6 +333,77 @@ t('모의고사 — 한 회차 안에서 같은 문항이 겹치지 않는다', 
   fresh();
   const s = Engine.build('exam', { subject:'all' });
   eq(new Set(s.queue.map(q => q.id)).size, s.queue.length, '중복 출제');
+});
+
+t('모의고사 OMR — 답을 고르는 동안에는 학습 기록을 채점하지 않는다', () => {
+  fresh();
+  const s = Engine.build('exam', { subject:'kor' });
+  const before = Store.s.totalAnswered;
+  Engine.submit(s, s.queue[0].a);
+  eq(Store.s.totalAnswered, before, '제출 전 누적 풀이 수');
+  eq([s.correct, s.wrong], [0,0], '제출 전 점수');
+  ok(Object.prototype.hasOwnProperty.call(s.examAnswers, 0), 'OMR 답안이 저장되지 않음');
+});
+
+t('모의고사 OMR — 답을 바꿔도 마지막 답만 한 번 기록한다', () => {
+  fresh();
+  const s = Engine.build('exam', { subject:'kor' });
+  const q = s.queue[0];
+  Engine.submit(s, (q.a + 1) % q.choices.length);
+  Engine.submit(s, q.a);
+  Engine.finish(s);
+  eq(Store.s.cards[q.id].n, 1, '같은 문항 기록 횟수');
+  eq(Store.s.totalAnswered, 1, '실제 작성 답안 수');
+  eq([s.correct, s.wrong], [1, s.queue.length - 1], '최종 답안 채점');
+});
+
+t('모의고사 OMR — 미응답은 점수만 오답이고 SRS에는 넣지 않는다', () => {
+  fresh();
+  const s = Engine.build('exam', { subject:'eng' });
+  const q = s.queue[0];
+  Engine.submit(s, (q.a + 1) % q.choices.length);
+  const fin = Engine.finish(s);
+  eq([s.examAnsweredCount, s.examBlank], [1, s.queue.length - 1], '작성·미응답 수');
+  eq([fin.total, s.correct, s.wrong], [s.queue.length, 0, s.queue.length], '시험 점수');
+  eq(Store.s.totalAnswered, 1, 'SRS 기록 수');
+  eq(Object.keys(Store.s.cards).length, 1, '미응답이 카드 기록으로 추가됨');
+  eq(fin.bySub.eng.n, s.queue.length, '과목 점수 분모');
+});
+
+t('모의고사 OMR — 답안과 현재 문항을 이어 풀기로 복구한다', () => {
+  fresh();
+  const s = Engine.build('exam', { subject:'his' });
+  Engine.submit(s, s.queue[0].a);
+  s.i = 7;
+  Engine.submit(s, 2);
+  Store.saveSession(s, { timerLeft:611, awaitingNext:false });
+  const got = Store.restoreSession();
+  eq(got.examAnswers, s.examAnswers, '저장된 OMR 답안');
+  eq([got.i, got.resumeTimerLeft], [7,611], '복구 위치·남은 시간');
+  eq(Store.s.totalAnswered, 0, '복구 전에 채점됨');
+});
+
+t('모의고사 OMR — 답안이 없던 구형 세션은 잘못 복구하지 않는다', () => {
+  fresh();
+  const s = Engine.build('exam', { subject:'law' });
+  Store.saveSession(s, {});
+  Store.s.activeSession.v = 1;
+  delete Store.s.activeSession.examAnswers;
+  Store.save();
+  eq(Store.restoreSession(), null, '구형 모의고사 세션');
+  eq(Store.s.activeSession, null, '구형 세션 정리');
+});
+
+t('모의고사 OMR — 일괄 채점은 여러 번 불러도 한 번만 기록한다', () => {
+  fresh();
+  const s = Engine.build('exam', { subject:'edu' });
+  Engine.submit(s, s.queue[0].a);
+  s.i = 1; Engine.submit(s, s.queue[1].a);
+  Engine.gradeExam(s);
+  const once = [Store.s.totalAnswered, s.correct, s.wrong, s.xp, s.coin];
+  Engine.gradeExam(s);
+  eq([Store.s.totalAnswered, s.correct, s.wrong, s.xp, s.coin], once, '중복 채점 결과');
+  eq(Store.s.totalAnswered, 2, '기록된 실제 답안 수');
 });
 
 /* ── 선택지 섞기 ─────────────────────────────────────────── */

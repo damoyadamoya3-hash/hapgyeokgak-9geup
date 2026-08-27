@@ -965,8 +965,17 @@ const UI = (() => {
            <kbd>${i + 1}</kbd>
          </button>`).join('');
     }
-    Array.from(box.children).forEach(b =>
-      b.addEventListener('click', () => onAnswer(q.type === 'ox' ? b.dataset.ans === '1' : +b.dataset.ans, b)));
+    const hasExamAnswer = S.mode === 'exam' && Object.prototype.hasOwnProperty.call(S.examAnswers || {}, S.i);
+    const picked = hasExamAnswer ? S.examAnswers[S.i] : null;
+    Array.from(box.children).forEach(b => {
+      const value = q.type === 'ox' ? b.dataset.ans === '1' : +b.dataset.ans;
+      if(S.mode === 'exam'){
+        const on = hasExamAnswer && value === picked;
+        b.classList.toggle('exam-picked', on);
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      }
+      b.addEventListener('click', () => onAnswer(value, b));
+    });
 
     $('#feedback').classList.add('hidden');
     $('#q-card').classList.remove('shake');
@@ -1032,10 +1041,30 @@ const UI = (() => {
   /* 실전 모의고사 — 정오를 숨기고 "선택했다"는 표시만 남긴다 */
   function markSilent(btn){
     if(!btn) return;
-    Array.from($('#q-choices').children).forEach(b => { b.disabled = true; });
-    btn.style.borderColor = 'var(--accent)';
-    btn.style.background = 'color-mix(in srgb, var(--accent) 12%, transparent)';
+    Array.from($('#q-choices').children).forEach(b => {
+      const on = b === btn;
+      b.classList.toggle('exam-picked', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
     Sfx.tap();
+  }
+
+  /* OMR 답안지 — 번호와 작성 여부만 보여 주고 정오 정보는 제출 전까지
+     절대 노출하지 않는다. */
+  function examSheet(S, onJump){
+    const answers = S.examAnswers || {};
+    const answered = Object.keys(answers).length;
+    $('#exam-sheet-status').textContent = `${answered} / ${S.queue.length}문항 작성`;
+    const grid = $('#exam-sheet-grid');
+    grid.innerHTML = S.queue.map((q, i) => {
+      const has = Object.prototype.hasOwnProperty.call(answers, i);
+      const current = i === S.i;
+      const state = has ? '답안 작성됨' : '미응답';
+      return `<button class="${has ? 'answered ' : ''}${current ? 'current' : ''}"
+        data-exam-index="${i}" aria-label="${i + 1}번 ${state}${current ? ', 현재 문제' : ''}"
+        ${current ? 'aria-current="true"' : ''}>${i + 1}</button>`;
+    }).join('');
+    Array.from(grid.children).forEach(b => b.addEventListener('click', () => onJump(+b.dataset.examIndex)));
   }
 
   /* 보너스 XP를 피드백 패널 수치에 즉시 반영하고 튀어오르게 한다 */
@@ -1061,6 +1090,10 @@ const UI = (() => {
     let sub = '';
     if(S.mode === 'quest' && fin.stars) sub = '★'.repeat(fin.stars) + '☆'.repeat(3 - fin.stars) + ' 획득';
     else if(S.mode === 'ox') sub = `60초 동안 ${S.correct}문제 정답!`;
+    else if(S.mode === 'exam'){
+      const sec = Math.round((Date.now() - S.startedAt) / 1000);
+      sub = `답안 ${S.examAnsweredCount}/${S.queue.length}문항 작성 · ${sec}초 소요`;
+    }
     else if(S.reason === 'heart') sub = '하트를 모두 잃었어요';
     else sub = `${Math.round((Date.now() - S.startedAt)/1000)}초 소요`;
     $('#res-sub').textContent = sub;
@@ -1104,7 +1137,7 @@ const UI = (() => {
             : `<p class="cut-ok">✅ 40점 미만 과목이 없습니다. 과락 위험은 넘겼습니다.</p>`}` : '';
 
     $('#res-review').innerHTML = subTable + (S.wrongList.length
-      ? `<h3 style="font-size:15px;margin:0 0 4px">📌 다시 볼 문제 ${S.wrongList.length}개</h3>` +
+      ? `<h3 style="font-size:15px;margin:0 0 4px">📌 다시 볼 문제 ${S.wrongList.length}개${S.examBlank ? ` (미응답 ${S.examBlank}개 포함)` : ''}</h3>` +
         S.wrongList.slice(0, 8).map(q => `
           <div class="rev-item">
             <div class="rq">${md(q.q.length > 90 ? q.q.slice(0,90) + '…' : q.q)}</div>
@@ -1148,5 +1181,5 @@ const UI = (() => {
   return { $, $$, esc, show, back, popScreen, setPopHandler, currentScreen,
            hud, home, daily, planCard, startGuide, setGuideHandler, subjects, achievements,
            modeTags, selectSubject, selectUnit, question, reveal, result, sync, setPlanGo,
-           codexList, cardDetail, bumpXp, stats, notes, setNoteTab, markSilent, shop };
+           codexList, cardDetail, bumpXp, stats, notes, setNoteTab, markSilent, examSheet, shop };
 })();

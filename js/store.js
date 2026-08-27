@@ -377,7 +377,7 @@ const Store = (() => {
   function saveSession(sess, meta = {}){
     if(!sess || sess.over) return clearSession();
     S.activeSession = {
-      v:1, savedAt:Date.now(),
+      v:2, savedAt:Date.now(),
       mode:sess.mode, opt:{ ...(sess.opt || {}) }, cfg:{ ...(sess.cfg || {}) },
       queue:sess.queue.map(q => [
         q.id,
@@ -389,7 +389,13 @@ const Store = (() => {
       hearts:sess.hearts, xp:sess.xp, coin:sess.coin,
       bossHp:sess.bossHp, bossMax:sess.bossMax,
       wrongIds:(sess.wrongList || []).map(q => q.id),
-      answered:(sess.answered || []).map(x => ({ subject:x.subject, __ok:!!x.__ok })),
+      answered:(sess.answered || []).map(x => ({
+        subject:x.subject, __ok:!!x.__ok, __blank:!!x.__blank
+      })),
+      examAnswers:{ ...(sess.examAnswers || {}) },
+      examAnsweredCount:sess.examAnsweredCount || 0,
+      examBlank:sess.examBlank || 0,
+      examGraded:!!sess.examGraded,
       hints:{ ...(sess.hints || {}) }, boost:sess.boost || 1,
       elapsed:Math.max(0, Date.now() - (sess.startedAt || Date.now())),
       timerLeft:Math.max(0, Number(meta.timerLeft) || 0),
@@ -402,7 +408,12 @@ const Store = (() => {
   function sessionInfo(){
     const x = S.activeSession;
     if(!x) return null;
-    if(!x.savedAt || Date.now() - x.savedAt > SESSION_TTL || !Array.isArray(x.queue)){
+    /* v1 모의고사는 선택 답안을 저장하지 않고 즉시 채점하던 형식이라
+       어느 칸에 무엇을 마킹했는지 복원할 수 없다. 일반 학습 v1은 호환한다. */
+    const badVersion = x.v !== 1 && x.v !== 2;
+    const unsafeOldExam = x.v === 1 && x.mode === 'exam';
+    if(badVersion || unsafeOldExam || !x.savedAt ||
+       Date.now() - x.savedAt > SESSION_TTL || !Array.isArray(x.queue)){
       clearSession();
       return null;
     }
@@ -418,7 +429,7 @@ const Store = (() => {
 
   function restoreSession(){
     const x = S.activeSession;
-    if(!sessionInfo() || !x || x.v !== 1) return null;
+    if(!sessionInfo() || !x || (x.v !== 1 && x.v !== 2)) return null;
     const queue = x.queue.map(row => {
       const base = QB.byId(row[0]);
       if(!base) return null;
@@ -439,6 +450,10 @@ const Store = (() => {
       bossHp:x.bossHp || 0, bossMax:x.bossMax || 0,
       wrongList:(x.wrongIds || []).map(id => QB.byId(id)).filter(Boolean),
       answered:(x.answered || []).map(a => ({ ...a })),
+      examAnswers:{ ...(x.examAnswers || {}) },
+      examAnsweredCount:x.examAnsweredCount || 0,
+      examBlank:x.examBlank || 0,
+      examGraded:!!x.examGraded,
       hints:{ ...(x.hints || {}) }, boost:x.boost || 1,
       startedAt:Date.now() - Math.max(0, x.elapsed || 0),
       over:false, reason:null,

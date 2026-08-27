@@ -233,6 +233,12 @@ const Engine = (() => {
       hearts: cfg.hearts,
       xp: 0, coin: 0,
       wrongList: [],
+      // 모의고사는 답안을 마지막에 한꺼번에 채점한다. 문항 번호를 키로
+      // 쓰면 앞뒤로 이동해 답을 바꿔도 같은 칸 하나만 갱신된다.
+      examAnswers: {},
+      examAnsweredCount: 0,
+      examBlank: 0,
+      examGraded: false,
       bossHp: mode === 'boss' ? (QB.BOSSES[opt.subject] || {hp:10}).hp : 0,
       bossMax: mode === 'boss' ? (QB.BOSSES[opt.subject] || {hp:10}).hp : 0,
       startedAt: Date.now(),
@@ -252,6 +258,14 @@ const Engine = (() => {
   /* ── 답안 제출 → 결과 객체 반환 ────────────────────── */
   function submit(S, ans){
     const q = current(S);
+
+    // 실전 모의고사는 답안지만 작성한다. 여기서 Store.record 를 호출하면
+    // 답을 수정할 때 같은 문항이 여러 번 학습 기록에 들어간다.
+    if(S.mode === 'exam'){
+      if(!S.examGraded) (S.examAnswers || (S.examAnswers = {}))[S.i] = ans;
+      return { ok:null, q, gain:0, combo:S.combo, deferred:true, ignored:!!S.examGraded };
+    }
+
     const ok = isCorrect(q, ans);
 
     Store.record(q.id, ok);
@@ -285,6 +299,52 @@ const Engine = (() => {
     return { ok, q, gain, combo: S.combo };
   }
 
+  /* ── 모의고사 일괄 채점 ───────────────────────────────
+     빈칸은 시험 점수에서는 오답이지만, 실제로 풀지 않은 문항을 SRS 오답으로
+     만들지는 않는다. 여러 경로(제출·시간 종료·그만두기)가 이 함수를 불러도
+     첫 한 번만 기록되도록 멱등성을 보장한다. */
+  function gradeExam(S){
+    if(!S || S.mode !== 'exam' || S.examGraded) return S;
+
+    S.correct = 0; S.wrong = 0; S.combo = 0; S.maxCombo = 0;
+    S.xp = 0; S.coin = 0; S.wrongList = []; S.answered = [];
+    S.examAnsweredCount = 0; S.examBlank = 0;
+    const answers = S.examAnswers || {};
+
+    S.queue.forEach((q, i) => {
+      const has = Object.prototype.hasOwnProperty.call(answers, i);
+      const ok = has && isCorrect(q, answers[i]);
+
+      if(has){
+        S.examAnsweredCount++;
+        Store.record(q.id, ok);
+      }else{
+        S.examBlank++;
+      }
+
+      if(ok){
+        S.correct++;
+        S.combo++;
+        S.maxCombo = Math.max(S.maxCombo, S.combo);
+        const base = q.type === 'ox' ? 6 : 12;
+        const cbonus = Math.min(Math.floor(S.combo / 3) * 3, 18);
+        const dbonus = q.hard ? 6 : 0;
+        S.xp += base + cbonus + dbonus;
+        S.coin += S.combo % 5 === 0 ? 5 : 1;
+      }else{
+        S.wrong++;
+        S.combo = 0;
+        S.xp += has ? 2 : 0;       // 미응답에는 참가상도 주지 않는다
+        S.wrongList.push(q);
+      }
+      S.answered.push({ subject:q.subject, __ok:ok, __blank:!has });
+    });
+
+    S.examGraded = true;
+    if(S.maxCombo > Store.s.maxCombo){ Store.s.maxCombo = S.maxCombo; Store.save(); }
+    return S;
+  }
+
   /* ── 다음 문제로, 종료 판정 ────────────────────────── */
   function advance(S){
     S.i++;
@@ -296,6 +356,7 @@ const Engine = (() => {
 
   /* ── 판 종료 정산 ──────────────────────────────────── */
   function finish(S){
+    if(S.mode === 'exam') gradeExam(S);
     const total = S.correct + S.wrong;
     const acc = total ? Math.round(S.correct / total * 100) : 0;
 
@@ -322,7 +383,7 @@ const Engine = (() => {
     // 일일 임무 진행
     const doneTasks = [];
     const task = (k, v) => { const r = Store.progressTask(k, v); if(r && r.length) doneTasks.push(...r); };
-    task('answered', total);
+    task('answered', S.mode === 'exam' ? S.examAnsweredCount : total);
     if(S.mode === 'ox') task('ox', S.correct);
     if(S.mode === 'srs') task('srs', S.correct);
     if(acc >= 80 && total >= 5) task('acc80', 1);
@@ -348,5 +409,5 @@ const Engine = (() => {
              streak: streakInfo.streak, streakReward: streakInfo.reward };
   }
 
-  return { build, current, submit, advance, finish, isCorrect, shuffle, MODE };
+  return { build, current, submit, gradeExam, advance, finish, isCorrect, shuffle, MODE };
 })();

@@ -4,11 +4,12 @@
    사이트 전체가 index.html 한 파일이므로 캐시 전략이 단순하다.
    · 문서 요청: 온라인이면 새 배포본을 먼저 받고, 실패할 때 캐시로 돌아간다.
      페이지를 연 뒤 내용을 갈아끼우는 방식이 아니므로 공부 중 화면은 그대로다.
-   · 나머지(아이콘·매니페스트): 캐시 우선.
+   · 코드(JS·CSS·데이터): 온라인 새 배포 우선, 실패하면 캐시.
+   · 아이콘·매니페스트: 캐시 우선.
 
    진도는 localStorage 에 있으므로 캐시를 지워도 사라지지 않는다.
    ══════════════════════════════════════════════════════════ */
-const CACHE = 'hg9-v2';
+const CACHE = 'hg9-v3';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-512-maskable.png'
@@ -51,6 +52,22 @@ self.addEventListener('fetch', e => {
         .then(hit => hit || new Response('오프라인 캐시를 준비하지 못했습니다.', {
           status:503, headers:{ 'Content-Type':'text/plain; charset=utf-8' }
         }))
+    );
+    return;
+  }
+
+  /* 새 index.html 이 예전 JS와 섞이면 새 UI만 보이고 동작은 구버전인
+     반쪽 업데이트가 된다. 실행 코드만큼은 같은 방문에서 최신본을 받는다. */
+  if(['script','style','worker'].includes(req.destination)){
+    e.respondWith(
+      fetch(req).then(res => {
+        if(res && res.ok){
+          const copy = res.clone();
+          caches.open(CACHE).then(c => c.put(req, copy));
+        }
+        return res;
+      }).catch(() => caches.match(req, { ignoreSearch:true }))
+        .then(hit => hit || new Response('', { status:503 }))
     );
     return;
   }

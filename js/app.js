@@ -12,6 +12,8 @@
   let timerLeft = 0;         // 자동 저장·복구에 포함할 남은 시간
   let installPrompt = null;  // Chromium 계열 PWA 설치 요청
   let modalReturnFocus = null;
+  let examModalReturnFocus = null;
+  let examMoveTimer = null;
 
   /* ── 부팅 ──────────────────────────────────────────── */
   const BOOT_MSGS = [
@@ -100,6 +102,7 @@
 
   /* 새 판과 복구한 판이 같은 화면 준비 경로를 쓴다. */
   function enterSession(resumed){
+    closeExamSheet(false);
     $('#pb-timer').classList.remove('paused');
 
     // 보스 무대
@@ -128,7 +131,8 @@
         timerLeft--;
         tEl.querySelector('b').textContent = fmt(timerLeft);
         tEl.classList.toggle('warn', timerLeft <= 10);
-        if(timerLeft > 0 && timerLeft % 10 === 0) checkpoint(locked);
+        if(timerLeft > 0 && timerLeft % 10 === 0)
+          checkpoint(S && S.mode === 'exam' ? false : locked);
         if(timerLeft <= 5 && timerLeft > 0) Sfx.tick();
         if(timerLeft <= 0){ stopTimer(); S.reason = 'time'; end(); }
       }, 1000);
@@ -158,6 +162,7 @@
   function render(){
     if(!S || S.i >= S.queue.length){ end(); return; }
     UI.question(S, onAnswer);
+    refreshExamNav();
     // 50:50을 쓴 뒤 새로고침한 경우 제거했던 선택지를 다시 잠근다
     const q = Engine.current(S);
     const removed = (S.hints || {})[q.id] || [];
@@ -171,6 +176,68 @@
 
   function checkpoint(awaitingNext){
     if(S) Store.saveSession(S, { timerLeft, awaitingNext });
+  }
+
+  function refreshExamNav(){
+    const nav = $('#exam-nav');
+    const exam = S && S.mode === 'exam';
+    nav.classList.toggle('hidden', !exam);
+    if(!exam) return;
+    const answered = Object.keys(S.examAnswers || {}).length;
+    $('#exam-answered').textContent = answered;
+    $('#exam-total').textContent = S.queue.length;
+    $('#btn-exam-prev').disabled = S.i <= 0;
+    $('#btn-exam-next').textContent = S.i + 1 >= S.queue.length ? '답안지 →' : '다음 →';
+  }
+
+  function openExamSheet(){
+    if(!S || S.mode !== 'exam') return;
+    if(examMoveTimer){ clearTimeout(examMoveTimer); examMoveTimer = null; }
+    locked = false;
+    examModalReturnFocus = document.activeElement;
+    UI.examSheet(S, i => {
+      S.i = i;
+      closeExamSheet(false);
+      checkpoint(false);
+      render();
+    });
+    const modal = $('#modal-exam-sheet');
+    modal.classList.remove('hidden');
+    requestAnimationFrame(() => $('#btn-exam-resume').focus());
+  }
+
+  function closeExamSheet(restoreFocus = true){
+    const modal = $('#modal-exam-sheet');
+    if(modal) modal.classList.add('hidden');
+    if(restoreFocus && examModalReturnFocus && examModalReturnFocus.isConnected){
+      try{ examModalReturnFocus.focus({ preventScroll:true }); }catch(e){ examModalReturnFocus.focus(); }
+    }
+    examModalReturnFocus = null;
+  }
+
+  function examMove(delta){
+    if(!S || S.mode !== 'exam') return;
+    if(examMoveTimer){ clearTimeout(examMoveTimer); examMoveTimer = null; }
+    locked = false;
+    const target = S.i + delta;
+    if(target < 0) return refreshExamNav();
+    if(target >= S.queue.length){ openExamSheet(); return; }
+    S.i = target;
+    checkpoint(false);
+    render();
+  }
+
+  function submitExam(){
+    if(!S || S.mode !== 'exam') return;
+    const answered = Object.keys(S.examAnswers || {}).length;
+    const blank = S.queue.length - answered;
+    const msg = blank
+      ? `미응답 ${blank}문항은 오답 처리됩니다. 지금 답안을 제출할까요?`
+      : '작성한 답안을 제출하고 채점할까요? 제출 뒤에는 수정할 수 없습니다.';
+    if(!confirm(msg)) return;
+    S.reason = 'submit';
+    closeExamSheet(false);
+    end();
   }
 
   function refreshResumeCard(){
@@ -264,18 +331,26 @@
   function onAnswer(ans, btn){
     if(locked || !S) return;
     locked = true;
+
+    if(S.mode === 'exam'){
+      // 답안만 OMR에 기록하고 정오·점수·SRS 기록은 제출 전까지 건드리지 않는다.
+      Engine.submit(S, ans);
+      UI.markSilent(btn);
+      refreshExamNav();
+      checkpoint(false);
+      if(examMoveTimer) clearTimeout(examMoveTimer);
+      examMoveTimer = setTimeout(() => {
+        examMoveTimer = null;
+        if(S && S.mode === 'exam' && !S.over) examMove(1);
+      }, 160);
+      return;
+    }
+
     paused = true;                 // ⏸ 해설을 다 읽을 때까지 모든 것을 멈춘다
     pauseStart = Date.now();
     $('#pb-timer').classList.add('paused');
     const res = Engine.submit(S, ans);
     checkpoint(true);              // 채점 직후 닫혀도 같은 문제를 두 번 기록하지 않는다
-
-    if(S.cfg.silent){
-      // 실전 모의고사 — 정오를 알려주지 않고 바로 다음 문항으로 넘어간다
-      UI.markSilent(btn);
-      setTimeout(() => { if(S && !S.over) next(); }, 220);
-      return;
-    }
 
     UI.reveal(S, res, btn);
 
@@ -405,6 +480,9 @@
   function end(){
     if(!S) return;
     stopTimer();
+    if(examMoveTimer){ clearTimeout(examMoveTimer); examMoveTimer = null; }
+    closeExamSheet(false);
+    $('#exam-nav').classList.add('hidden');
     Tetris.stop();
     Hype.stopFever();
     Hype.Bgm.stop();
@@ -426,7 +504,9 @@
 
   function tetrisStart(){
     const panel = $('#tetris-panel');
-    if(!tetrisOn()){ panel.classList.add('hidden'); Tetris.stop(); return; }
+    if(!tetrisOn() || (S && S.mode === 'exam')){
+      panel.classList.add('hidden'); Tetris.stop(); return;
+    }
     panel.classList.remove('hidden');
     $('#tp-lines').textContent = '0 LINES';
     $('#tp-shout').textContent = '';
@@ -616,9 +696,18 @@
 
     $$('[data-back]').forEach(b => b.addEventListener('click', () => { Sfx.tap(); UI.back(); }));
     $('#btn-next').addEventListener('click', () => { Sfx.tap(); next(); });
+    $('#btn-exam-prev').addEventListener('click', () => { Sfx.tap(); examMove(-1); });
+    $('#btn-exam-next').addEventListener('click', () => { Sfx.tap(); examMove(1); });
+    $('#btn-exam-sheet').addEventListener('click', () => { Sfx.tap(); openExamSheet(); });
+    $('#btn-exam-resume').addEventListener('click', () => closeExamSheet());
+    $('#btn-close-exam-sheet').addEventListener('click', () => closeExamSheet());
+    $('#btn-exam-submit').addEventListener('click', submitExam);
     $('#btn-quit').addEventListener('click', () => {
       if(!S) { UI.show('scr-home'); return; }
-      if(confirm('정말 그만둘까요? 지금까지의 기록은 저장됩니다.')){ end(); }
+      const msg = S.mode === 'exam'
+        ? '현재까지 작성한 답안만 제출하고 모의고사를 끝낼까요? 미응답은 오답 처리됩니다.'
+        : '정말 그만둘까요? 지금까지의 기록은 저장됩니다.';
+      if(confirm(msg)){ if(S.mode === 'exam') S.reason = 'quit'; end(); }
     });
     $('#btn-res-home').addEventListener('click', () => { Sfx.tap(); UI.home(); UI.show('scr-home'); });
     /* 틀린 문제를 눈앞에 두고 갈 곳이 홈과 '한 판 더' 뿐이면, 방금 틀린
@@ -636,13 +725,37 @@
     // 키보드 단축키
     document.addEventListener('keydown', e => {
       if(!$('#scr-play').classList.contains('active')) return;
+      if(!$('#modal-exam-sheet').classList.contains('hidden')) return;
       const fbOpen = !$('#feedback').classList.contains('hidden');
       if(fbOpen && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); next(); return; }
       if(fbOpen) return;
       const box = $('#q-choices');
+      if(S && S.mode === 'exam'){
+        if(e.key === 'ArrowLeft'){ e.preventDefault(); examMove(-1); }
+        else if(e.key === 'ArrowRight'){ e.preventDefault(); examMove(1); }
+        else if(e.key === 'Enter'){ e.preventDefault(); openExamSheet(); }
+        else if(/^[1-5]$/.test(e.key)){ box.children[+e.key - 1]?.click(); }
+        return;
+      }
       if(e.key === 'o' || e.key === 'O' || e.key === 'ArrowLeft'){ box.children[0]?.click(); }
       else if(e.key === 'x' || e.key === 'X' || e.key === 'ArrowRight'){ box.children[1]?.click(); }
       else if(/^[1-5]$/.test(e.key)){ box.children[+e.key - 1]?.click(); }
+    });
+
+    // OMR 답안지는 타이머를 멈추지 않는 실전 검토 화면이다.
+    const examModal = $('#modal-exam-sheet');
+    examModal.addEventListener('click', e => { if(e.target === examModal) closeExamSheet(); });
+    examModal.addEventListener('keydown', e => {
+      if(e.key === 'Escape'){
+        e.preventDefault(); closeExamSheet(); return;
+      }
+      if(e.key !== 'Tab') return;
+      const focusable = Array.from(examModal.querySelectorAll('button:not([disabled])'))
+        .filter(el => el.offsetParent !== null);
+      if(!focusable.length) return;
+      const first = focusable[0], last = focusable[focusable.length - 1];
+      if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+      else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
     });
 
     // 설정
@@ -707,9 +820,11 @@
     /* 모바일 OS가 앱을 예고 없이 정리하는 경우를 대비한다. 숨겨질 때와
        창을 닫기 직전에 현재 문제·남은 시간을 한 번 더 기록한다. */
     document.addEventListener('visibilitychange', () => {
-      if(document.visibilityState === 'hidden') checkpoint(locked);
+      if(document.visibilityState === 'hidden')
+        checkpoint(S && S.mode === 'exam' ? false : locked);
     });
-    window.addEventListener('beforeunload', () => checkpoint(locked));
+    window.addEventListener('beforeunload', () =>
+      checkpoint(S && S.mode === 'exam' ? false : locked));
 
     window.addEventListener('beforeinstallprompt', e => {
       e.preventDefault();
