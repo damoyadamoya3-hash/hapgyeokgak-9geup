@@ -34,6 +34,7 @@ window.QB_PACKS = [
   'questions/edu-09-more',
   'questions/edu-10-trap',
   'questions/edu-11-mcq',
+  'questions/edu-12-mcq2',
 
   /* ── 한국사(한능검) ── */
   'questions/his-01-pre',

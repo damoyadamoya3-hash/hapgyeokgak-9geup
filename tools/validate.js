@@ -60,8 +60,12 @@ bad += mismatch;
   const clean = t => String(t).replace(/[\s()（）「」·,.\[\]\/*'’‘"—-]|[一-龥]/g, '');
   const core  = t => clean(t).replace(/(의욕구|하였다|한다|이다|의원칙|의오류|제도$)/g, '');
   const susp = [];
+  /* '옳지 않은 것은?' 류에서는 해설이 정답이 아니라 나머지를 먼저 설명하는
+     것이 자연스럽다. 부정형 물음까지 의심하면 오탐만 쌓여 진짜 경고가 묻힌다. */
+  const NEG = /(옳지\s*않은|아닌\s*것|해당하지\s*않는|보기\s*어려운|틀린\s*것|거리가\s*먼|포함되지\s*않는)/;
   for(const q of QB.items){
     if(q.type !== 'mcq' || !q.choices || q.cloze) continue;
+    if(NEG.test(String(q.q))) continue;                           // 부정형 물음은 건너뛴다
     if(!q.choices.every(c => String(c).length <= 14)) continue;   // 용어 고르기형만
     const body = clean((q.exp || '') + (q.tip || ''));
     const named = i => { const c = core(q.choices[i]); return c.length >= 2 && body.includes(c); };
