@@ -392,12 +392,15 @@ const UI = (() => {
       <div class="sync-card">
         <h3 class="sync-h">2. 다른 기기의 코드 불러오기</h3>
         <p class="sync-note">
-          <b>합치기</b>는 두 기록 중 더 많이 공부한 쪽을 남깁니다.
-          번갈아 써도 잃는 것이 없으니 이쪽을 쓰세요.
+          <b>합치기</b>는 현재 진도를 지우지 않고, 문항마다 더 많이 푼
+          한쪽 기록을 통째로 남겨 풀이·정답·오답 수가 어긋나지 않게 합니다.
         </p>
         <textarea id="sync-in" class="sync-box" rows="3" placeholder="여기에 코드를 붙여 넣으세요"></textarea>
         <button class="btn-primary" id="sync-merge">🔗 합치기</button>
         <button class="btn-ghost" id="sync-replace">이 기기를 코드로 덮어쓰기</button>
+        ${Store.hasImportBackup()
+          ? '<button class="btn-ghost sync-undo" id="sync-undo">↩ 직전 덮어쓰기 되돌리기</button>'
+          : ''}
       </div>
 
       <p class="sync-foot">
@@ -436,9 +439,16 @@ const UI = (() => {
       const v = $('#sync-in').value.trim();
       if(!v) return Fx.toast('먼저 코드를 붙여 넣어 주세요');
       Store.unpack(v).then(plain => {
+        const p = Store.inspectData(plain);
+        if(!p) return Fx.toast('코드를 읽을 수 없어요. 전체를 복사했는지 확인해 주세요 😢');
+        const who = p.nick ? `${p.nick} 님의 진도` : '가져올 진도';
+        const msg = `${who}\n\n푼 문제 ${p.answered.toLocaleString()}개 · 기록 문항 ${p.cards.toLocaleString()}개 · Lv.${p.level}` +
+          `\n\n이 기기에 새 문항 ${p.added}개, 더 앞선 문항 기록 ${p.updated}개를 합칩니다.` +
+          '\n현재 진도는 지워지지 않습니다. 계속할까요?';
+        if(!confirm(msg)) return;
         const r = Store.mergeData(plain);
         if(!r) return Fx.toast('코드를 읽을 수 없어요. 전체를 복사했는지 확인해 주세요 😢');
-        Fx.toast(`합쳤어요! 문항 ${r.added}개가 새로 들어왔습니다 (총 ${r.total}개)`, true, 3200);
+        Fx.toast(`합쳤어요! 새 문항 ${r.added}개 · 갱신 ${r.updated}개 (총 ${r.total}개)`, true, 3200);
         onChange && onChange();
         sync(onChange);
       }).catch(() => Fx.toast('코드를 읽을 수 없어요 😢'));
@@ -447,14 +457,29 @@ const UI = (() => {
     $('#sync-replace').addEventListener('click', () => {
       const v = $('#sync-in').value.trim();
       if(!v) return Fx.toast('먼저 코드를 붙여 넣어 주세요');
-      if(!confirm('이 기기의 진도를 지우고 코드의 내용으로 바꿉니다. 계속할까요?')) return;
       Store.unpack(v).then(plain => {
+        const p = Store.inspectData(plain);
+        if(!p) return Fx.toast('코드가 올바르지 않아요 😢');
+        const who = p.nick ? `${p.nick} 님의 진도` : '가져올 진도';
+        const msg = `현재 진도 ${Store.s.totalAnswered.toLocaleString()}문제를 지우고 ${who}로 바꿉니다.` +
+          `\n가져올 내용: ${p.answered.toLocaleString()}문제 · ${p.cards.toLocaleString()}문항 · Lv.${p.level}` +
+          '\n\n직전 상태는 자동 백업되어 한 번 되돌릴 수 있습니다. 계속할까요?';
+        if(!confirm(msg)) return;
         if(Store.importData(plain)){
-          Fx.toast('불러오기 완료!', true);
+          Fx.toast('불러오기 완료! 필요하면 직전 상태로 되돌릴 수 있어요', true, 3200);
           onChange && onChange();
           sync(onChange);
-        } else Fx.toast('코드가 올바르지 않아요 😢');
+        } else Fx.toast('진도를 안전하게 저장할 수 없어 덮어쓰지 않았어요 😢');
       }).catch(() => Fx.toast('코드를 읽을 수 없어요 😢'));
+    });
+
+    const undo = $('#sync-undo');
+    if(undo) undo.addEventListener('click', () => {
+      if(!confirm('직전 덮어쓰기 전 진도로 되돌릴까요? 현재 가져온 진도는 사라집니다.')) return;
+      if(!Store.restoreImportBackup()) return Fx.toast('백업을 복구하지 못했어요 😢');
+      Fx.toast('직전 진도로 되돌렸어요', true, 2400);
+      onChange && onChange();
+      sync(onChange);
     });
 
     show('scr-sync');

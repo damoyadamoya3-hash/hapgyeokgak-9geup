@@ -3,12 +3,14 @@
    ══════════════════════════════════════════════════════════ */
 const Store = (() => {
   const KEY = 'hapgyeokgak9_v1';
+  const BACKUP_KEY = 'hapgyeokgak9_import_backup_v1';
 
   const DEFAULT = {
     xp: 0, lv: 1, coin: 0,
     streak: 0, lastPlay: null, playedDays: [],
     totalAnswered: 0, totalCorrect: 0,
     maxCombo: 0, bestOx: 0, bossKills: 0, examCount: 0,
+    hadPerfect: false,
     // 문제별 학습기록: { [qid]: {n, ok, ng, box, due, last} }
     cards: {},
     // 단원별 클리어: { [unitId]: {stars, best} }
@@ -30,6 +32,7 @@ const Store = (() => {
     studyPlan: null,
     // 이 사람이 스스로 붙인 이름. 기기를 오갈 때 누구 진도인지 알아보는 표시
     nick: '',
+    guideDone: false,
     // 모의고사 성적: [{t:시각, s:'all'|과목, n, ok, sub:{과목:[맞힘,푼수]}}]
     // 수험 준비에서 가장 알고 싶은 건 '내가 나아지고 있는가'인데
     // 회차 수만 세고 점수를 버리면 그걸 볼 방법이 없다.
@@ -730,14 +733,14 @@ const Store = (() => {
   /* ── 내보내기/불러오기 ────────────────────────────────
      학습 기록은 문항 수만큼 늘어나 그대로 직렬화하면 코드가 100KB를 넘는다.
      기기 간 옮길 때 붙여 넣기 어려우므로, 문항 기록만 배열로 압축한다.
-     (v1 = 옛 형식 그대로, v2 = 압축 형식) */
+     (v1 = 옛 형식, v2~v3 = 압축 형식, v4 = 마지막 풀이일 포함) */
   function exportData(){
-    const packed = { v:3, s:{ ...S } };
+    const packed = { v:4, s:{ ...S } };
     delete packed.s.cards;
     delete packed.s.activeSession;
 
     // 날짜 문자열이 문항마다 반복되므로 사전으로 묶어 번호로 대체한다.
-    // last 는 다음 풀이 때 다시 기록되므로 내보내지 않는다.
+    // 마지막 풀이일도 함께 보내야 횟수가 같은 두 기록 중 최신을 고를 수 있다.
     const dates = [], idx = {};
     const dnum = d => {
       if(d == null) return -1;
@@ -748,7 +751,7 @@ const Store = (() => {
     packed.c = {};
     for(const id in S.cards){
       const c = S.cards[id];
-      packed.c[id] = [c.n, c.ok, c.ng, c.box, dnum(c.due)];
+      packed.c[id] = [c.n, c.ok, c.ng, c.box, dnum(c.due), dnum(c.last)];
     }
     return btoa(unescape(encodeURIComponent(JSON.stringify(packed))));
   }
@@ -803,16 +806,183 @@ const Store = (() => {
     return btoa(unescape(encodeURIComponent(json)));    // 기존 해독기가 받는 모양으로
   }
 
+  const isMap = v => !!v && typeof v === 'object' && !Array.isArray(v);
+  const count = (v, max = Number.MAX_SAFE_INTEGER) =>
+    Math.min(Math.max(Math.floor(Number(v) || 0), 0), max);
+  const dateLike = v => {
+    if(typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+    const d = new Date(v + 'T00:00:00Z');
+    return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
+  };
+  const safeKey = k => k !== '__proto__' && k !== 'prototype' && k !== 'constructor';
+
+  function copyMap(v){
+    const out = {};
+    if(!isMap(v)) return out;
+    for(const k of Object.keys(v)) if(safeKey(k)) out[k] = structuredClone(v[k]);
+    return out;
+  }
+
+  /* 예전 병합은 n·ok·ng 를 각각 최댓값으로 골라 n=5, ok=5, ng=1 같은
+     불가능한 기록을 만들 수 있었다. 코드를 읽는 경계에서 횟수 합계를
+     다시 맞추고 날짜·박스 범위를 제한해 이후 분석까지 오염되지 않게 한다. */
+  function cleanCard(v){
+    if(!isMap(v)) return null;
+    const ok = count(v.ok, 1000000), ng = count(v.ng, 1000000);
+    return {
+      n:ok + ng,
+      ok, ng,
+      box:count(v.box, INTERVAL.length - 1),
+      due:dateLike(v.due) ? v.due : today(),
+      last:dateLike(v.last) ? v.last : null
+    };
+  }
+
+  function recountCards(state){
+    let n = 0, ok = 0;
+    for(const id of Object.keys(state.cards || {})){
+      const c = cleanCard(state.cards[id]);
+      if(!c){ delete state.cards[id]; continue; }
+      state.cards[id] = c; n += c.n; ok += c.ok;
+    }
+    state.totalAnswered = n;
+    state.totalCorrect = ok;
+  }
+
+  /* 가져오기 코드는 사용자가 직접 붙여 넣는 외부 입력이다. 앱이 만든
+     상태의 핵심 표식과 자료형만 허용하고, 알려진 필드만 새 객체에 옮긴다. */
+  function cleanSnapshot(p, keepSession = false){
+    if(!isMap(p) || !isMap(p.cards) || !('xp' in p) || !('totalAnswered' in p)) return null;
+    const out = structuredClone(DEFAULT);
+    const limits = {
+      xp:1000000000, coin:1000000000, streak:36500, maxCombo:1000000,
+      bestOx:1000000, bossKills:1000000, examCount:1000000
+    };
+    Object.keys(limits).forEach(k => { out[k] = count(p[k], limits[k]); });
+    out.hadPerfect = p.hadPerfect === true;
+    out.guideDone = p.guideDone === true;
+    out.lastPlay = dateLike(p.lastPlay) ? p.lastPlay : null;
+    out.examDate = dateLike(p.examDate) ? p.examDate : null;
+    out.nick = typeof p.nick === 'string' ? p.nick.trim().slice(0, 12) : '';
+
+    out.cards = {};
+    for(const id of Object.keys(p.cards)){
+      if(!safeKey(id)) continue;
+      const c = cleanCard(p.cards[id]);
+      if(c) out.cards[id] = c;
+    }
+    out.units = {};
+    for(const id of Object.keys(isMap(p.units) ? p.units : {})){
+      if(!safeKey(id) || !isMap(p.units[id])) continue;
+      out.units[id] = { stars:count(p.units[id].stars, 3), best:count(p.units[id].best, 100) };
+    }
+    out.readCards = {};
+    for(const id of Object.keys(isMap(p.readCards) ? p.readCards : {})){
+      if(!safeKey(id) || !isMap(p.readCards[id])) continue;
+      out.readCards[id] = {
+        read:dateLike(p.readCards[id].read) ? p.readCards[id].read : null,
+        drill:count(p.readCards[id].drill)
+      };
+    }
+    out.dayStats = {};
+    for(const d of Object.keys(isMap(p.dayStats) ? p.dayStats : {})){
+      if(!dateLike(d) || !isMap(p.dayStats[d])) continue;
+      const n = count(p.dayStats[d].n);
+      out.dayStats[d] = { n, ok:Math.min(count(p.dayStats[d].ok), n) };
+    }
+
+    out.answerLog = (Array.isArray(p.answerLog) ? p.answerLog : []).filter(x =>
+      isMap(x) && Number.isFinite(Number(x.t)) && typeof x.id === 'string'
+    ).map(x => ({ t:Number(x.t), id:x.id, ok:x.ok === true })).slice(-500);
+    out.examLog = (Array.isArray(p.examLog) ? p.examLog : []).filter(x =>
+      isMap(x) && Number.isFinite(Number(x.t)) && count(x.n) > 0
+    ).map(x => {
+      const sub = {};
+      for(const sid of Object.keys(isMap(x.sub) ? x.sub : {})){
+        const row = x.sub[sid];
+        if(!safeKey(sid) || !Array.isArray(row) || row.length < 2) continue;
+        const n = count(row[1]); sub[sid] = [Math.min(count(row[0]), n), n];
+      }
+      const n = count(x.n);
+      return { t:Number(x.t), s:typeof x.s === 'string' ? x.s : 'all',
+               n, ok:Math.min(count(x.ok), n), sub };
+    }).slice(-60);
+    out.playedDays = [...new Set((Array.isArray(p.playedDays) ? p.playedDays : [])
+      .filter(dateLike))].sort();
+    out.marks = copyMap(p.marks);
+    out.ach = copyMap(p.ach);
+    out.streakClaimed = copyMap(p.streakClaimed);
+    out.inv = { ...DEFAULT.inv };
+    for(const k of Object.keys(out.inv)) out.inv[k] = count((p.inv || {})[k]);
+
+    out.settings = { ...DEFAULT.settings };
+    for(const k of Object.keys(out.settings))
+      if(isMap(p.settings) && typeof p.settings[k] === 'boolean') out.settings[k] = p.settings[k];
+    if(isMap(p.daily)){
+      out.daily.date = dateLike(p.daily.date) ? p.daily.date : null;
+      out.daily.tasks = (Array.isArray(p.daily.tasks) ? p.daily.tasks : [])
+        .filter(isMap).slice(0, 3).map(t => ({
+          id:typeof t.id === 'string' ? t.id.slice(0, 40) : '',
+          text:typeof t.text === 'string' ? t.text.slice(0, 100) : '',
+          goal:Math.max(count(t.goal), 1), xp:count(t.xp), coin:count(t.coin),
+          key:typeof t.key === 'string' ? t.key.slice(0, 30) : '',
+          prog:count(t.prog), done:t.done === true, claimed:t.claimed === true
+        }));
+    }
+    if(isMap(p.studyPlan) && dateLike(p.studyPlan.date)){
+      out.studyPlan = {
+        date:p.studyPlan.date,
+        examDate:dateLike(p.studyPlan.examDate) ? p.studyPlan.examDate : null,
+        goal:Math.min(Math.max(count(p.studyPlan.goal), 1), 120),
+        capped:p.studyPlan.capped === true
+      };
+    }
+    if(isMap(p.lastExamPaper) && Array.isArray(p.lastExamPaper.rows)){
+      out.lastExamPaper = structuredClone(p.lastExamPaper);
+      out.lastExamPaper.rows = out.lastExamPaper.rows.filter(isMap).slice(0, 100);
+    }
+    out.activeSession = keepSession && isMap(p.activeSession) ? structuredClone(p.activeSession) : null;
+    recountCards(out);
+    out.lv = levelInfo(out.xp).lv;
+    return out;
+  }
+
+  function readSnapshot(str){
+    try{ return cleanSnapshot(decodePack(str)); }
+    catch(e){ return null; }
+  }
+
+  function hasImportBackup(){
+    try{ return !!localStorage.getItem(BACKUP_KEY); }
+    catch(e){ return false; }
+  }
+  function clearImportBackup(){
+    try{ localStorage.removeItem(BACKUP_KEY); return true; }
+    catch(e){ return false; }
+  }
+
   function importData(str){
-    try{
-      const p = decodePack(str);
-      if(!p) return false;
-      S = Object.assign(structuredClone(DEFAULT), p);
-      S.settings = Object.assign(structuredClone(DEFAULT.settings), p.settings || {});
-      S.daily    = Object.assign(structuredClone(DEFAULT.daily),    p.daily    || {});
-      save();
-      return true;
-    }catch(e){ return false; }
+    const next = readSnapshot(str);
+    if(!next) return false;
+    const before = structuredClone(S);
+    try{ localStorage.setItem(BACKUP_KEY, JSON.stringify(before)); }
+    catch(e){ return false; }                 // 되돌릴 수 없으면 덮어쓰지 않는다
+    S = next;
+    if(save()) return true;
+    S = before; save();
+    return false;
+  }
+
+  function restoreImportBackup(){
+    let next;
+    try{ next = cleanSnapshot(JSON.parse(localStorage.getItem(BACKUP_KEY)), true); }
+    catch(e){ return false; }
+    if(!next) return false;
+    const before = S;
+    S = next;
+    if(!save()){ S = before; save(); return false; }
+    clearImportBackup();
+    return true;
   }
   /* 모의고사 한 회차를 기록한다. 오래된 것부터 60회까지만 남긴다. */
   function logExam(scope, bySub, paper = null){
@@ -872,33 +1042,65 @@ const Store = (() => {
      코드로 뽑아 다른 기기에 붙여 넣는다. 이때 덮어쓰면 안 된다 —
      PC 코드를 폰에 넣는 순간 폰에서 푼 것이 사라지기 때문이다.
      그래서 두 기록 중 더 많이 공부한 쪽을 남기는 병합으로 처리한다. */
+  function incomingCardWins(a, b){
+    if(b.n !== a.n) return b.n > a.n;                // 더 많이 푼 기록
+    if((b.last || '') !== (a.last || '')) return (b.last || '') > (a.last || '');
+    const aa = a.n ? a.ok / a.n : 0, ba = b.n ? b.ok / b.n : 0;
+    if(ba !== aa) return ba < aa;                    // 같다면 과대 숙달보다 안전하게
+    if(b.box !== a.box) return b.box < a.box;
+    if(b.due !== a.due) return b.due < a.due;
+    return false;
+  }
+
+  function inspectData(str){
+    const inc = readSnapshot(str);
+    if(!inc) return null;
+    let added = 0, updated = 0;
+    for(const id of Object.keys(inc.cards)){
+      const a = cleanCard(S.cards[id]), b = inc.cards[id];
+      if(!a) added++;
+      else if(incomingCardWins(a, b) && JSON.stringify(a) !== JSON.stringify(b)) updated++;
+    }
+    return {
+      nick:inc.nick || '', level:levelInfo(inc.xp).lv,
+      answered:inc.totalAnswered, correct:inc.totalCorrect,
+      cards:Object.keys(inc.cards).length, added, updated
+    };
+  }
+
   function mergeData(str){
-    let inc;
-    try{ inc = decodePack(str); }catch(e){ return null; }
+    const inc = readSnapshot(str);
     if(!inc) return null;
 
     const before = { n:S.totalAnswered, cards:Object.keys(S.cards).length };
+    let updated = 0, repaired = 0;
 
     // 누적값은 큰 쪽을 남긴다
-    ['xp','coin','totalAnswered','totalCorrect','maxCombo','bestOx',
-     'bossKills','examCount','streak'].forEach(k => {
+    ['xp','coin','maxCombo','bestOx','bossKills','examCount','streak'].forEach(k => {
       S[k] = Math.max(S[k] || 0, inc[k] || 0);
     });
-    S.lv = levelInfo(S.xp).lv;
+    S.hadPerfect = S.hadPerfect === true || inc.hadPerfect === true;
+    S.guideDone = S.guideDone === true || inc.guideDone === true;
 
-    // 문항 기록 — 더 많이 푼 쪽을 남기고, 복습일은 이른 쪽을 택한다
-    for(const id in (inc.cards || {})){
+    /* 문항 기록은 한쪽 스냅샷을 통째로 고른다. 필드별 최댓값을 섞으면
+       풀이 수보다 정답+오답이 많아지고 SRS 박스와 복습일도 서로 다른
+       시점 것이 되는 데이터 손상이 생긴다. */
+    for(const id of Object.keys(S.cards)){
+      const clean = cleanCard(S.cards[id]);
+      if(!clean){ delete S.cards[id]; repaired++; continue; }
+      if(JSON.stringify(clean) !== JSON.stringify(S.cards[id])) repaired++;
+      S.cards[id] = clean;
+    }
+    for(const id of Object.keys(inc.cards)){
       const a = S.cards[id], b = inc.cards[id];
       if(!a){ S.cards[id] = b; continue; }
-      S.cards[id] = {
-        n:   Math.max(a.n, b.n),
-        ok:  Math.max(a.ok, b.ok),
-        ng:  Math.max(a.ng, b.ng),
-        box: Math.max(a.box, b.box),
-        due: (a.due && b.due) ? (a.due < b.due ? a.due : b.due) : (a.due || b.due),
-        last: (a.last && b.last) ? (a.last > b.last ? a.last : b.last) : (a.last || b.last)
-      };
+      if(incomingCardWins(a, b)){
+        if(JSON.stringify(a) !== JSON.stringify(b)) updated++;
+        S.cards[id] = b;
+      }
     }
+    recountCards(S);                              // 누적값도 문항 기록과 다시 맞춘다
+    S.lv = levelInfo(S.xp).lv;
 
     // 단원 성적은 별과 최고점이 높은 쪽
     for(const u in (inc.units || {})){
@@ -930,9 +1132,10 @@ const Store = (() => {
         ? { read: a.read || b.read, drill: Math.max(a.drill || 0, b.drill || 0) }
         : b;
     }
-    Object.assign(S.marks,         inc.marks         || {});
-    Object.assign(S.ach,           inc.ach           || {});
-    Object.assign(S.streakClaimed, inc.streakClaimed || {});
+    for(const k of Object.keys(inc.marks || {})) if(safeKey(k)) S.marks[k] = inc.marks[k];
+    for(const k of Object.keys(inc.ach || {})) if(safeKey(k)) S.ach[k] = inc.ach[k];
+    for(const k of Object.keys(inc.streakClaimed || {}))
+      if(safeKey(k)) S.streakClaimed[k] = inc.streakClaimed[k];
     for(const k in (inc.inv || {})) S.inv[k] = Math.max(S.inv[k] || 0, inc.inv[k]);
 
     // 모의고사 기록은 두 기기의 회차를 시각 기준으로 합쳐 시간순으로 세운다
@@ -975,23 +1178,29 @@ const Store = (() => {
     save();
     return {
       added:   Object.keys(S.cards).length - before.cards,
+      updated,
+      repaired,
       answered: S.totalAnswered - before.n,
       total:   Object.keys(S.cards).length
     };
   }
 
-  /* 코드 → 상태 객체. v1~v3 을 모두 읽는다. */
+  /* 코드 → 상태 객체. v1~v4 를 모두 읽는다. */
   function decodePack(str){
     const raw = JSON.parse(decodeURIComponent(escape(atob(String(str).trim()))));
-    if(!raw) return null;
-    if(raw.v !== 2 && raw.v !== 3) return raw;      // 옛 형식
-    const p = raw.s || {};
+    if(!isMap(raw)) return null;
+    if(raw.v !== 2 && raw.v !== 3 && raw.v !== 4) return raw;      // 옛 형식
+    if(!isMap(raw.s) || !isMap(raw.c)) return null;
+    const p = raw.s;
     p.cards = {};
-    const dates = raw.d || [];
-    for(const id in (raw.c || {})){
+    const dates = Array.isArray(raw.d) ? raw.d : [];
+    for(const id of Object.keys(raw.c)){
+      if(!safeKey(id)) continue;
       const a = raw.c[id];
-      const due = raw.v === 3 ? (dates[a[4]] ?? today()) : a[4];
-      p.cards[id] = { n:a[0], ok:a[1], ng:a[2], box:a[3], due, last:a[5] || null };
+      if(!Array.isArray(a) || a.length < 4) continue;
+      const due = raw.v >= 3 ? (dates[a[4]] ?? today()) : a[4];
+      const last = raw.v >= 4 ? (dates[a[5]] ?? null) : (a[5] || null);
+      p.cards[id] = { n:a[0], ok:a[1], ng:a[2], box:a[3], due, last };
     }
     return p;
   }
@@ -1007,7 +1216,9 @@ const Store = (() => {
     SHOP, buy, useItem, has, logExam, examLog, lastExam, lastExamPaper,
     updateExamPaperReview, paperReviewSummary,
     subjectAccuracy, subjectSeen, touchStreak, daily, progressTask,
-    checkAch, ACHS, exportData, importData, mergeData, reset, today, dateKey,
+    checkAch, ACHS, exportData, inspectData, importData, mergeData,
+    hasImportBackup, restoreImportBackup, clearImportBackup,
+    reset, today, dateKey,
     saveSession, restoreSession, sessionInfo, clearSession,
     onSaveError, get saveBroken(){ return saveBroken; },
     exportPacked, unpack, CAN_ZIP

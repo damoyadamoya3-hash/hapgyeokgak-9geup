@@ -769,11 +769,45 @@ t('이어하기 — 합쳐도 더 많이 공부한 쪽이 남는다', () => {
   const r = Store.mergeData(code);
   ok(r, '병합 실패');
   eq(Object.keys(Store.s.cards).length, 200, '카드 수');
+  eq([Store.s.totalAnswered, Store.s.totalCorrect], [600,500], '문항 기록과 누적 풀이 수');
+  eq([r.added, r.updated], [50,50], '새 기록·갱신 미리보기');
   eq(Store.s.xp, 5000, 'XP 는 큰 쪽');
   eq(Store.s.streak, 20, '연속일은 큰 쪽');
   eq(Store.s.units['law-gen'], { stars:3, best:95 }, '단원 성적은 높은 쪽');
   const c = Store.s.cards[all[60].id];      // 양쪽에 다 있는 문항
-  eq([c.n, c.ok, c.box], [5, 5, 4], '겹치는 문항은 더 많이 푼 쪽');
+  eq([c.n, c.ok, c.ng, c.box, c.due], [5,5,0,4,shift(3)],
+    '겹치는 문항의 한쪽 기록을 통째로 남기지 않음');
+});
+
+t('이어하기 — 풀이 수가 같으면 마지막 풀이일이 최신인 기록을 남긴다', () => {
+  fresh();
+  const q = QB.items[0];
+  Store.s.cards[q.id] = { n:2, ok:2, ng:0, box:3, due:shift(5), last:Store.today() };
+  Store.s.totalAnswered = 2; Store.s.totalCorrect = 2;
+  const newer = Store.exportData();
+
+  fresh();
+  Store.s.cards[q.id] = { n:2, ok:1, ng:1, box:0, due:shift(0), last:shift(-1) };
+  Store.s.totalAnswered = 2; Store.s.totalCorrect = 1;
+  eq(Store.inspectData(newer).updated, 1, '최신 기록 미리보기');
+  Store.mergeData(newer);
+  eq(Store.s.cards[q.id], { n:2, ok:2, ng:0, box:3, due:shift(5), last:Store.today() },
+    '마지막 풀이일이 내보내기에서 사라짐');
+});
+
+t('이어하기 — 기존 v3 진도 코드도 계속 불러온다', () => {
+  Store.clearImportBackup();
+  fresh();
+  Store.record(QB.items[0].id, true);
+  const raw = JSON.parse(decodeURIComponent(escape(atob(Store.exportData()))));
+  raw.v = 3;
+  for(const id of Object.keys(raw.c)) raw.c[id] = raw.c[id].slice(0, 5);
+  const legacy = btoa(unescape(encodeURIComponent(JSON.stringify(raw))));
+  fresh();
+  ok(Store.inspectData(legacy), 'v3 미리보기 실패');
+  ok(Store.importData(legacy), 'v3 불러오기 실패');
+  eq([Store.s.totalAnswered, Store.s.totalCorrect], [1,1], 'v3 진도');
+  Store.clearImportBackup();
 });
 
 t('이어하기 — 자기 코드를 합쳐도 변하지 않는다', () => {
@@ -781,6 +815,7 @@ t('이어하기 — 자기 코드를 합쳐도 변하지 않는다', () => {
   const all = QB.items;
   for(let i = 0; i < 80; i++)
     Store.s.cards[all[i].id] = { n:2, ok:1, ng:1, box:2, due: shift(1), last: Store.today() };
+  Store.s.totalAnswered = 160; Store.s.totalCorrect = 80;
   Store.addXp(1234);                      // lv 등 파생값까지 맞춘 상태로 만든다
   const before = JSON.stringify(Store.s);
   Store.mergeData(Store.exportData());
@@ -794,6 +829,46 @@ t('이어하기 — 깨진 코드는 진도를 건드리지 않는다', () => {
   const before = JSON.stringify(Store.s);
   eq(Store.mergeData('이건 코드가 아니다'), null, '깨진 코드를 받아들임');
   eq(JSON.stringify(Store.s), before, '진도가 바뀜');
+});
+
+t('이어하기 — 정상처럼 보이는 잘못된 코드도 가져오기 전에 거부한다', () => {
+  fresh();
+  const q = QB.items[0]; Store.record(q.id, true);
+  const before = JSON.stringify(Store.s);
+  const malformed = btoa(unescape(encodeURIComponent(JSON.stringify({ hello:'world' }))));
+  eq(Store.inspectData(malformed), null, '잘못된 코드 미리보기를 허용함');
+  eq(Store.mergeData(malformed), null, '잘못된 코드를 합침');
+  eq(Store.importData(malformed), false, '잘못된 코드로 덮어씀');
+  eq(JSON.stringify(Store.s), before, '거부한 코드가 진도를 바꿈');
+});
+
+t('이어하기 — 덮어쓰기 전 상태를 자동 백업하고 한 번 되돌린다', () => {
+  Store.clearImportBackup();
+  fresh();
+  Store.s.nick = '가져올쪽';
+  Store.record(QB.items[0].id, true);
+  Store.record(QB.items[0].id, false);
+  const incoming = Store.exportData();
+
+  fresh();
+  Store.s.nick = '원래쪽';
+  Store.record(QB.items[1].id, true);
+  const sess = Engine.build('quest', { unit:QB.items[2].unit, subject:QB.items[2].subject });
+  Store.saveSession(sess, { timerLeft:77 });
+  const before = JSON.stringify(Store.s);
+
+  const preview = Store.inspectData(incoming);
+  eq([preview.nick, preview.answered, preview.cards], ['가져올쪽',2,1], '가져오기 미리보기');
+  ok(Store.importData(incoming), '덮어쓰기 실패');
+  ok(Store.hasImportBackup(), '자동 백업 없음');
+  eq([Store.s.nick, Store.s.totalAnswered], ['가져올쪽',2], '가져온 진도');
+  ok(Store.restoreImportBackup(), '백업 되돌리기 실패');
+  eq(JSON.stringify(Store.s), before, '직전 진도로 돌아오지 않음');
+  ok(!Store.hasImportBackup(), '쓴 백업이 남아 있음');
+
+  const ui = rd('js/ui.js');
+  ok(/Store\.inspectData/.test(ui) && /sync-undo/.test(ui) && /자동 백업/.test(ui),
+    '미리보기·되돌리기 UI 없음');
 });
 
 /* ── 저장 ────────────────────────────────────────────────── */
