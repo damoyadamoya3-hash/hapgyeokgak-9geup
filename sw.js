@@ -9,28 +9,52 @@
 
    진도는 localStorage 에 있으므로 캐시를 지워도 사라지지 않는다.
    ══════════════════════════════════════════════════════════ */
-const CACHE = 'hg9-v3';
-const ASSETS = [
-  './', './index.html', './manifest.webmanifest',
+const CACHE_PREFIX = 'hg9-';
+const CACHE = CACHE_PREFIX + 'v4';
+const CORE_ASSETS = ['./', './index.html'];
+const OPTIONAL_ASSETS = [
+  './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-512-maskable.png'
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE)
-      .then(c => c.addAll(ASSETS))
-      .then(() => self.skipWaiting())
-      .catch(() => self.skipWaiting())   // 하나라도 실패해도 설치는 진행한다
-  );
+  e.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    // 핵심 화면이 하나라도 빠지면 설치 자체를 실패시켜 기존 오프라인판을
+    // 계속 쓴다. 아이콘은 실패해도 문제 풀이에는 영향이 없어 따로 시도한다.
+    await cache.addAll(CORE_ASSETS);
+    await Promise.allSettled(OPTIONAL_ASSETS.map(asset => cache.add(asset)));
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys()
-      .then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k))))
-      .then(() => self.clients.claim())
-  );
+  e.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    if(!await cache.match('./index.html'))
+      throw new Error('오프라인 핵심 화면이 준비되지 않았습니다.');
+    const keys = await caches.keys();
+    // CacheStorage는 username.github.io 전체가 공유한다. 이름이 다른 캐시를
+    // 지우면 같은 계정의 다른 Pages 앱 오프라인판까지 망가질 수 있다.
+    await Promise.all(keys
+      .filter(key => key.startsWith(CACHE_PREFIX) && key !== CACHE)
+      .map(key => caches.delete(key)));
+    await self.clients.claim();
+  })());
 });
+
+async function fetchAndCache(request, key = request){
+  const response = await fetch(request);
+  if(response && response.ok){
+    // 저장 공간 부족은 다음 오프라인 실행에만 영향을 줘야 한다. 이미 받은
+    // 최신 온라인 응답까지 버리고 503을 보여 주는 원인이 되어서는 안 된다.
+    try{
+      const cache = await caches.open(CACHE);
+      await cache.put(key, response.clone());
+    }catch(e){}
+  }
+  return response;
+}
 
 self.addEventListener('fetch', e => {
   const req = e.request;
@@ -42,13 +66,8 @@ self.addEventListener('fetch', e => {
   // 반드시 한 버전 전 화면을 보여 주고, 두 번째 실행에서야 갱신됐다.
   if(req.mode === 'navigate'){
     e.respondWith(
-      fetch(req).then(res => {
-        if(res && res.ok){
-          const copy = res.clone();
-          caches.open(CACHE).then(c => c.put('./index.html', copy));
-        }
-        return res;
-      }).catch(() => caches.match('./index.html').then(hit => hit || caches.match('./')))
+      fetchAndCache(req, './index.html')
+        .catch(() => caches.match('./index.html').then(hit => hit || caches.match('./')))
         .then(hit => hit || new Response('오프라인 캐시를 준비하지 못했습니다.', {
           status:503, headers:{ 'Content-Type':'text/plain; charset=utf-8' }
         }))
@@ -60,29 +79,16 @@ self.addEventListener('fetch', e => {
      반쪽 업데이트가 된다. 실행 코드만큼은 같은 방문에서 최신본을 받는다. */
   if(['script','style','worker'].includes(req.destination)){
     e.respondWith(
-      fetch(req).then(res => {
-        if(res && res.ok){
-          const copy = res.clone();
-          caches.open(CACHE).then(c => c.put(req, copy));
-        }
-        return res;
-      }).catch(() => caches.match(req, { ignoreSearch:true }))
+      fetchAndCache(req)
+        .catch(() => caches.match(req, { ignoreSearch:true }))
         .then(hit => hit || new Response('', { status:503 }))
     );
     return;
   }
 
-  e.respondWith(
-    caches.match(req, { ignoreSearch: true }).then(hit => {
-      const fresh = fetch(req).then(res => {
-        if(res && res.ok){
-          const copy = res.clone();
-          caches.open(CACHE).then(c => c.put(req, copy));
-        }
-        return res;
-      }).catch(() => hit);          // 오프라인이면 캐시가 답이다
-
-      return hit || fresh;
-    })
-  );
+  const fresh = fetchAndCache(req).catch(() => null);
+  e.waitUntil(fresh);               // 캐시 응답 뒤에도 새 사본 기록을 끝낸다
+  e.respondWith(caches.match(req, { ignoreSearch:true }).then(async hit =>
+    hit || await fresh || new Response('', { status:503 })
+  ));
 });

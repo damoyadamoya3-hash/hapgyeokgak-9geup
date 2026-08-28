@@ -10,6 +10,7 @@
    ══════════════════════════════════════════════════════════ */
 const fs   = require('fs');
 const path = require('path');
+const childProcess = require('child_process');
 const ROOT = path.resolve(__dirname, '..');
 const rd   = p => fs.readFileSync(path.join(ROOT, p), 'utf8');
 
@@ -106,6 +107,8 @@ t('PWA — 설치 정보와 1200×630 공유 카드를 함께 배포한다', () 
   const sw = rd('sw.js');
   ok(/req\.mode === 'navigate'/.test(sw), '문서 네트워크 우선 갱신 없음');
   ok(/\['script','style','worker'\]\.includes\(req\.destination\)/.test(sw), '코드 네트워크 우선 갱신 없음');
+  childProcess.execFileSync(process.execPath, [path.join(ROOT, 'tools', 'test-sw.js')],
+    { stdio:'pipe' });
 });
 
 t('접근성 — 화면 이동과 설정창에 초점 안내가 있다', () => {
