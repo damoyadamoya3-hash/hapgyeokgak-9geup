@@ -115,9 +115,28 @@ const Engine = (() => {
     cloze: { label:'세뇌 암기',     hearts:0, timer:0,  n:30 }
   };
 
+  /* 2025년부터 9급 공채 100문항의 시험시간은 110분이다. 2027년에는
+     한국사가 한능검 3급 이상으로 대체되고, 남은 네 과목이 25문항씩이
+     된다. 설정한 시험일이 있으면 그 해를, 없으면 올해 제도를 쓴다. */
+  function examPlan(date = Store.s.examDate){
+    const parsed = Number(String(date || '').slice(0, 4));
+    const year = parsed >= 2000 && parsed <= 2200 ? parsed : new Date().getFullYear();
+    const reformed = year >= 2027;
+    const subjectIds = QB.SUBJECTS.map(s => s.id).filter(id => !reformed || id !== 'his');
+    return {
+      year, reformed, subjectIds,
+      per:reformed ? 25 : 20,
+      total:100,
+      timer:110 * 60,
+      secondsPerQuestion:66,
+      historyRequirement:reformed ? '한국사능력검정시험 3급 이상' : null
+    };
+  }
+
   function build(mode, opt = {}){
     let cfg = MODE[mode];
     let pool = [];
+    const policy = mode === 'exam' ? examPlan(opt.examDate) : null;
 
     if(mode === 'quest'){
       pool = QB.byUnit(opt.unit);
@@ -203,12 +222,16 @@ const Engine = (() => {
         return shuffle(out);
       };
       if(opt.subject === 'all'){
-        // 전 과목 통합 회차 — 과목마다 균등하게 뽑아 실제 시험 구성에 맞춘다
-        const per = opt.per || 20;
+        // 통합 회차 — 시험일 기준 과목·문항 수로 실제 구성에 맞춘다.
+        // 2027년부터 한국사는 필기에서 빠지고 나머지 네 과목이 25문항이다.
+        const per = opt.per || policy.per;
         pool = [];
-        for(const sub of QB.SUBJECTS) pool = pool.concat(examPick(sub.id, per));
+        for(const sid of policy.subjectIds) pool = pool.concat(examPick(sid, per));
       }else{
-        pool = examPick(opt.subject, cfg.n);
+        // 2027년 필기 과목은 25문항. 한국사 메뉴는 별도 한능검 대비
+        // 연습이므로 기존 20문항 회차를 유지한다.
+        const size = policy.reformed && opt.subject !== 'his' ? policy.per : cfg.n;
+        pool = examPick(opt.subject, size);
       }
     }
 
@@ -218,12 +241,12 @@ const Engine = (() => {
     if(mode === 'quest' || mode === 'exam' || mode === 'boss'){
       if(mode === 'exam' && opt.subject === 'all'){
         // 통합 회차는 과목별로 나눠 균형을 맞춘다
-        for(const sub of QB.SUBJECTS){
-          const part = pool.filter(q => q.subject === sub.id);
-          evenOutOx(part, { subject: sub.id });
+        for(const sid of policy.subjectIds){
+          const part = pool.filter(q => q.subject === sid);
+          evenOutOx(part, { subject:sid });
           let k = 0;
           for(let i = 0; i < pool.length; i++)
-            if(pool[i].subject === sub.id) pool[i] = part[k++];
+            if(pool[i].subject === sid) pool[i] = part[k++];
         }
       }else{
         evenOutOx(pool, opt);
@@ -232,9 +255,18 @@ const Engine = (() => {
 
     pool.forEach(shuffleChoices);
 
-    // 전 과목 모의고사는 문항 수에 비례해 시간을 준다 (1문항 = 1분)
-    const sessionCfg = (mode === 'exam' && opt.subject === 'all')
-      ? { ...cfg, n: pool.length, timer: pool.length * 60 }
+    // 현행·2027 개편안 모두 필기 100문항 110분이다. 과목별 연습도
+    // 같은 1문항당 66초 속도로 맞춰 잘못된 1분 압박을 만들지 않는다.
+    const sessionCfg = mode === 'exam'
+      ? { ...cfg,
+          label: opt.subject === 'his' && policy.reformed
+            ? '한능검 대비 연습'
+            : `실전 모의고사 · ${policy.year} 기준`,
+          n:pool.length,
+          timer:Math.round(pool.length * policy.secondsPerQuestion),
+          examYear:policy.year,
+          reformed:policy.reformed,
+          historyRequirement:policy.historyRequirement }
       : cfg;
 
     return {
@@ -417,12 +449,15 @@ const Engine = (() => {
     if(!S || S.mode !== 'exam' || !S.examGraded) return null;
     const flagged = Object.keys(S.examFlags || {}).filter(i => S.examFlags[i]).length;
     return {
-      v:2,
+      v:3,
       n:S.queue.length,
       ok:S.correct,
       blank:S.examBlank || 0,
       flagged,
       elapsed:Math.max(0, Date.now() - (S.startedAt || Date.now())),
+      examYear:S.cfg.examYear || null,
+      reformed:!!S.cfg.reformed,
+      timeLimit:S.cfg.timer || 0,
       reviewedAt:null,
       rows:examReview(S).map(r => ({
         id:r.q.id, number:r.number, subject:r.q.subject,
@@ -511,7 +546,7 @@ const Engine = (() => {
              streak: streakInfo.streak, streakReward: streakInfo.reward, paperReview };
   }
 
-  return { build, current, submit, clearExamAnswer, examIndexes,
+  return { build, current, submit, clearExamAnswer, examIndexes, examPlan,
            gradeExam, examReview, examPaper,
            advance, finish, isCorrect, shuffle, MODE };
 })();

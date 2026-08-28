@@ -241,6 +241,11 @@ const UI = (() => {
     $('#mc-exam-tag').textContent  = le
       ? `응시 ${s.examCount}회 · 최근 ${Math.round(le.ok / le.n * 100)}점`
       : `응시 ${s.examCount}회`;
+    const policy = Engine.examPlan();
+    const examDesc = $('#mc-exam-desc');
+    if(examDesc) examDesc.textContent = policy.reformed
+      ? '4과목 × 25문항 · 110분 · 한능검 대체'
+      : '5과목 × 20문항 · 110분 실전 감각';
     $('#mc-wrong-tag').textContent = `${Store.wrongCards().length}문제 수감`;
     const ct = $('#mc-codex-tag');
     if(ct) ct.textContent = `수집 ${Store.readCount()}/${QB.theory.length}장`;
@@ -642,9 +647,10 @@ const UI = (() => {
           const recoveryText = recovery.attempted
             ? ` · 복기 ${recovery.recovered}/${recovery.total} 완료`
             : '';
+          const policyText = lastPaper.examYear ? ` · ${lastPaper.examYear} 기준` : '';
           return `<button id="btn-last-exam-paper" class="last-exam-paper">
             <span class="lep-icon">🧾</span>
-            <span class="lep-body"><b>최근 답안지 다시 보기</b><small>${date} · ${lastPaper.ok}/${lastPaper.n} · ${score}점${recoveryText}</small></span>
+            <span class="lep-body"><b>최근 답안지 다시 보기</b><small>${date}${policyText} · ${lastPaper.ok}/${lastPaper.n} · ${score}점${recoveryText}</small></span>
             <em>열기 →</em>
           </button>`;
         })() : ''}
@@ -1186,11 +1192,14 @@ const UI = (() => {
     const sec = Math.round((paper.elapsed || 0) / 1000);
     const elapsed = sec >= 60 ? `${Math.floor(sec / 60)}분 ${sec % 60}초` : `${sec}초`;
     const score = paper.n ? Math.round(paper.ok / paper.n * 100) : 0;
+    const policyText = paper.examYear
+      ? `${paper.examYear}년 ${paper.reformed ? '개편' : '현행'} 기준 · `
+      : '';
     const pendingRows = paper.rows.filter(r => r.recovered !== true);
     const quizRows = pendingRows.length ? pendingRows : paper.rows;
     const body = $('#exam-history-body');
     body.innerHTML = `<div class="exam-paper-summary">
-        <span>🧾</span><div><h3>${esc(scope)}</h3><p>${date} · ${paper.ok}/${paper.n} · ${score}점 · ${elapsed}</p></div>
+        <span>🧾</span><div><h3>${esc(scope)}</h3><p>${date} · ${policyText}${paper.ok}/${paper.n} · ${score}점 · ${elapsed}</p></div>
       </div>${paper.rows.length && onPaperQuiz
         ? `<button id="btn-exam-history-quiz" class="${pendingRows.length ? 'btn-primary' : 'btn-ghost'} exam-paper-quiz">${
             pendingRows.length
@@ -1225,7 +1234,9 @@ const UI = (() => {
     else if(S.mode === 'ox') sub = `60초 동안 ${S.correct}문제 정답!`;
     else if(S.mode === 'exam'){
       const sec = Math.round((Date.now() - S.startedAt) / 1000);
-      sub = `답안 ${S.examAnsweredCount}/${S.queue.length}문항 작성 · ${sec}초 소요`;
+      const elapsed = sec >= 60 ? `${Math.floor(sec / 60)}분 ${sec % 60}초` : `${sec}초`;
+      const policyText = S.cfg.examYear ? `${S.cfg.examYear}년 기준 · ` : '';
+      sub = `${policyText}답안 ${S.examAnsweredCount}/${S.queue.length}문항 · ${elapsed}`;
     }
     else if(S.mode === 'paper' && recovery)
       sub = `시험 복기 ${recovery.recovered}/${recovery.total}문항 바로잡음`;

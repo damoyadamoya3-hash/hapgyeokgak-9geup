@@ -644,12 +644,21 @@
         UI.selectSubject('👹 도전할 보스를 고르세요', '정답 1개 = 보스 HP 1 감소. 하트 3개를 모두 잃으면 패배!',
           sid => start('boss', { subject: sid }));
       } else if(m === 'exam'){
+        const policy = Engine.examPlan();
+        const policyNote = policy.reformed
+          ? `<b>${policy.year}년 개편 기준</b> — 국어·영어·교육학·행정법 각 25문항, 총 100문항·110분입니다. ` +
+            `한국사는 필기에서 빠지고 <b>한능검 3급 이상</b>으로 대체됩니다. 한국사 과목 카드는 별도 한능검 연습입니다.`
+          : `<b>${policy.year}년 현행 기준</b> — 5과목 각 20문항, 총 100문항·110분입니다.`;
         UI.selectSubject('📝 모의고사 범위',
-          '실전처럼 <b>해설 없이</b> 끝까지 풀고, 마지막에 한꺼번에 채점합니다.<br>' +
-          '오답은 자동으로 오답노트에 담깁니다.',
+          policyNote + '<br>실전처럼 <b>해설 없이</b> 끝까지 풀고 마지막에 한꺼번에 채점합니다. ' +
+          '오답은 자동으로 오답노트에 담깁니다.<br>' +
+          '<a href="https://www.mpm.go.kr/mpm/comm/policyPR/mpmFocus/?cntId=191&amp;mode=view" target="_blank" rel="noopener noreferrer">인사혁신처 공식 개편 안내 ↗</a> · ' +
+          '<a href="https://www.goe.go.kr/resource/goe/na/bbs_2584/2026/01/c09919aa-1cfd-46d6-bb8a-e3d5ba4cb430.pdf" target="_blank" rel="noopener noreferrer">교육청 제도 안내 ↗</a>',
           sid => start('exam', { subject: sid }),
           { id:'all', name:'전 과목 통합 회차', emoji:'🏁',
-            desc:'5과목 × 20문항 = 100문항 · 100분. 실제 시험과 같은 분량',
+            desc:policy.reformed
+              ? '4과목 × 25문항 = 100문항 · 110분. 2027 개편 기준'
+              : '5과목 × 20문항 = 100문항 · 110분. 현행 기준',
             color:'var(--brand)' });
       } else if(m === 'ox'){
         UI.selectSubject('⚡ OX 스피드런 범위', '60초 안에 최대한 많이! 자동으로 다음 문제가 나옵니다.',

@@ -321,12 +321,36 @@ t('모의고사 — 기출형 객관식으로만 채운다', () => {
   }
 });
 
-t('모의고사 — 전 과목 회차는 100문항이며 과목마다 20문항', () => {
+t('모의고사 — 2026 회차는 5과목 100문항·110분', () => {
   fresh();
+  Store.setExamDate('2026-06-20');
   const s = Engine.build('exam', { subject:'all' });
   eq(s.queue.length, 100, '문항 수');
   for(const sub of QB.SUBJECTS)
     eq(s.queue.filter(q => q.subject === sub.id).length, 20, sub.name + ' 배분');
+  eq([s.cfg.timer, s.cfg.examYear, s.cfg.reformed], [6600,2026,false], '시간·제도 기준');
+});
+
+t('모의고사 — 2027 회차는 한국사를 뺀 4과목 100문항·110분', () => {
+  fresh();
+  Store.setExamDate('2027-06-19');
+  const s = Engine.build('exam', { subject:'all' });
+  eq(s.queue.length, 100, '문항 수');
+  eq([...new Set(s.queue.map(q => q.subject))].sort(), ['edu','eng','kor','law'], '필기 과목');
+  for(const sid of ['edu','eng','kor','law'])
+    eq(s.queue.filter(q => q.subject === sid).length, 25, sid + ' 배분');
+  eq([s.cfg.timer, s.cfg.examYear, s.cfg.reformed], [6600,2027,true], '시간·제도 기준');
+  eq(s.cfg.historyRequirement, '한국사능력검정시험 3급 이상', '한국사 대체 기준');
+
+  const one = Engine.build('exam', { subject:'edu' });
+  eq([one.queue.length, one.cfg.timer], [25,1650], '개편 필기 과목별 연습');
+  const history = Engine.build('exam', { subject:'his' });
+  eq([history.queue.length, history.cfg.timer, history.cfg.label],
+    [20,1320,'한능검 대비 연습'], '한국사 별도 연습');
+
+  const app = rd('js/app.js'), html = rd('index.html');
+  ok(/cntId=191/.test(app) && /c09919aa/.test(app), '공식 제도 출처 링크 없음');
+  ok(/id="mc-exam-desc"/.test(html) && /100문항 · 110분/.test(html), '홈 시험 안내 없음');
 });
 
 t('모의고사 — 한 회차 안에서 같은 문항이 겹치지 않는다', () => {
