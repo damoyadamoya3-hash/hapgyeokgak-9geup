@@ -145,6 +145,7 @@ const UI = (() => {
   function planCard(onGo){
     onGo = onGo || planGo;
     const p = Store.plan();
+    const batch = Engine.dailyBatch(p, 30);
     const el = $('#plan-card');
     const done = Math.min(p.todayN, p.goal);
     const ratio = p.goal ? Math.min(done / p.goal * 100, 100) : 0;
@@ -158,20 +159,30 @@ const UI = (() => {
       : `<b class="pc-dday pc-set">🗓️ 시험일 설정</b><span class="pc-date">눌러서 D-day를 켜세요</span>`;
 
     el.innerHTML = `
-      <div class="pc-top">${head}
-        <span class="pc-pct">진도 ${p.pct}%</span>
-      </div>
-      <div class="pc-bar"><i style="width:${p.pct}%"></i></div>
-      <div class="pc-goal">
-        <span>오늘 목표 <b>${done} / ${p.goal}</b>문항</span>
-        <span class="pc-left">남은 문항 ${p.left}개</span>
-      </div>
-      <div class="pc-today"><i style="width:${ratio}%"></i></div>
+      <button class="pc-settings" type="button" data-plan-settings
+              aria-label="시험일과 오늘 목표 설정 열기">
+        <span class="pc-top">${head}
+          <span class="pc-pct">진도 ${p.pct}%</span>
+        </span>
+        <span class="pc-bar"><i style="width:${p.pct}%"></i></span>
+        <span class="pc-goal">
+          <span>오늘 목표 <b>${done} / ${p.goal}</b>문항</span>
+          <span class="pc-left">${p.remaining ? `오늘 ${p.remaining}문항 남음` : '오늘 목표 완료'}</span>
+        </span>
+        <span class="pc-today"><i style="width:${ratio}%"></i></span>
+      </button>
       <div class="pc-split">
-        <span class="pc-rev ${p.due > p.review ? 'over' : ''}" data-go="srs" role="button" tabindex="0">🔁 복습 <b>${p.review}</b>문항${
-          p.due > p.review ? ` <small>(밀림 ${p.due})</small>` : ''}</span>
-        <span class="pc-new" data-go="fresh" role="button" tabindex="0">✨ 새 문제 <b>${p.fresh}</b>문항</span>
+        <button class="pc-rev ${p.due > p.review ? 'over' : ''}" data-go="srs" ${p.review ? '' : 'disabled'}>🔁 복습 <b>${p.review}</b>${
+          p.due > p.review ? ` <small>대기 ${p.due}</small>` : ''}</button>
+        <button class="pc-new" data-go="fresh" ${p.fresh ? '' : 'disabled'}>✨ 새 문제 <b>${p.fresh}</b></button>
+        ${p.practice ? `<button class="pc-practice" data-go="practice">🧠 보강 <b>${p.practice}</b></button>` : ''}
       </div>
+      ${p.remaining
+        ? `<button class="btn-primary pc-start" data-go="today">
+             ▶ 계획대로 ${batch.total}문항 시작
+             <small>복습 ${batch.review} · 새 문제 ${batch.fresh}${batch.practice ? ` · 보강 ${batch.practice}` : ''}</small>
+           </button>`
+        : '<p class="pc-complete">✅ 오늘 목표를 채웠어요. 더 풀고 싶다면 아래 모드를 골라 주세요.</p>'}
       ${(() => {
         /* 오늘 읽을 이론 카드 — 문제만 풀면 개념이 채워지지 않는다.
            등급 순으로 한 장씩 짚어 주면 도감이 저절로 채워진다. */
@@ -189,14 +200,10 @@ const UI = (() => {
         <b>약한 단원</b>과 <b>오답노트</b> 위주로 좁혀 가세요.</p>` : ''}`;
 
     /* 오늘 할 일을 알려만 주고 끝내면, 읽고 나서 다시 찾아 들어가야 한다.
-       그 자리에서 바로 시작할 수 있어야 계획이 계획으로 남지 않는다.
-       카드 자체를 누르면 시험일 설정이므로 전파를 멈춘다. */
+       그 자리에서 바로 시작할 수 있어야 계획이 계획으로 남지 않는다. */
     el.querySelectorAll('[data-go]').forEach(btn => {
       const go = e => { e.stopPropagation(); onGo && onGo(btn.dataset.go, btn.dataset.card); };
       btn.addEventListener('click', go);
-      btn.addEventListener('keydown', e => {
-        if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); go(e); }
-      });
     });
   }
 

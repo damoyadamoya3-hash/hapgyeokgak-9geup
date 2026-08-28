@@ -97,6 +97,8 @@ t('접근성 — 화면 이동과 설정창에 초점 안내가 있다', () => {
   ok(/id="modal-settings"[^>]+role="dialog"[^>]+aria-modal="true"/.test(html), '설정 대화상자 의미 없음');
   ok(/id="modal-exam-sheet"[^>]+role="dialog"[^>]+aria-modal="true"/.test(html), 'OMR 대화상자 의미 없음');
   ok(/id="feedback"[^>]+aria-live="polite"/.test(html), '채점 결과 알림 없음');
+  ok(/<section id="plan-card"[^>]+aria-label="오늘의 학습 계획"/.test(html),
+    '학습 계획이 중첩 버튼 구조임');
   const ui = rd('js/ui.js');
   ok(/\.inert\s*=/.test(ui) && /aria-hidden/.test(ui), '숨은 화면의 초점 차단 없음');
 });
@@ -123,9 +125,22 @@ t('세션 복구 — 채점 직후 상태를 표시해 중복 답안을 막는�
   const answeredBefore = Store.s.totalAnswered;
   const got = Store.restoreSession();
   ok(got.resumeAwaitingNext, '채점 완료 표시가 사라짐');
+  eq(got.answered[0].id, s.queue[0].id, '채점한 문항 id가 사라짐');
   eq(got.correct + got.wrong, 1, '채점 결과');
   Engine.advance(got);                 // 앱 복구 경로는 제출하지 않고 다음으로 이동한다
   eq(Store.s.totalAnswered, answeredBefore, '복구하면서 같은 답안을 다시 기록함');
+});
+
+t('세션 복구 — 맞춤 학습의 복습·새 문제 분류를 보존한다', () => {
+  fresh();
+  for(let i = 0; i < 20; i++)
+    Store.s.cards[QB.items[i].id] = { n:1, ok:0, ng:1, box:0, due:shift(-2), last:shift(-2) };
+  Store.save();
+  const s = Engine.build('daily', { limit:30 });
+  Store.saveSession(s, { awaitingNext:false });
+  const got = Store.restoreSession();
+  eq(got.studyKinds, s.studyKinds, '문항별 학습 분류');
+  eq(got.cfg.dailyPlan, s.cfg.dailyPlan, '세트 배분');
 });
 
 t('세션 복구 — 진도 이동 코드에는 진행 중인 판을 넣지 않는다', () => {
@@ -272,7 +287,7 @@ t('복습 — 가장 밀린 문항이 반드시 포함된다', () => {
 });
 
 /* ── 학습 계획 ───────────────────────────────────────────── */
-t('학습 계획 — 복습·새 문제의 합이 언제나 목표와 같다', () => {
+t('학습 계획 — 남은 복습·새 문제·보강의 합이 남은 목표와 같다', () => {
   const all = QB.items;
   for(const [due, days] of [[0,120],[300,120],[900,60],[5,30],[0,null]]){
     Store.reset();
@@ -281,7 +296,7 @@ t('학습 계획 — 복습·새 문제의 합이 언제나 목표와 같다', (
     if(days) Store.setExamDate(shift(days));
     Store.save();
     const p = Store.plan();
-    eq(p.review + p.fresh, p.goal, `밀림 ${due}·D-${days} 배분 합계`);
+    eq(p.review + p.fresh + p.practice, p.remaining, `밀림 ${due}·D-${days} 배분 합계`);
     ok(p.review <= Math.ceil(p.goal / 2), `밀림 ${due} 복습이 목표의 절반을 넘김`);
   }
 });
@@ -309,6 +324,73 @@ t('학습 계획 — 복습이 밀리면 목표도 함께 늘어난다', () => {
   };
   const few = goalWith(0), many = goalWith(600);
   ok(many > few * 2, `밀림 600 인데 목표가 ${few} → ${many} 뿐. 밀린 양을 반영하지 않음`);
+});
+
+t('학습 계획 — 오늘 목표는 고정되고 푼 만큼만 남는다', () => {
+  fresh();
+  for(let i = 0; i < 240; i++)
+    Store.s.cards[QB.items[i].id] = { n:1, ok:0, ng:1, box:0, due:shift(-1), last:shift(-1) };
+  Store.setExamDate(shift(45));
+  const before = Store.plan();
+  const unseen = QB.items.filter(q => !Store.s.cards[q.id]).slice(0, 12);
+  unseen.forEach(q => Store.record(q.id, true));
+  const after = Store.plan();
+  eq(after.goal, before.goal, '공부 중 목표선이 움직임');
+  eq(after.remaining, Math.max(before.goal - 12, 0), '오늘 푼 양만큼 줄지 않음');
+  eq(after.review + after.fresh + after.practice, after.remaining, '남은 배분 합계');
+});
+
+t('오늘 맞춤 학습 — 복습과 새 문제를 안내한 수만큼 섞는다', () => {
+  fresh();
+  const due = new Set();
+  for(let i = 0; i < 20; i++){
+    due.add(QB.items[i].id);
+    Store.s.cards[QB.items[i].id] = { n:1, ok:0, ng:1, box:0, due:shift(-2), last:shift(-2) };
+  }
+  Store.save();
+  const p = Store.plan(), batch = Engine.dailyBatch(p, 30);
+  const s = Engine.build('daily', { limit:30 });
+  const kinds = Object.values(s.studyKinds);
+  eq(s.queue.length, batch.total, '세트 문항 수');
+  eq(s.cfg.dailyPlan, batch, '화면 안내와 실제 배분');
+  eq(kinds.filter(x => x === 'review').length, batch.review, '복습 배분');
+  eq(kinds.filter(x => x === 'fresh').length, batch.fresh, '새 문제 배분');
+  ok(s.queue.filter(q => s.studyKinds[q.id] === 'review').every(q => due.has(q.id)),
+    '복습이 아닌 문항을 복습으로 표시');
+  ok(s.queue.filter(q => s.studyKinds[q.id] === 'fresh').every(q => !due.has(q.id)),
+    '이미 본 문항을 새 문제로 표시');
+  eq(new Set(s.queue.map(q => q.id)).size, s.queue.length, '세트 중복 문항');
+});
+
+t('오늘 맞춤 학습 — 전 문항을 본 뒤에는 약한 문항 보강으로 채운다', () => {
+  fresh();
+  QB.items.forEach((q, i) => Store.s.cards[q.id] = {
+    n:2, ok:i % 3 ? 2 : 0, ng:i % 3 ? 0 : 2, box:6, due:shift(30), last:Store.today()
+  });
+  Store.save();
+  const p = Store.plan();
+  eq([p.left, p.review, p.fresh, p.practice], [0,0,0,p.remaining], '보강 계획');
+  const s = Engine.build('daily', { limit:30 });
+  ok(s && s.queue.length === Math.min(p.remaining, 30), '보강 세트 크기');
+  ok(Object.values(s.studyKinds).every(x => x === 'practice'), '보강 외 문항이 섞임');
+});
+
+t('오늘 맞춤 학습 — 맞힌 복습 문항은 복습 임무에도 반영한다', () => {
+  fresh();
+  for(let i = 0; i < 10; i++)
+    Store.s.cards[QB.items[i].id] = { n:1, ok:0, ng:1, box:0, due:shift(-1), last:shift(-1) };
+  Store.s.daily = { date:Store.today(), tasks:[
+    { id:'review-one', text:'복습 1문항', goal:1, xp:1, coin:1,
+      key:'srs', prog:0, done:false, claimed:false }
+  ]};
+  Store.save();
+  const s = Engine.build('daily', { limit:10 });
+  const index = s.queue.findIndex(q => s.studyKinds[q.id] === 'review');
+  ok(index >= 0, '복습 문항 없음');
+  s.i = index;
+  Engine.submit(s, s.queue[index].a);
+  Engine.finish(s);
+  eq([Store.s.daily.tasks[0].prog, Store.s.daily.tasks[0].done], [1,true], '복습 임무 진행');
 });
 
 /* ── 모의고사 ────────────────────────────────────────────── */

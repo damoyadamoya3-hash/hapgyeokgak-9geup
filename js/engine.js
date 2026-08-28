@@ -109,6 +109,8 @@ const Engine = (() => {
     ox:    { label:'OX 스피드런',   hearts:0, timer:60, n:999 },
     boss:  { label:'보스 레이드',   hearts:3, timer:0,  n:999 },
     srs:   { label:'망각곡선 복습', hearts:0, timer:0,  n:15 },
+    daily: { label:'오늘의 맞춤 학습', hearts:0, timer:0, n:30 },
+    fresh: { label:'오늘의 새 문제', hearts:0, timer:0, n:30 },
     exam:  { label:'실전 모의고사', hearts:0, timer:1200, n:20, silent:true },
     paper: { label:'시험 복기 퀴즈', hearts:0, timer:0, n:999 },
     wrong: { label:'오답 지옥',     hearts:0, timer:0,  n:15 },
@@ -133,9 +135,74 @@ const Engine = (() => {
     };
   }
 
+  /* 하루 남은 분량을 한 번에 너무 길지 않은 최대 30문항 세트로 자른다.
+     복습·새 문제를 우선 반씩 섞고, 한쪽이 모자라면 다른 쪽이나 숙달
+     보강으로 채운다. UI와 실제 출제가 같은 함수를 써 숫자가 어긋나지 않는다. */
+  function dailyBatch(plan = Store.plan(), limit = 30){
+    const total = Math.min(Math.max(Number(limit) || 30, 1), 30,
+      Math.max(Number(plan.remaining) || 0, 0));
+    if(!total) return { total:0, review:0, fresh:0, practice:0 };
+
+    const want = {
+      review:Math.max(Number(plan.review) || 0, 0),
+      fresh:Math.max(Number(plan.fresh) || 0, 0),
+      practice:Math.max(Number(plan.practice) || 0, 0)
+    };
+    const out = {
+      total,
+      review:Math.min(want.review, Math.floor(total / 2)),
+      fresh:0,
+      practice:0
+    };
+    out.fresh = Math.min(want.fresh, total - out.review);
+    out.practice = Math.min(want.practice, total - out.review - out.fresh);
+    let open = total - out.review - out.fresh - out.practice;
+    for(const key of ['review','fresh','practice']){
+      const add = Math.min(Math.max(want[key] - out[key], 0), open);
+      out[key] += add; open -= add;
+    }
+    return out;
+  }
+
+  /* 새 문항은 최근 모의고사 과락 과목을 먼저, 과락이 없으면 아직 가장
+     덜 본 단원을 먼저 낸다. 그 범위가 부족할 때만 나머지 은행으로 넓힌다. */
+  function freshPick(n, used = new Set()){
+    const unseen = QB.items.filter(q => !Store.s.cards[q.id] && !used.has(q.id));
+    const last = Store.lastExam();
+    const risky = last ? Object.keys(last.sub || {}).filter(sid => {
+      const [ok, count] = last.sub[sid];
+      return count >= 5 && Math.round(ok / count * 100) < 40;
+    }) : [];
+
+    let focus = q => risky.includes(q.subject);
+    let focusName = risky.length
+      ? risky.map(sid => (QB.subject(sid) || {}).name).filter(Boolean).join('·') + ' 과락 보강'
+      : '';
+    if(!risky.length){
+      let best = null;
+      for(const sub of QB.SUBJECTS){
+        for(const unit of (QB.UNITS[sub.id] || [])){
+          const rows = QB.byUnit(unit.id);
+          if(!rows.length) continue;
+          const left = rows.filter(q => !Store.s.cards[q.id] && !used.has(q.id)).length;
+          if(!left) continue;
+          const ratio = left / rows.length;
+          if(!best || ratio > best.ratio) best = { id:unit.id, name:unit.name, ratio };
+        }
+      }
+      if(best){ focus = q => q.unit === best.id; focusName = best.name; }
+      else focus = () => false;
+    }
+
+    const first = shuffle(unseen.filter(focus));
+    const rest = shuffle(unseen.filter(q => !focus(q)));
+    return { rows:first.concat(rest).slice(0, n), focusName };
+  }
+
   function build(mode, opt = {}){
     let cfg = MODE[mode];
     let pool = [];
+    let studyKinds = {};
     const policy = mode === 'exam' ? examPlan(opt.examDate) : null;
 
     if(mode === 'quest'){
@@ -168,7 +235,8 @@ const Engine = (() => {
       const ids = Store.dueCards();
       // 밀린 양이 많으면 한 판을 늘려야 실제로 줄어든다.
       // 15문항씩으로는 1,000개가 밀린 상태를 평생 못 따라잡는다.
-      const size = ids.length > 200 ? 30 : ids.length > 60 ? 24 : cfg.n;
+      const requested = Math.max(0, Number(opt.n) || 0);
+      const size = requested || (ids.length > 200 ? 30 : ids.length > 60 ? 24 : cfg.n);
       pool = ids.slice(0, size).map(id => QB.byId(id)).filter(Boolean);
       if(pool.length < size){
         const extra = QB.items.filter(q => !Store.s.cards[q.id]);
@@ -176,6 +244,43 @@ const Engine = (() => {
       }
       pool = shuffle(pool);
       cfg = { ...cfg, n: pool.length };
+    }
+    else if(mode === 'fresh'){
+      const picked = freshPick(Math.min(Math.max(Number(opt.n) || cfg.n, 1), 30));
+      pool = picked.rows;
+      pool.forEach(q => { studyKinds[q.id] = 'fresh'; });
+      cfg = { ...cfg, n:pool.length, focusName:picked.focusName };
+    }
+    else if(mode === 'daily'){
+      const request = opt.breakdown || dailyBatch(Store.plan(), opt.limit);
+      const used = new Set();
+      const rows = [];
+      const add = (items, kind) => items.forEach(q => {
+        if(!q || used.has(q.id)) return;
+        used.add(q.id); rows.push(q); studyKinds[q.id] = kind;
+      });
+
+      add(Store.dueCards().slice(0, request.review)
+        .map(id => QB.byId(id)).filter(Boolean), 'review');
+      const picked = freshPick(request.fresh, used);
+      add(picked.rows, 'fresh');
+
+      // 계획된 보강분과 복습·새 문제의 실제 부족분을 합쳐 정확히 세트
+      // 총량까지만 채운다.
+      const practiceNeed = Math.max(0, request.total - rows.length);
+      const practicePool = QB.items.filter(q => Store.s.cards[q.id] && !used.has(q.id));
+      add(weightedPick(shuffle(practicePool), practiceNeed), 'practice');
+
+      // 오래된 id 등으로 계획 재료가 빠졌다면 남은 실제 문항으로만 메운다.
+      if(rows.length < request.total){
+        const fallback = QB.items.filter(q => !used.has(q.id));
+        add(weightedPick(shuffle(fallback), request.total - rows.length), 'practice');
+      }
+      pool = shuffle(rows);
+      const count = kind => Object.values(studyKinds).filter(x => x === kind).length;
+      cfg = { ...cfg, n:pool.length, focusName:picked.focusName,
+              dailyPlan:{ total:pool.length, review:count('review'),
+                          fresh:count('fresh'), practice:count('practice') } };
     }
     else if(mode === 'wrong'){
       const ids = Store.wrongCards();
@@ -278,6 +383,7 @@ const Engine = (() => {
       hearts: cfg.hearts,
       xp: 0, coin: 0,
       wrongList: [],
+      studyKinds,
       // 모의고사는 답안을 마지막에 한꺼번에 채점한다. 문항 번호를 키로
       // 쓰면 앞뒤로 이동해 답을 바꿔도 같은 칸 하나만 갱신된다.
       examAnswers: {},
@@ -512,6 +618,11 @@ const Engine = (() => {
     task('answered', S.mode === 'exam' ? S.examAnsweredCount : total);
     if(S.mode === 'ox') task('ox', S.correct);
     if(S.mode === 'srs') task('srs', S.correct);
+    if(S.mode === 'daily'){
+      const reviewed = (S.answered || []).filter(a =>
+        a.__ok && S.studyKinds && S.studyKinds[a.id] === 'review').length;
+      task('srs', reviewed);
+    }
     if(acc >= 80 && total >= 5) task('acc80', 1);
     task('combo', S.maxCombo);
 
@@ -546,7 +657,7 @@ const Engine = (() => {
              streak: streakInfo.streak, streakReward: streakInfo.reward, paperReview };
   }
 
-  return { build, current, submit, clearExamAnswer, examIndexes, examPlan,
+  return { build, current, submit, clearExamAnswer, examIndexes, examPlan, dailyBatch,
            gradeExam, examReview, examPaper,
            advance, finish, isCorrect, shuffle, MODE };
 })();

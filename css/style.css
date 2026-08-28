@@ -688,15 +688,16 @@ body.fever .combo-badge{background:linear-gradient(120deg,#ff2e88,#ffd600);anima
 /* ══════════ 학습 계획 (D-day) ══════════ */
 .plan-card{display:block;width:100%;text-align:left;background:var(--card);
   border:2px solid var(--line);border-radius:var(--r);padding:14px 16px;
-  box-shadow:var(--shadow);margin-bottom:12px;transition:border-color .16s,transform .16s}
-.plan-card:active{transform:translateY(2px)}
+  box-shadow:var(--shadow);margin-bottom:12px;transition:border-color .16s}
+.pc-settings{display:block;width:100%;text-align:left;color:inherit}
+.pc-settings:active{transform:translateY(1px)}
 .pc-top{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
 .pc-dday{font-family:var(--f-round);font-size:26px;color:var(--brand-ink);line-height:1.1;
   font-variant-numeric:tabular-nums}
 .pc-dday.pc-set{font-size:17px}
 .pc-date{font-size:12px;color:var(--ink2)}
 .pc-pct{margin-left:auto;font-size:12px;color:var(--ink2);font-family:var(--f-round)}
-.pc-bar{height:9px;background:var(--line);border-radius:99px;overflow:hidden;margin:9px 0 11px}
+.pc-bar{display:block;height:9px;background:var(--line);border-radius:99px;overflow:hidden;margin:9px 0 11px}
 .pc-bar i{display:block;height:100%;border-radius:99px;
   background:linear-gradient(90deg,var(--accent),var(--good));transition:width .5s}
 .pc-goal{display:flex;justify-content:space-between;align-items:baseline;
@@ -704,7 +705,7 @@ body.fever .combo-badge{background:linear-gradient(120deg,#ff2e88,#ffd600);anima
 .pc-goal b{font-family:var(--f-round);color:var(--brand-ink);font-size:14px;
   font-variant-numeric:tabular-nums}
 .pc-left{font-size:11.5px;white-space:nowrap}
-.pc-today{height:7px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:6px}
+.pc-today{display:block;height:7px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:6px}
 .pc-today i{display:block;height:100%;border-radius:99px;
   background:linear-gradient(90deg,var(--brand),var(--gold));transition:width .5s}
 .set-date{width:auto;height:auto;appearance:auto;background:var(--bg);color:var(--ink);
@@ -852,19 +853,25 @@ body.fever .combo-badge{background:linear-gradient(120deg,#ff2e88,#ffd600);anima
    측정해 보면 이 배분이 결과를 가른다. 한쪽으로 치우치면
    복습이 800개 밀리거나, 석 달에 은행의 27%밖에 못 본다. */
 .pc-split{display:flex;gap:8px;margin-top:10px;font-size:12.5px}
-.pc-split>span{flex:1;background:var(--bg);border-radius:9px;padding:7px 9px;
+.pc-split>button{flex:1;background:var(--bg);border:2px solid transparent;border-radius:9px;padding:7px 9px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pc-split b{font-family:var(--f-round);font-size:14px}
 .pc-rev b{color:var(--accent)}
 .pc-rev.over b{color:var(--bad)}
 .pc-rev small{color:var(--bad);font-size:11px}
 .pc-new b{color:var(--good-ink)}
-/* 오늘의 배분 두 칸은 눌러서 바로 시작할 수 있다 */
-.pc-split>span[data-go]{cursor:pointer;border:2px solid transparent;transition:border-color .15s,transform .1s}
-.pc-split>span[data-go]:hover{border-color:var(--line)}
-.pc-split>span[data-go]:active{transform:translateY(1px)}
-.pc-split>span[data-go]:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-@media (pointer:coarse){ .pc-split>span[data-go]{min-height:44px;display:flex;align-items:center} }
+.pc-practice b{color:var(--gold-ink)}
+/* 오늘의 배분 칸은 눌러서 해당 종류만 바로 시작할 수 있다 */
+.pc-split>button[data-go]{cursor:pointer;transition:border-color .15s,transform .1s}
+.pc-split>button[data-go]:hover{border-color:var(--line)}
+.pc-split>button[data-go]:active{transform:translateY(1px)}
+.pc-split>button[data-go]:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.pc-split>button[disabled]{opacity:.48;cursor:default}
+.pc-start{margin-top:9px;padding:10px 13px;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap}
+.pc-start small{font-family:var(--f-body);font-size:11px;opacity:.88}
+.pc-complete{margin:10px 0 0;padding:9px 11px;border-radius:10px;background:rgba(30,158,98,.11);
+  color:var(--good-ink);font-size:12.5px;text-align:center;line-height:1.5}
+@media (pointer:coarse){ .pc-split>button[data-go]{min-height:44px}.pc-start{min-height:46px} }
 /* 새로고침·앱 종료 뒤 진행 중인 판으로 돌아가는 카드 */
 .resume-card{width:100%;display:flex;align-items:center;gap:11px;margin-bottom:12px;
   padding:12px 14px;border:2px solid var(--accent);border-radius:14px;

@@ -701,51 +701,30 @@
         if(!cardId) return;
         return openCard(cardId);
       }
+      const plan = Store.plan();
+      if(what === 'today'){
+        const batch = Engine.dailyBatch(plan, 30);
+        if(!batch.total) return Fx.toast('오늘 목표를 모두 채웠어요! 다른 모드로 더 공부할 수 있습니다');
+        return start('daily', { limit:batch.total });
+      }
       if(what === 'srs'){
-        if(!Store.dueCards().length) return Fx.toast('복습할 카드가 없어요. 새 문제부터!');
-        return start('srs', {});
+        if(!plan.review) return Fx.toast('오늘 남은 복습 분량이 없어요');
+        return start('srs', { n:Math.min(plan.review, 30) });
       }
-      /* 가장 최근 모의고사에서 40점에 못 미친 과목이 있으면 거기부터 간다.
-         과락은 총점과 무관하게 당락을 가르므로, 다른 무엇보다 먼저다.
-         그런 과목이 없으면 아직 가장 덜 본 단원으로 간다. */
-      const last = Store.lastExam();
-      const risky = last ? Object.keys(last.sub || {}).filter(sid => {
-        const [ok, n] = last.sub[sid];
-        return n >= 5 && Math.round(ok / n * 100) < 40;
-      }) : [];
-
-      const pick = subjects => {
-        let best = null;
-        for(const sub of QB.SUBJECTS){
-          if(subjects && !subjects.includes(sub.id)) continue;
-          for(const u of (QB.UNITS[sub.id] || [])){
-            const pool = QB.byUnit(u.id);
-            if(!pool.length) continue;
-            const unseen = pool.filter(q => !Store.s.cards[q.id]).length;
-            if(!unseen) continue;
-            const ratio = unseen / pool.length;
-            if(!best || ratio > best.ratio) best = { unit:u.id, subject:sub.id, ratio, name:u.name };
-          }
-        }
-        return best;
-      };
-
-      const urgent = risky.length ? pick(risky) : null;
-      const best = urgent || pick(null);
-      if(!best) return Fx.toast('모든 문항을 한 번씩 봤어요! 이제 복습으로 굳히세요');
-
-      if(urgent){
-        const sname = (QB.subject(best.subject) || {}).name || '';
-        Fx.toast(`⚠️ ${sname} 과락 위험 — ${best.name} 부터 갑니다`, true, 2600);
-      } else {
-        Fx.toast(`✨ ${best.name} 부터 시작해요`, true, 1800);
+      if(what === 'fresh'){
+        if(!plan.fresh) return Fx.toast('오늘 남은 새 문제 분량이 없어요');
+        return start('fresh', { n:Math.min(plan.fresh, 30) });
       }
-      start('quest', { unit: best.unit, subject: best.subject });
+      if(what === 'practice'){
+        if(!plan.practice) return Fx.toast('오늘 남은 보강 분량이 없어요');
+        const n = Math.min(plan.practice, 30);
+        return start('daily', { breakdown:{ total:n, review:0, fresh:0, practice:n } });
+      }
     });
 
-    $('#plan-card').addEventListener('click', () => {
-      Sfx.tap();
-      openSettings(true);
+    $('#plan-card').addEventListener('click', e => {
+      if(!e.target.closest('[data-plan-settings]')) return;
+      Sfx.tap(); openSettings(true);
     });
     $$('.note-tab').forEach(t => t.addEventListener('click', () => {
       Sfx.tap();

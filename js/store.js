@@ -25,6 +25,9 @@ const Store = (() => {
     streakClaimed: {},
     // 시험일 (YYYY-MM-DD). 설정하면 D-day 와 하루 목표량을 계산한다
     examDate: null,
+    // 하루 목표는 첫 계산값을 그날 동안 고정한다. 문제를 풀 때마다 남은
+    // 은행이 줄어 목표선까지 같이 내려가는 "움직이는 골대"를 막는다.
+    studyPlan: null,
     // 이 사람이 스스로 붙인 이름. 기기를 오갈 때 누구 진도인지 알아보는 표시
     nick: '',
     // 모의고사 성적: [{t:시각, s:'all'|과목, n, ok, sub:{과목:[맞힘,푼수]}}]
@@ -200,7 +203,9 @@ const Store = (() => {
     return Object.keys(S.cards)
       .filter(id => {
         const c = S.cards[id];
-        return c.due <= t && c.box < INTERVAL.length - 1;
+        // 문제은행에서 빠진 옛 id가 가져오기 코드에 남아 있어도 오늘
+        // 복습 수와 실제 출제 수가 어긋나지 않게 목록에서 제외한다.
+        return !!QB.byId(id) && c.due <= t && c.box < INTERVAL.length - 1;
       })
       .sort((a, b) => {
         const x = S.cards[a], y = S.cards[b];
@@ -286,12 +291,17 @@ const Store = (() => {
   function has(id){ return (S.inv[id] || 0) > 0; }
 
   /* ── 학습 계획 ──────────────────────────────────────── */
-  function setExamDate(v){ S.examDate = v || null; save(); }
+  function setExamDate(v){
+    const next = v || null;
+    if(S.examDate !== next) S.studyPlan = null;
+    S.examDate = next;
+    save();
+  }
 
   /* 시험까지 남은 일수와, 남은 문항을 그 안에 다 보려면 하루에 몇 개인지 */
   function plan(){
     const total = QB.items.length;
-    const seen  = Object.keys(S.cards).length;
+    const seen  = Object.keys(S.cards).filter(id => !!QB.byId(id)).length;
     const left  = Math.max(total - seen, 0);
     const todayN = (S.dayStats[today()] || { n:0 }).n;
 
@@ -300,26 +310,24 @@ const Store = (() => {
        빨라도 복습 대기가 800개까지 밀리고, 복습만 하면 대기는 잡히나
        석 달에 은행의 27% 밖에 못 본다. 어느 쪽이든 '이것만 보고 합격'
        과 멀어지므로, 오늘 몇 개를 복습하고 몇 개를 새로 볼지 정해 준다.
-       복습은 하루 목표의 절반까지만 배정한다 — 밀린 게 아무리 많아도
-       새 문제를 아예 못 보는 날은 없어야 한다. */
+       새 문항이 남아 있는 동안 복습은 우선 절반까지만 배정한다 — 밀린 게
+       아무리 많아도 새 문제를 아예 못 보는 날은 없어야 한다. */
     const split = g => {
       const due = dueCards().length;
-      // 절반까지만 복습에 배정한다. 상한을 절대값(10문항)으로 두면
-      // 목표가 작은 날에 복습이 목표를 다 먹어 새 문제가 0이 된다.
+      // 새 문항이 남은 동안에는 우선 절반까지만 복습에 배정한다.
+      // 한쪽 재료가 모자라면 다른 쪽과 숙달 보강으로 빈자리를 채운다.
       let review = Math.min(due, Math.floor(g / 2));
-      let fresh  = g - review;
-      // 아직 안 본 문항이 남아 있는 한 새 문제는 최소 1개 배정한다
-      if(left > 0 && fresh < 1){ fresh = 1; review = Math.max(g - 1, 0); }
-      return { due, review, fresh };
+      let fresh  = Math.min(left, g - review);
+      let open = g - review - fresh;
+      const moreReview = Math.min(Math.max(due - review, 0), open);
+      review += moreReview; open -= moreReview;
+      const moreFresh = Math.min(Math.max(left - fresh, 0), open);
+      fresh += moreFresh; open -= moreFresh;
+      return { due, review, fresh, practice:open };
     };
 
-    if(!S.examDate){
-      // 시험일이 없으면 하루 30문항을 기본 목표로 제안한다
-      return { hasDate:false, total, seen, left, todayN,
-               pct: total ? Math.round(seen / total * 100) : 0,
-               goal: 30, days: null, ...split(30) };
-    }
-    const days = dayNumber(S.examDate) - dayNumber(today());
+    const hasDate = !!S.examDate;
+    const days = hasDate ? dayNumber(S.examDate) - dayNumber(today()) : null;
 
     // 하루 목표는 10~120문항 사이로 제한한다.
     // 시험이 코앞이면 산술적으로 수백 문항이 나오는데, 그런 숫자는
@@ -327,14 +335,23 @@ const Store = (() => {
     /* 목표는 '안 본 문항'만 보고 계산하면 안 된다. 복습이 900개 밀린
        사람에게 '오늘 10문항' 이라고 말해 주면 거짓말이 된다.
        밀린 복습은 아무리 길어도 2주 안에 털어내는 것을 기준으로 얹는다. */
-    const dueNow  = dueCards().length;
-    const newLoad = days > 0 ? Math.ceil(left / days) : left;
-    const revLoad = Math.ceil(dueNow / Math.max(Math.min(days, 14), 1));
-    const raw  = newLoad + revLoad;
-    const goal = Math.min(Math.max(raw, 10), 120);
-    return { hasDate:true, date:S.examDate, days, total, seen, left, todayN,
+    const dueNow = dueCards().length;
+    const raw = hasDate
+      ? (days > 0 ? Math.ceil(left / days) : left) +
+        Math.ceil(dueNow / Math.max(Math.min(days, 14), 1))
+      : 30;
+    const suggested = hasDate ? Math.min(Math.max(raw, 10), 120) : 30;
+    const stamp = today();
+    const examStamp = S.examDate || null;
+    if(!S.studyPlan || S.studyPlan.date !== stamp || S.studyPlan.examDate !== examStamp){
+      S.studyPlan = { date:stamp, examDate:examStamp, goal:suggested, capped:raw > suggested };
+      save();
+    }
+    const goal = Math.min(Math.max(Number(S.studyPlan.goal) || suggested, 1), 120);
+    const remaining = Math.max(goal - todayN, 0);
+    return { hasDate, date:S.examDate, days, total, seen, left, todayN,
              pct: total ? Math.round(seen / total * 100) : 0,
-             goal, capped: raw > goal, ...split(goal) };
+             goal, remaining, capped:!!S.studyPlan.capped, ...split(remaining) };
   }
 
   /* 오늘 읽을 이론 카드 한 장.
@@ -393,8 +410,9 @@ const Store = (() => {
       bossHp:sess.bossHp, bossMax:sess.bossMax,
       wrongIds:(sess.wrongList || []).map(q => q.id),
       answered:(sess.answered || []).map(x => ({
-        subject:x.subject, __ok:!!x.__ok, __blank:!!x.__blank
+        id:x.id || null, subject:x.subject, __ok:!!x.__ok, __blank:!!x.__blank
       })),
+      studyKinds:{ ...(sess.studyKinds || {}) },
       examAnswers:{ ...(sess.examAnswers || {}) },
       examFlags:{ ...(sess.examFlags || {}) },
       examAnsweredCount:sess.examAnsweredCount || 0,
@@ -454,6 +472,7 @@ const Store = (() => {
       bossHp:x.bossHp || 0, bossMax:x.bossMax || 0,
       wrongList:(x.wrongIds || []).map(id => QB.byId(id)).filter(Boolean),
       answered:(x.answered || []).map(a => ({ ...a })),
+      studyKinds:{ ...(x.studyKinds || {}) },
       examAnswers:{ ...(x.examAnswers || {}) },
       examFlags:{ ...(x.examFlags || {}) },
       examAnsweredCount:x.examAnsweredCount || 0,
