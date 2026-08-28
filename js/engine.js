@@ -12,6 +12,24 @@ const Engine = (() => {
     return r;
   }
 
+  /* setInterval 횟수로 시간을 세면 모바일 절전이나 백그라운드 탭에서
+     콜백이 늦어진 만큼 제한시간이 공짜로 늘어난다. 종료 시각을 기준으로
+     남은 초를 다시 계산하면 한꺼번에 여러 초가 건너뛰어도 실제 시간과
+     일치한다. 해설을 읽는 동안에는 종료 시각 자체를 뒤로 민다. */
+  function timerRemaining(deadline, fallback = 0, now = Date.now()){
+    const end = Number(deadline), at = Number(now);
+    if(Number.isFinite(end) && end > 0 && Number.isFinite(at))
+      return Math.max(0, Math.ceil((end - at) / 1000));
+    return Math.max(0, Math.ceil(Number(fallback) || 0));
+  }
+
+  function extendTimerDeadline(deadline, pausedAt, now = Date.now()){
+    const end = Number(deadline), start = Number(pausedAt), at = Number(now);
+    if(!Number.isFinite(end) || end <= 0 || !Number.isFinite(start) || start <= 0 ||
+       !Number.isFinite(at) || at <= start) return end > 0 ? end : 0;
+    return end + (at - start);
+  }
+
   /* 문항별 출제 가중치
      틀릴수록 ↑, 복습 시점이 지났으면 ↑, 이미 여러 번 맞혔으면 ↓ */
   function weightOf(q){
@@ -658,6 +676,7 @@ const Engine = (() => {
   }
 
   return { build, current, submit, clearExamAnswer, examIndexes, examPlan, dailyBatch,
+           timerRemaining, extendTimerDeadline,
            gradeExam, examReview, examPaper,
            advance, finish, isCorrect, shuffle, MODE };
 })();

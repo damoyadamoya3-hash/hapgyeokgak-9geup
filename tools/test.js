@@ -77,6 +77,23 @@ t('날짜 — 연말 자정에도 현지 연도가 유지된다', () => {
   eq(Store.dateKey(newYear), '2027-01-01', '연말 현지 날짜');
 });
 
+/* ── 실시간 타이머 ──────────────────────────────────────── */
+t('타이머 — 백그라운드에서 늦어진 콜백만큼 시간을 한꺼번에 줄인다', () => {
+  const now = 1800000000000;
+  const deadline = now + 60000;
+  eq(Engine.timerRemaining(deadline, 60, now), 60, '시작 시각');
+  eq(Engine.timerRemaining(deadline, 60, now + 35600), 25, '35.6초 뒤');
+  eq(Engine.timerRemaining(deadline, 60, now + 61000), 0, '종료 뒤');
+});
+
+t('타이머 — 해설을 읽은 시간만큼 종료 시각을 뒤로 민다', () => {
+  const now = 1800000000000;
+  const deadline = now + 60000;
+  const extended = Engine.extendTimerDeadline(deadline, now + 10000, now + 23500);
+  eq(extended, deadline + 13500, '해설 일시정지 보정');
+  eq(Engine.timerRemaining(extended, 0, now + 23500), 50, '재개 후 남은 시간');
+});
+
 /* ── 설치·공유 셸 ────────────────────────────────────────── */
 t('PWA — 설치 정보와 1200×630 공유 카드를 함께 배포한다', () => {
   const webmanifest = JSON.parse(rd('manifest.webmanifest'));
@@ -515,12 +532,25 @@ t('모의고사 OMR — 답안과 현재 문항을 이어 풀기로 복구한다
   s.i = 7;
   Engine.submit(s, 2);
   s.examFlags[3] = true;
-  Store.saveSession(s, { timerLeft:611, awaitingNext:false });
+  const deadline = Date.now() + 611000;
+  Store.saveSession(s, { timerLeft:611, timerDeadline:deadline, awaitingNext:false });
   const got = Store.restoreSession();
   eq(got.examAnswers, s.examAnswers, '저장된 OMR 답안');
   eq(got.examFlags, s.examFlags, '저장된 검토 표시');
-  eq([got.i, got.resumeTimerLeft], [7,611], '복구 위치·남은 시간');
+  eq([got.i, got.resumeTimerLeft, got.resumeTimerDeadline], [7,611,deadline],
+    '복구 위치·남은 시간·종료 시각');
   eq(Store.s.totalAnswered, 0, '복구 전에 채점됨');
+});
+
+t('모의고사 OMR — 구형 세션은 저장 당시 남은 시간으로 계속 푼다', () => {
+  fresh();
+  const s = Engine.build('exam', { subject:'kor' });
+  Store.saveSession(s, { timerLeft:432, timerDeadline:Date.now() + 432000 });
+  Store.s.activeSession.v = 2;
+  delete Store.s.activeSession.timerDeadline;
+  Store.save();
+  const got = Store.restoreSession();
+  eq([got.resumeTimerLeft, got.resumeTimerDeadline], [432,0], 'v2 타이머 호환');
 });
 
 t('모의고사 OMR — 답안이 없던 구형 세션은 잘못 복구하지 않는다', () => {

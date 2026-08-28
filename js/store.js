@@ -400,7 +400,7 @@ const Store = (() => {
   function saveSession(sess, meta = {}){
     if(!sess || sess.over) return clearSession();
     S.activeSession = {
-      v:2, savedAt:Date.now(),
+      v:3, savedAt:Date.now(),
       mode:sess.mode, opt:{ ...(sess.opt || {}) }, cfg:{ ...(sess.cfg || {}) },
       queue:sess.queue.map(q => [
         q.id,
@@ -424,6 +424,11 @@ const Store = (() => {
       hints:{ ...(sess.hints || {}) }, boost:sess.boost || 1,
       elapsed:Math.max(0, Date.now() - (sess.startedAt || Date.now())),
       timerLeft:Math.max(0, Number(meta.timerLeft) || 0),
+      // 실행 중 타이머는 절대 종료 시각을 함께 저장한다. 탭이 숨겨진 뒤
+      // 브라우저가 정리돼도 재개할 때 실제로 흐른 시간을 반영할 수 있다.
+      // 해설처럼 의도적으로 멈춘 상태는 0을 저장해 남은 초만 보존한다.
+      timerDeadline:Number.isFinite(Number(meta.timerDeadline)) && Number(meta.timerDeadline) > 0
+        ? Number(meta.timerDeadline) : 0,
       awaitingNext:!!meta.awaitingNext
     };
     save();
@@ -435,7 +440,7 @@ const Store = (() => {
     if(!x) return null;
     /* v1 모의고사는 선택 답안을 저장하지 않고 즉시 채점하던 형식이라
        어느 칸에 무엇을 마킹했는지 복원할 수 없다. 일반 학습 v1은 호환한다. */
-    const badVersion = x.v !== 1 && x.v !== 2;
+    const badVersion = x.v !== 1 && x.v !== 2 && x.v !== 3;
     const unsafeOldExam = x.v === 1 && x.mode === 'exam';
     if(badVersion || unsafeOldExam || !x.savedAt ||
        Date.now() - x.savedAt > SESSION_TTL || !Array.isArray(x.queue)){
@@ -454,7 +459,7 @@ const Store = (() => {
 
   function restoreSession(){
     const x = S.activeSession;
-    if(!sessionInfo() || !x || (x.v !== 1 && x.v !== 2)) return null;
+    if(!sessionInfo() || !x || (x.v !== 1 && x.v !== 2 && x.v !== 3)) return null;
     const queue = x.queue.map(row => {
       const base = QB.byId(row[0]);
       if(!base) return null;
@@ -485,6 +490,8 @@ const Store = (() => {
       startedAt:Date.now() - Math.max(0, x.elapsed || 0),
       over:false, reason:null,
       resumeTimerLeft:Math.max(0, x.timerLeft || 0),
+      resumeTimerDeadline:x.v >= 3 && Number.isFinite(Number(x.timerDeadline))
+        ? Math.max(0, Number(x.timerDeadline)) : 0,
       resumeAwaitingNext:!!x.awaitingNext
     };
   }

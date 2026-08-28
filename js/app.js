@@ -10,6 +10,7 @@
   let paused = false;        // 해설 열람 중 — 타이머·테트리스 정지
   let pauseStart = 0;        // 해설을 열어둔 시각(FEVER 시간 보정용)
   let timerLeft = 0;         // 자동 저장·복구에 포함할 남은 시간
+  let timerDeadline = 0;     // 백그라운드 지연에도 흔들리지 않는 절대 종료 시각
   let installPrompt = null;  // Chromium 계열 PWA 설치 요청
   let modalReturnFocus = null;
   let examModalReturnFocus = null;
@@ -124,19 +125,14 @@
     const tEl = $('#pb-timer');
     if(S.cfg.timer){
       timerLeft = resumed ? S.resumeTimerLeft : S.cfg.timer;
+      timerDeadline = resumed && S.resumeTimerDeadline > 0
+        ? S.resumeTimerDeadline
+        : Date.now() + timerLeft * 1000;
+      syncTimer(false);
       tEl.classList.remove('hidden');
       tEl.querySelector('b').textContent = fmt(timerLeft);
-      timerId = setInterval(() => {
-        if(paused) return;                     // 해설 읽는 동안 시간 정지
-        timerLeft--;
-        tEl.querySelector('b').textContent = fmt(timerLeft);
-        tEl.classList.toggle('warn', timerLeft <= 10);
-        if(timerLeft > 0 && timerLeft % 10 === 0)
-          checkpoint(S && S.mode === 'exam' ? false : locked);
-        if(timerLeft <= 5 && timerLeft > 0) Sfx.tick();
-        if(timerLeft <= 0){ stopTimer(); S.reason = 'time'; end(); }
-      }, 1000);
-    } else { timerLeft = 0; tEl.classList.add('hidden'); }
+      if(timerLeft > 0) timerId = setInterval(() => syncTimer(true), 500);
+    } else { timerLeft = 0; timerDeadline = 0; tEl.classList.add('hidden'); }
 
     // XP 부스터가 있으면 이번 판에 쓴다
     if(!resumed){
@@ -145,6 +141,9 @@
     }
 
     UI.show('scr-play');
+    // 저장된 종료 시각이 이미 지났다면 잠깐 새 문제를 보여 주지 않고
+    // 곧바로 정상 제출 경로로 끝낸다.
+    if(S.cfg.timer && timerLeft <= 0){ S.reason = 'time'; end(); return; }
     tetrisStart();
     Hype.Bgm.start();
     if(resumed && S.resumeAwaitingNext){
@@ -157,7 +156,30 @@
     }
   }
   function fmt(s){ return s >= 60 ? `${(s/60)|0}:${String(s%60).padStart(2,'0')}` : s; }
-  function stopTimer(){ if(timerId){ clearInterval(timerId); timerId = null; } }
+  function stopTimer(){
+    if(timerId){ clearInterval(timerId); timerId = null; }
+    timerDeadline = 0;
+  }
+
+  /* 반복 콜백을 한 번 실행될 때마다 1초로 간주하지 않고, 현재 시각과
+     종료 시각의 차이로 표시값을 다시 맞춘다. 탭이 다시 보이는 순간에도
+     호출해 백그라운드에서 건너뛴 시간을 즉시 반영한다. */
+  function syncTimer(finishExpired = true){
+    if(!S || !S.cfg.timer || paused || !timerDeadline) return false;
+    const before = timerLeft;
+    timerLeft = Engine.timerRemaining(timerDeadline, timerLeft);
+    const tEl = $('#pb-timer');
+    tEl.querySelector('b').textContent = fmt(timerLeft);
+    tEl.classList.toggle('warn', timerLeft <= 10);
+    if(timerLeft <= 0 && finishExpired){
+      stopTimer(); S.reason = 'time'; end(); return true;
+    }
+    if(timerLeft === before) return false;
+    if(timerLeft > 0 && timerLeft % 10 === 0)
+      checkpoint(S.mode === 'exam' ? false : locked);
+    if(timerLeft <= 5 && timerLeft > 0) Sfx.tick();
+    return false;
+  }
 
   function render(){
     if(!S || S.i >= S.queue.length){ end(); return; }
@@ -175,7 +197,11 @@
   }
 
   function checkpoint(awaitingNext){
-    if(S) Store.saveSession(S, { timerLeft, awaitingNext });
+    if(S) Store.saveSession(S, {
+      timerLeft,
+      timerDeadline:S.cfg.timer && !paused ? timerDeadline : 0,
+      awaitingNext
+    });
   }
 
   function refreshExamNav(){
@@ -378,6 +404,8 @@
   /* ── 답안 제출 ─────────────────────────────────────── */
   function onAnswer(ans, btn){
     if(locked || !S) return;
+    // 제한시간과 클릭이 겹친 경우 만료된 뒤의 답을 받지 않는다.
+    if(syncTimer(true)) return;
     locked = true;
 
     if(S.mode === 'exam'){
@@ -510,7 +538,12 @@
     if(!S) return;
     locked = false;
     // 해설을 읽은 시간만큼 FEVER 시간을 되돌려준다
-    if(pauseStart) Hype.holdFever(Date.now() - pauseStart);
+    if(pauseStart){
+      const resumedAt = Date.now();
+      Hype.holdFever(resumedAt - pauseStart);
+      if(timerDeadline)
+        timerDeadline = Engine.extendTimerDeadline(timerDeadline, pauseStart, resumedAt);
+    }
     pauseStart = 0;
     paused = false;                // ▶ 재개
     $('#pb-timer').classList.remove('paused');
@@ -872,11 +905,15 @@
     /* 모바일 OS가 앱을 예고 없이 정리하는 경우를 대비한다. 숨겨질 때와
        창을 닫기 직전에 현재 문제·남은 시간을 한 번 더 기록한다. */
     document.addEventListener('visibilitychange', () => {
-      if(document.visibilityState === 'hidden')
+      if(document.visibilityState === 'hidden'){
+        syncTimer(false);
         checkpoint(S && S.mode === 'exam' ? false : locked);
+      }else syncTimer(true);
     });
-    window.addEventListener('beforeunload', () =>
-      checkpoint(S && S.mode === 'exam' ? false : locked));
+    window.addEventListener('beforeunload', () => {
+      syncTimer(false);
+      checkpoint(S && S.mode === 'exam' ? false : locked);
+    });
 
     window.addEventListener('beforeinstallprompt', e => {
       e.preventDefault();
