@@ -306,6 +306,31 @@ t('복습 — 가장 밀린 문항이 반드시 포함된다', () => {
   ok(s.queue.some(q => Store.s.cards[q.id].due === oldest), '가장 밀린 문항이 빠짐');
 });
 
+t('복습 — 30일 박스도 만기에는 다시 나오고 맞히면 30일 뒤로 간다', () => {
+  fresh();
+  const mature = QB.items[0], future = QB.items[1];
+  Store.s.cards[mature.id] = {
+    n:6, ok:6, ng:0, box:Store.INTERVAL.length - 1,
+    due:Store.today(), last:shift(-30)
+  };
+  Store.s.cards[future.id] = {
+    n:6, ok:6, ng:0, box:Store.INTERVAL.length - 1,
+    due:shift(1), last:shift(-29)
+  };
+  Store.save();
+
+  eq(Store.dueCards(), [mature.id], '최종 박스 만기 목록');
+  eq(Store.plan().due, 1, '오늘 계획의 유지 복습 수');
+  const session = Engine.build('srs', { n:1 });
+  eq(session.queue.map(q => q.id), [mature.id], '실제 유지 복습 출제');
+
+  Store.record(mature.id, true);
+  const next = new Date(); next.setDate(next.getDate() + 30);
+  eq([Store.s.cards[mature.id].box, Store.s.cards[mature.id].due],
+    [Store.INTERVAL.length - 1, Store.dateKey(next)], '30일 재예약');
+  ok(!Store.dueCards().includes(mature.id), '맞힌 문항이 당일 다시 나옴');
+});
+
 /* ── 학습 계획 ───────────────────────────────────────────── */
 t('학습 계획 — 남은 복습·새 문제·보강의 합이 남은 목표와 같다', () => {
   const all = QB.items;

@@ -208,7 +208,10 @@ const Store = (() => {
         const c = S.cards[id];
         // 문제은행에서 빠진 옛 id가 가져오기 코드에 남아 있어도 오늘
         // 복습 수와 실제 출제 수가 어긋나지 않게 목록에서 제외한다.
-        return !!QB.byId(id) && c.due <= t && c.box < INTERVAL.length - 1;
+        /* 마지막 박스도 '졸업'이 아니라 30일 간격의 유지 복습이다.
+           여기서 제외하면 UI에는 30일 뒤라고 써 놓고 실제로는 그 문항이
+           영영 나오지 않아 장기 기억을 확인할 기회가 사라진다. */
+        return !!QB.byId(id) && c.due <= t;
       })
       .sort((a, b) => {
         const x = S.cards[a], y = S.cards[b];
