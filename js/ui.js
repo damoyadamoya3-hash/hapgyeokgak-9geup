@@ -996,7 +996,9 @@ const UI = (() => {
     const sub = QB.subject(q.subject);
     const cfg = S.cfg;
 
-    $('#pb-mode').textContent = cfg.label;
+    const modeLabel = cfg.practiceFocus ? `${cfg.label} · ${cfg.practiceFocus}` : cfg.label;
+    $('#pb-mode').textContent = modeLabel;
+    $('#pb-mode').title = modeLabel;
     const denom = (S.mode === 'ox') ? '∞' : (S.mode === 'boss' ? S.bossMax : S.queue.length);
     $('#pb-count').textContent = `${S.i + 1} / ${denom}`;
     const pct = (S.mode === 'ox') ? 0

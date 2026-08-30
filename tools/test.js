@@ -574,12 +574,45 @@ t('오늘 맞춤 학습 — 숙달 보강은 최근 약한 단원의 다른 문�
   const weakWeight = Engine.practiceWeight(weakCandidate);
   const strongWeight = Engine.practiceWeight(strongCandidate);
   ok(weakWeight > strongWeight, '최근 약한 단원 가중치가 높아지지 않음');
-  eq(Engine.practicePick([weakCandidate, strongCandidate], 1, () => .6)[0].id,
-    weakCandidate.id, '최근 약한 단원 문항을 보강에서 놓침');
+  eq(Engine.practicePick([weakCandidate, strongCandidate], 1, () => .99)[0].id,
+    weakCandidate.id, '짧은 세트에서 최약 단원을 놓침');
+  ok(typeof Engine.practiceFocus === 'function', '실제 배정 단원 요약 없음');
+  const focus = Engine.practiceFocus([weakCandidate, strongCandidate]);
+  ok(focus.includes((QB.unit(weakCandidate.unit) || {}).name), '약점 단원 안내에서 실제 배정을 숨김');
+  const session = Engine.build('daily', {
+    breakdown:{ total:1, review:0, fresh:0, practice:1 }
+  });
+  eq(session.queue[0].unit, weakCandidate.unit, '실제 1문항 보강 세트가 최약 단원을 누락');
+  ok(session.cfg.practiceFocus.includes((QB.unit(weakCandidate.unit) || {}).name),
+    '실제 세션에 배정 단원 근거가 없음');
 
   const engine = rd('js/engine.js'), ui = rd('js/ui.js');
   ok(/practicePick\(shuffle\(practicePool\)/.test(engine), '실제 맞춤 세트가 약점 보강 추출기를 쓰지 않음');
-  ok(/약점 보강/.test(ui), '보강 기준 안내 없음');
+  ok(/cfg\.practiceFocus/.test(ui) && /약점 보강/.test(ui), '보강 배정 근거 안내 없음');
+});
+
+t('오늘 맞춤 학습 — 3문항 보강은 약한 세 단원을 한 문항씩 분산한다', () => {
+  fresh();
+  const weakUnits = ['eng-conv','eng-vocab','eng-gram'];
+  const candidates = [];
+  for(const uid of weakUnits){
+    const rows = QB.byUnit(uid);
+    ok(rows.length >= 2, uid + ' 비교 문항 부족');
+    const candidate = rows[0], driver = rows[1];
+    candidates.push(candidate);
+    Store.s.cards[candidate.id] = {
+      n:5, ok:5, ng:0, box:5, due:shift(10), last:Store.today()
+    };
+    for(let i = 0; i < 5; i++) Store.record(driver.id, false);
+  }
+  const strong = QB.byUnit('eng-read')[0];
+  ok(strong, '강한 비교 단원 문항 없음');
+  Store.s.cards[strong.id] = {
+    n:5, ok:5, ng:0, box:5, due:shift(10), last:Store.today()
+  };
+
+  const picked = Engine.practicePick([...candidates, strong], 3, () => .99);
+  eq(new Set(picked.map(q => q.unit)), new Set(weakUnits), '약점 단원 분산 보장');
 });
 
 t('오늘 맞춤 학습 — 맞힌 복습 문항은 복습 임무에도 반영한다', () => {

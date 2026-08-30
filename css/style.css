@@ -217,6 +217,8 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 .pb-progress{height:11px;background:var(--line);border-radius:99px;overflow:hidden}
 .pb-progress i{display:block;height:100%;width:0%;background:linear-gradient(90deg,var(--brand),var(--gold));transition:width .35s}
 .pb-info{display:flex;justify-content:space-between;font-size:11px;color:var(--ink2);margin-top:3px}
+#pb-count{flex:0 0 auto}
+#pb-mode{flex:1;min-width:0;margin-left:10px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pb-right{display:flex;align-items:center;gap:8px}
 .pb-timer{font-family:var(--f-round);font-size:15px;background:var(--card);border:2px solid var(--line);border-radius:99px;padding:3px 11px}
 .pb-timer.warn{color:#fff;background:var(--bad);border-color:var(--bad);animation:pulse .5s infinite}

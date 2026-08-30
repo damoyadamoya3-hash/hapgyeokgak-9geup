@@ -191,13 +191,60 @@ const Engine = (() => {
   }
 
   function practicePick(pool, n, random = Math.random){
+    const limit = Math.min(Math.max(Number(n) || 0, 0), pool.length);
+    if(!limit) return [];
     const needs = new Map();
-    const weight = q => {
-      const key = q.unit || ('subject:' + q.subject);
+    const keyOf = q => q.unit || ('subject:' + q.subject);
+    const needOf = q => {
+      const key = keyOf(q);
       if(!needs.has(key)) needs.set(key, Store.unitNeed(q.unit, q.subject));
-      return practiceWeight(q, needs.get(key));
+      return needs.get(key);
     };
-    return weightedPick(pool, n, weight, random);
+    const weight = q => {
+      return practiceWeight(q, needOf(q));
+    };
+
+    /* 확률만 높이면 1~3문항짜리 짧은 보강에서 정작 최약 단원이 하나도
+       안 나올 수 있다. 80점 미만 단원 중 최대 3곳은 먼저 한 문제씩
+       보장하고, 남은 자리는 기존 가중 무작위로 채워 다양성을 보존한다. */
+    const groups = new Map();
+    for(const q of pool){
+      const key = keyOf(q);
+      if(!groups.has(key)) groups.set(key, { key, need:needOf(q), rows:[] });
+      groups.get(key).rows.push(q);
+    }
+    const weak = [...groups.values()]
+      .filter(group => group.need.scope === 'unit' && group.need.score < 80)
+      .sort((a, b) => a.need.score - b.need.score);
+    const guaranteed = [];
+    for(const group of weak.slice(0, Math.min(limit, 3))){
+      const picked = weightedPick(group.rows, 1, weight, random)[0];
+      if(picked) guaranteed.push(picked);
+    }
+    const used = new Set(guaranteed.map(q => q.id));
+    const rest = pool.filter(q => !used.has(q.id));
+    return guaranteed.concat(weightedPick(rest, limit - guaranteed.length, weight, random));
+  }
+
+  /* 실제 세트에 들어간 80점 미만 단원만 플레이 상단에 요약한다. */
+  function practiceFocus(rows){
+    const groups = new Map();
+    for(const q of rows || []){
+      const key = q.unit || ('subject:' + q.subject);
+      if(!groups.has(key)){
+        groups.set(key, { key, q, n:0, need:Store.unitNeed(q.unit, q.subject) });
+      }
+      groups.get(key).n++;
+    }
+    const weak = [...groups.values()]
+      .filter(x => x.need.scope === 'unit' && x.need.score < 80)
+      .sort((a, b) => (a.need.score - b.need.score) || (b.n - a.n));
+    const names = weak.slice(0, 2).map(x => {
+      const unit = QB.unit(x.q.unit);
+      return unit ? unit.name : ((QB.subject(x.q.subject) || {}).name || x.key);
+    });
+    if(!names.length) return '';
+    return `약점 ${names.join(' · ')}${weak.length > 2 ? ' 외' : ''}`;
   }
 
   /* 새 문항은 최근 모의고사 과락 과목을 먼저, 과락이 없으면 아직 가장
@@ -312,9 +359,11 @@ const Engine = (() => {
         const fallback = QB.items.filter(q => !used.has(q.id));
         add(weightedPick(shuffle(fallback), request.total - rows.length), 'practice');
       }
+      const practiceRows = rows.filter(q => studyKinds[q.id] === 'practice');
       pool = shuffle(rows);
       const count = kind => Object.values(studyKinds).filter(x => x === kind).length;
       cfg = { ...cfg, n:pool.length, focusName:picked.focusName,
+              practiceFocus:practiceFocus(practiceRows),
               dailyPlan:{ total:pool.length, review:count('review'),
                           fresh:count('fresh'), practice:count('practice') } };
     }
@@ -694,7 +743,7 @@ const Engine = (() => {
   }
 
   return { build, current, submit, clearExamAnswer, examIndexes, examPlan, dailyBatch,
-           practiceWeight, practicePick,
+           practiceWeight, practicePick, practiceFocus,
            timerRemaining, extendTimerDeadline,
            gradeExam, examReview, examPaper,
            advance, finish, isCorrect, shuffle, MODE };
