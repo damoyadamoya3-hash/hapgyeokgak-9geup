@@ -396,7 +396,7 @@ t('이론 추천 — 실제 0% 과목을 미학습 100%로 바꾸지 않고 먼�
   Store.s.readCards = {};
   for(const card of QB.theory){
     if(card.id !== weakCard.id && card.id !== strongerCard.id)
-      Store.s.readCards[card.id] = { read:Store.today(), drill:0 };
+      Store.s.readCards[card.id] = { read:'2000-01-01', drill:0 };
   }
   const weakQ = QB.bySubject(weakCard.subject)[0];
   const strongerQ = QB.bySubject(strongerCard.subject)[0];
@@ -407,7 +407,57 @@ t('이론 추천 — 실제 0% 과목을 미학습 100%로 바꾸지 않고 먼�
   eq([Store.subjectAccuracy('eng'), Store.subjectAccuracy('edu')], [0,50], '비교 성적');
   eq(Store.nextCard().id, weakCard.id, '0% 약점 카드 추천');
   const ui = rd('js/ui.js');
-  ok(/정답률.*과목 보강/.test(ui), '추천 근거 안내 없음');
+  ok(/Store\.theoryNeed\(c\)/.test(ui) && /need\.scope === 'subject' \? '과목'/.test(ui),
+    '추천 근거 안내 없음');
+});
+
+t('이론 추천 — 같은 과목에서도 실제 약한 단원의 카드를 먼저 보강한다', () => {
+  fresh();
+  const strongerCard = QB.theory.find(c => c.subject === 'eng' && c.unit === 'eng-vocab' && c.tier === 'S');
+  const weakCard = QB.theory.find(c => c.subject === 'eng' && c.unit === 'eng-conv' && c.tier === 'S');
+  ok(strongerCard && weakCard, '비교할 영어 S 카드 없음');
+  Store.record(QB.byUnit(strongerCard.unit)[0].id, true);
+  Store.record(QB.byUnit(weakCard.unit)[0].id, false);
+
+  eq(Store.theoryNeed(weakCard), { scope:'unit', n:1, acc:0 }, '약한 단원 판정');
+  eq(Store.nextCard().id, weakCard.id, '약한 단원 카드 추천');
+});
+
+t('이론 추천 — 도감을 완주한 뒤에도 약한 카드를 하루 한 장 다시 본다', () => {
+  fresh();
+  const weakCard = QB.theory.find(c => c.subject === 'eng' && c.unit === 'eng-vocab' && c.tier === 'S');
+  ok(weakCard, '다시 볼 카드 없음');
+  Store.s.readCards = {};
+  QB.theory.forEach(card => {
+    Store.s.readCards[card.id] = { read:'2000-01-01', drill:0 };
+  });
+  Store.record(QB.byUnit(weakCard.unit)[0].id, false);
+
+  eq(Store.readCount(), QB.theory.length, '도감 완주 상태');
+  eq(Store.nextCard().id, weakCard.id, '완주 뒤 약점 카드 재추천');
+  Store.markRead(weakCard.id);
+  eq(Store.theoryReadToday(), true, '오늘 카드 완료 기록');
+  eq(Store.nextCard(), null, '같은 날 두 번째 카드 추천 차단');
+
+  const ui = rd('js/ui.js');
+  ok(/오늘 다시 볼 카드/.test(ui) && /오늘 이론 카드 완료/.test(ui) &&
+     /need\.scope === 'unit' \? '단원'/.test(ui) && /reread \? '다시 보기'/.test(ui),
+    '재복습 안내 없음');
+});
+
+t('이론 추천 — 재복습은 등급보다 오래 안 본 카드를 먼저 순환한다', () => {
+  fresh();
+  const sCard = QB.theory.find(c => c.tier === 'S');
+  const aCard = QB.theory.find(c => c.tier === 'A');
+  ok(sCard && aCard, '재복습 순환 카드 없음');
+  Store.s.readCards = {};
+  QB.theory.forEach(card => {
+    Store.s.readCards[card.id] = { read:'2000-01-03', drill:0 };
+  });
+  Store.s.readCards[sCard.id].read = '2000-01-02';
+  Store.s.readCards[aCard.id].read = '2000-01-01';
+
+  eq(Store.nextCard().id, aCard.id, '낮은 등급 카드가 재복습에서 굶음');
 });
 
 t('오늘 맞춤 학습 — 복습과 새 문제를 안내한 수만큼 섞는다', () => {

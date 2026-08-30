@@ -187,13 +187,19 @@ const UI = (() => {
         /* 오늘 읽을 이론 카드 — 문제만 풀면 개념이 채워지지 않는다.
            등급 순으로 한 장씩 짚어 주면 도감이 저절로 채워진다. */
         const c = Store.nextCard();
-        if(!c) return `<p class="pc-card done">📜 이론 카드를 모두 읽었어요 — 이제 빈칸으로 굳히세요</p>`;
+        if(!c){
+          return Store.theoryReadToday()
+            ? `<p class="pc-card done">📜 오늘 이론 카드 완료 — 빈칸 복습으로 굳혀 보세요</p>`
+            : `<p class="pc-card done">📜 이론 카드를 준비하지 못했어요</p>`;
+        }
         const sub = QB.subject(c.subject) || { name:'', emoji:'📘' };
-        const seen = Store.subjectSeen(c.subject);
-        const reason = seen ? ` · 정답률 ${Store.subjectAccuracy(c.subject)}% 과목 보강` : '';
+        const need = Store.theoryNeed(c);
+        const reread = !!(Store.s.readCards[c.id] || {}).read;
+        const scope = need.scope === 'unit' ? '단원' : need.scope === 'subject' ? '과목' : '';
+        const reason = scope ? ` · 정답률 ${need.acc}% ${scope} ${reread ? '다시 보기' : '보강'}` : '';
         return `<button class="pc-card" data-go="codex" data-card="${c.id}">
           <span class="tier tier-${c.tier}" style="position:static">${c.tier}</span>
-          <span class="pcc-body"><b>오늘 읽을 카드${reason}</b>
+          <span class="pcc-body"><b>${reread ? '오늘 다시 볼 카드' : '오늘 읽을 카드'}${reason}</b>
             <span>${sub.emoji} ${esc(c.title)}</span></span>
           <span class="pcc-go">▶</span>
         </button>`;

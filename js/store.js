@@ -248,6 +248,33 @@ const Store = (() => {
     return QB.bySubject(sid).filter(q => S.cards[q.id]).length;
   }
 
+  /* 이론 카드가 받쳐 줘야 할 범위를 실제 풀이 기록에서 찾는다.
+     과목 평균만 쓰면 영어 어휘 0%가 영어 전체 80%에 묻힐 수 있으므로,
+     해당 단원을 푼 적이 있으면 단원 성적을 먼저 쓴다. 단원 기록이 없을
+     때만 과목 성적으로 넓히고, 아무 기록도 없으면 중립값 100으로 둔다. */
+  function theoryNeed(card){
+    const fold = rows => {
+      let n = 0, ok = 0;
+      for(const q of rows){
+        const c = S.cards[q.id];
+        if(!c) continue;
+        n += c.n; ok += c.ok;
+      }
+      return { n, acc:n ? Math.round(ok / n * 100) : 100 };
+    };
+    if(!card) return { scope:'none', n:0, acc:100 };
+    const unit = fold(QB.byUnit(card.unit));
+    if(unit.n) return { scope:'unit', ...unit };
+    const subject = fold(QB.bySubject(card.subject));
+    if(subject.n) return { scope:'subject', ...subject };
+    return { scope:'none', n:0, acc:100 };
+  }
+
+  function theoryReadToday(){
+    const stamp = today();
+    return QB.theory.some(card => (S.readCards[card.id] || {}).read === stamp);
+  }
+
   /* ── 이론 도감 ──────────────────────────────────────── */
   function markRead(cardId){
     const r = S.readCards[cardId] || { read:null, drill:0 };
@@ -361,24 +388,32 @@ const Store = (() => {
   }
 
   /* 오늘 읽을 이론 카드 한 장.
-     등급이 곧 읽는 순서이므로 S → A → B 로 훑되, 같은 등급이면
-     정답률이 낮은 과목을 먼저 준다. 약한 곳을 이론으로 받쳐 주기 위해서다. */
+     아직 안 읽은 카드가 있으면 S → A → B 순서를 지키되 같은 등급에서
+     약한 단원을 먼저 받친다. 전부 읽은 뒤에는 추천을 끝내지 않고 가장
+     약한 범위의 오래된 카드를 다시 띄운다. 다만 하루 한 장을 읽었다면
+     다음 카드로 계속 바뀌지 않게 그날 추천은 완료한다. */
   function nextCard(){
+    if(theoryReadToday()) return null;
     const unread = QB.theory.filter(c => !(S.readCards[c.id] || {}).read);
-    if(!unread.length) return null;
     const RANK = { S:0, A:1, B:2 };
-    const accOf = {};
-    for(const sub of QB.SUBJECTS){
-      /* 0%는 '기록 없음'이 아니라 가장 보강이 필요한 실제 성적이다.
-         `정답률 || 100`으로 쓰면 전부 틀린 과목을 100%로 뒤집어 추천에서
-         밀어냈다. 학습 기록이 없을 때만 중립값 100을 쓴다. */
-      accOf[sub.id] = subjectSeen(sub.id) ? subjectAccuracy(sub.id) : 100;
+    const needDiff = (a, b) => theoryNeed(a).acc - theoryNeed(b).acc;
+
+    if(unread.length){
+      return unread.slice().sort((a, b) => {
+        const t = (RANK[a.tier] ?? 9) - (RANK[b.tier] ?? 9);
+        return t || needDiff(a, b);
+      })[0];
     }
-    return unread.slice().sort((a, b) => {
+
+    const reread = QB.theory.filter(c => (S.readCards[c.id] || {}).read);
+    return reread.slice().sort((a, b) => {
+      const need = needDiff(a, b);
+      if(need) return need;
+      const age = String(S.readCards[a.id].read).localeCompare(String(S.readCards[b.id].read));
+      if(age) return age;
       const t = (RANK[a.tier] ?? 9) - (RANK[b.tier] ?? 9);
-      if(t) return t;
-      return accOf[a.subject] - accOf[b.subject];
-    })[0];
+      return t;
+    })[0] || null;
   }
 
   /* ── 북마크 ─────────────────────────────────────────── */
@@ -1273,7 +1308,7 @@ const Store = (() => {
     weekAttendance, nextStreakGoal, STREAK_REWARDS, setExamDate, plan,
     SHOP, buy, useItem, has, logExam, examLog, lastExam, lastExamPaper,
     updateExamPaperReview, paperReviewSummary,
-    subjectAccuracy, subjectSeen, touchStreak, daily, progressTask,
+    subjectAccuracy, subjectSeen, theoryNeed, theoryReadToday, touchStreak, daily, progressTask,
     checkAch, ACHS, exportData, inspectData, importData, mergeData,
     hasImportBackup, backupInfo, restoreImportBackup, clearImportBackup,
     reset, resetWithBackup, today, dateKey,
