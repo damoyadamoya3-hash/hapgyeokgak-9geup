@@ -962,9 +962,46 @@ const Store = (() => {
     catch(e){ return null; }
   }
 
+  function writeProgressBackup(reason){
+    try{
+      localStorage.setItem(BACKUP_KEY, JSON.stringify({
+        v:1,
+        reason:reason === 'reset' ? 'reset' : 'import',
+        savedAt:Date.now(),
+        state:structuredClone(S)
+      }));
+      return true;
+    }catch(e){ return false; }
+  }
+
+  function readProgressBackup(){
+    try{
+      const raw = JSON.parse(localStorage.getItem(BACKUP_KEY));
+      if(!raw) return null;
+      // e4ce4c7에서 만든 기존 백업은 상태 객체 자체를 저장했다. 새 포장
+      // 형식으로 바뀐 뒤에도 이미 만들어 둔 되돌리기를 잃지 않는다.
+      const wrapped = isMap(raw) && raw.v === 1 && isMap(raw.state);
+      const state = cleanSnapshot(wrapped ? raw.state : raw, true);
+      if(!state) return null;
+      return {
+        reason:wrapped && raw.reason === 'reset' ? 'reset' : 'import',
+        savedAt:wrapped && Number.isFinite(Number(raw.savedAt)) ? Number(raw.savedAt) : 0,
+        state
+      };
+    }catch(e){ return null; }
+  }
+
   function hasImportBackup(){
-    try{ return !!localStorage.getItem(BACKUP_KEY); }
-    catch(e){ return false; }
+    return !!readProgressBackup();
+  }
+  function backupInfo(){
+    const backup = readProgressBackup();
+    if(!backup) return null;
+    return {
+      reason:backup.reason, savedAt:backup.savedAt,
+      nick:backup.state.nick || '', answered:backup.state.totalAnswered,
+      cards:Object.keys(backup.state.cards).length
+    };
   }
   function clearImportBackup(){
     try{ localStorage.removeItem(BACKUP_KEY); return true; }
@@ -975,24 +1012,30 @@ const Store = (() => {
     const next = readSnapshot(str);
     if(!next) return false;
     const before = structuredClone(S);
-    try{ localStorage.setItem(BACKUP_KEY, JSON.stringify(before)); }
-    catch(e){ return false; }                 // 되돌릴 수 없으면 덮어쓰지 않는다
+    if(!writeProgressBackup('import')) return false; // 되돌릴 수 없으면 덮어쓰지 않는다
     S = next;
     if(save()) return true;
-    S = before; save();
+    S = before; clearImportBackup(); save();
     return false;
   }
 
   function restoreImportBackup(){
-    let next;
-    try{ next = cleanSnapshot(JSON.parse(localStorage.getItem(BACKUP_KEY)), true); }
-    catch(e){ return false; }
-    if(!next) return false;
+    const backup = readProgressBackup();
+    if(!backup) return false;
     const before = S;
-    S = next;
+    S = backup.state;
     if(!save()){ S = before; save(); return false; }
     clearImportBackup();
     return true;
+  }
+
+  function resetWithBackup(){
+    const before = structuredClone(S);
+    if(!writeProgressBackup('reset')) return false;
+    S = structuredClone(DEFAULT);
+    if(save()) return true;
+    S = before; clearImportBackup(); save();
+    return false;
   }
   /* 모의고사 한 회차를 기록한다. 오래된 것부터 60회까지만 남긴다. */
   function logExam(scope, bySub, paper = null){
@@ -1227,8 +1270,8 @@ const Store = (() => {
     updateExamPaperReview, paperReviewSummary,
     subjectAccuracy, subjectSeen, touchStreak, daily, progressTask,
     checkAch, ACHS, exportData, inspectData, importData, mergeData,
-    hasImportBackup, restoreImportBackup, clearImportBackup,
-    reset, today, dateKey,
+    hasImportBackup, backupInfo, restoreImportBackup, clearImportBackup,
+    reset, resetWithBackup, today, dateKey,
     saveSession, restoreSession, sessionInfo, clearSession,
     onSaveError, get saveBroken(){ return saveBroken; },
     exportPacked, unpack, CAN_ZIP

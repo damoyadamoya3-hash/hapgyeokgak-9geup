@@ -919,6 +919,7 @@ t('이어하기 — 덮어쓰기 전 상태를 자동 백업하고 한 번 되�
   eq([preview.nick, preview.answered, preview.cards], ['가져올쪽',2,1], '가져오기 미리보기');
   ok(Store.importData(incoming), '덮어쓰기 실패');
   ok(Store.hasImportBackup(), '자동 백업 없음');
+  eq(Store.backupInfo().reason, 'import', '덮어쓰기 백업 종류');
   eq([Store.s.nick, Store.s.totalAnswered], ['가져올쪽',2], '가져온 진도');
   ok(Store.restoreImportBackup(), '백업 되돌리기 실패');
   eq(JSON.stringify(Store.s), before, '직전 진도로 돌아오지 않음');
@@ -927,6 +928,62 @@ t('이어하기 — 덮어쓰기 전 상태를 자동 백업하고 한 번 되�
   const ui = rd('js/ui.js');
   ok(/Store\.inspectData/.test(ui) && /sync-undo/.test(ui) && /자동 백업/.test(ui),
     '미리보기·되돌리기 UI 없음');
+});
+
+t('초기화 — 직전 진도를 자동 백업하고 진행 중 세션까지 되돌린다', () => {
+  Store.clearImportBackup();
+  fresh();
+  Store.s.nick = '초기화전';
+  Store.record(QB.items[0].id, true);
+  Store.record(QB.items[1].id, false);
+  const sess = Engine.build('quest', { unit:QB.items[2].unit, subject:QB.items[2].subject });
+  Store.saveSession(sess, { timerLeft:55 });
+  const before = JSON.stringify(Store.s);
+
+  ok(Store.resetWithBackup(), '안전 초기화 실패');
+  eq([Store.s.totalAnswered, Object.keys(Store.s.cards).length, Store.s.activeSession],
+    [0,0,null], '초기 상태');
+  const info = Store.backupInfo();
+  eq([info.reason, info.nick, info.answered, info.cards], ['reset','초기화전',2,2],
+    '초기화 백업 안내');
+  ok(Store.restoreImportBackup(), '초기화 되돌리기 실패');
+  eq(JSON.stringify(Store.s), before, '세션을 포함한 직전 진도가 돌아오지 않음');
+  ok(!Store.hasImportBackup(), '쓴 초기화 백업이 남아 있음');
+
+  const app = rd('js/app.js'), ui = rd('js/ui.js');
+  ok(/Store\.resetWithBackup/.test(app) && /releaseSessionRuntime/.test(app),
+    '안전 초기화·실행 세션 정리 경로 없음');
+  ok(/초기화 전 진도/.test(ui) && /backup\.reason/.test(ui), '백업 종류별 되돌리기 안내 없음');
+});
+
+t('초기화 — 백업 저장에 실패하면 현재 진도를 건드리지 않는다', () => {
+  Store.clearImportBackup();
+  fresh();
+  Store.record(QB.items[0].id, true);
+  const before = JSON.stringify(Store.s);
+  const real = global.localStorage.setItem;
+  global.localStorage.setItem = (key, value) => {
+    if(key === 'hapgyeokgak9_import_backup_v1') throw new Error('QuotaExceededError');
+    return real(key, value);
+  };
+  const changed = Store.resetWithBackup();
+  global.localStorage.setItem = real;
+  ok(!changed, '백업 없이 초기화 성공으로 보고');
+  eq(JSON.stringify(Store.s), before, '백업 실패가 현재 진도를 바꿈');
+  ok(!Store.hasImportBackup(), '실패한 백업이 있다고 보고');
+});
+
+t('이어하기 — 이전 버전의 포장 없는 백업도 복구한다', () => {
+  Store.clearImportBackup();
+  fresh();
+  Store.s.nick = '예전백업';
+  Store.record(QB.items[0].id, false);
+  const legacy = JSON.stringify(Store.s);
+  localStorage.setItem('hapgyeokgak9_import_backup_v1', legacy);
+  Store.reset();
+  eq(Store.backupInfo().reason, 'import', '기존 백업 기본 종류');
+  ok(Store.restoreImportBackup(), '기존 백업 복구 실패');
+  eq(JSON.stringify(Store.s), legacy, '기존 백업 내용');
 });
 
 /* ── 저장 ────────────────────────────────────────────────── */

@@ -161,6 +161,16 @@
     timerDeadline = 0;
   }
 
+  /* 진도 덮어쓰기·복구·초기화 뒤에는 화면 밖의 세션 객체도 버린다.
+     그대로 두면 beforeunload 체크포인트가 새 진도에 예전 판을 다시 써서
+     방금 한 변경을 오염시킬 수 있다. 저장돼 있던 이어하기는 건드리지 않는다. */
+  function releaseSessionRuntime(){
+    stopTimer();
+    if(examMoveTimer){ clearTimeout(examMoveTimer); examMoveTimer = null; }
+    Tetris.stop(); Hype.stopFever(); Hype.Bgm.stop();
+    S = null; lastPlay = null; locked = false; paused = false; pauseStart = 0;
+  }
+
   /* 반복 콜백을 한 번 실행될 때마다 1초로 간주하지 않고, 현재 시각과
      종료 시각의 차이로 표시값을 다시 맞춘다. 탭이 다시 보이는 순간에도
      호출해 백그라운드에서 건너뛴 시간을 즉시 반영한다. */
@@ -886,19 +896,24 @@
     // 아바타 → 계정 화면
     $('#hud-avatar').addEventListener('click', () => {
       Sfx.tap();
-      UI.sync(() => { applyTheme(); UI.home(); });
+      UI.sync(() => { releaseSessionRuntime(); applyTheme(); UI.home(); refreshResumeCard(); });
     });
 
     // 40KB 짜리 코드는 prompt 창에 붙여 넣을 수 없다. 전용 화면으로 보낸다.
     $('#btn-sync').addEventListener('click', () => {
       closeSettings(false);
-      UI.sync(() => { applyTheme(); UI.home(); });
+      UI.sync(() => { releaseSessionRuntime(); applyTheme(); UI.home(); refreshResumeCard(); });
     });
     $('#btn-reset').addEventListener('click', () => {
-      if(confirm('모든 진행도가 삭제됩니다. 정말 초기화할까요?')){
-        Store.reset(); applyTheme(); UI.home(); closeSettings(false);
+      const n = Store.s.totalAnswered.toLocaleString();
+      if(confirm(`현재 진도 ${n}문제를 초기화할까요?\n\n직전 상태는 자동 백업되어 계정 화면에서 한 번 되돌릴 수 있습니다.`)){
+        if(!Store.resetWithBackup()){
+          Fx.toast('진도를 안전하게 백업할 수 없어 초기화하지 않았어요 😢', false, 3400);
+          return;
+        }
+        releaseSessionRuntime(); applyTheme(); UI.home(); UI.show('scr-home'); closeSettings(false);
         refreshResumeCard();
-        Fx.toast('초기화 완료. 처음부터 다시 시작!');
+        Fx.toast('초기화 완료! 필요하면 계정 화면에서 되돌릴 수 있어요', true, 3200);
       }
     });
 

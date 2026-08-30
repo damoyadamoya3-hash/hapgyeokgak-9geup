@@ -362,6 +362,7 @@ const UI = (() => {
     const sum = Store.summary ? Store.summary() : null;
     const cards = Object.keys(Store.s.cards).length;
     const lv = Store.levelInfo(Store.s.xp);
+    const backup = Store.backupInfo();
     const code = Store.exportData();   // 압축본이 준비될 때까지 보여 줄 임시본
 
     $('#sync-body').innerHTML = `
@@ -398,8 +399,9 @@ const UI = (() => {
         <textarea id="sync-in" class="sync-box" rows="3" placeholder="여기에 코드를 붙여 넣으세요"></textarea>
         <button class="btn-primary" id="sync-merge">🔗 합치기</button>
         <button class="btn-ghost" id="sync-replace">이 기기를 코드로 덮어쓰기</button>
-        ${Store.hasImportBackup()
-          ? '<button class="btn-ghost sync-undo" id="sync-undo">↩ 직전 덮어쓰기 되돌리기</button>'
+        ${backup
+          ? `<button class="btn-ghost sync-undo" id="sync-undo">↩ ${backup.reason === 'reset'
+              ? '초기화 전 진도' : '덮어쓰기 전 진도'} 되돌리기</button>`
           : ''}
       </div>
 
@@ -475,7 +477,10 @@ const UI = (() => {
 
     const undo = $('#sync-undo');
     if(undo) undo.addEventListener('click', () => {
-      if(!confirm('직전 덮어쓰기 전 진도로 되돌릴까요? 현재 가져온 진도는 사라집니다.')) return;
+      const origin = backup.reason === 'reset' ? '초기화 전 진도' : '덮어쓰기 전 진도';
+      const who = backup.nick ? `${backup.nick} 님 · ` : '';
+      if(!confirm(`${origin}로 되돌릴까요?\n${who}${backup.answered.toLocaleString()}문제 · ${backup.cards.toLocaleString()}문항` +
+                  '\n\n현재 진도는 사라지고, 이 되돌리기는 한 번만 사용할 수 있습니다.')) return;
       if(!Store.restoreImportBackup()) return Fx.toast('백업을 복구하지 못했어요 😢');
       Fx.toast('직전 진도로 되돌렸어요', true, 2400);
       onChange && onChange();
