@@ -407,7 +407,8 @@ t('이론 추천 — 실제 0% 과목을 미학습 100%로 바꾸지 않고 먼�
   eq([Store.subjectAccuracy('eng'), Store.subjectAccuracy('edu')], [0,50], '비교 성적');
   eq(Store.nextCard().id, weakCard.id, '0% 약점 카드 추천');
   const ui = rd('js/ui.js');
-  ok(/Store\.theoryNeed\(c\)/.test(ui) && /need\.scope === 'subject' \? '과목'/.test(ui),
+  ok(/Store\.theoryNeed\(c\)/.test(ui) && /need\.scope === 'subject' \? '과목'/.test(ui) &&
+     /누적 \$\{need\.acc\}%/.test(ui),
     '추천 근거 안내 없음');
 });
 
@@ -419,8 +420,67 @@ t('이론 추천 — 같은 과목에서도 실제 약한 단원의 카드를 �
   Store.record(QB.byUnit(strongerCard.unit)[0].id, true);
   Store.record(QB.byUnit(weakCard.unit)[0].id, false);
 
-  eq(Store.theoryNeed(weakCard), { scope:'unit', n:1, acc:0 }, '약한 단원 판정');
+  const need = Store.theoryNeed(weakCard);
+  eq([need.scope, need.n, need.acc, need.stableAcc, need.recentN, need.score],
+    ['unit',1,0,56,1,56], '작은 표본 완화');
   eq(Store.nextCard().id, weakCard.id, '약한 단원 카드 추천');
+});
+
+t('이론 추천 — 오래된 누적 평균보다 최근 5문항 급락을 먼저 보강한다', () => {
+  fresh();
+  const steadyCard = QB.theory.find(c => c.subject === 'eng' && c.unit === 'eng-vocab' && c.tier === 'S');
+  const slumpCard = QB.theory.find(c => c.subject === 'eng' && c.unit === 'eng-conv' && c.tier === 'S');
+  ok(steadyCard && slumpCard, '최근 흐름 비교 카드 없음');
+  Store.s.readCards = {};
+  QB.theory.forEach(card => {
+    if(card.id !== steadyCard.id && card.id !== slumpCard.id)
+      Store.s.readCards[card.id] = { read:'2000-01-01', drill:0 };
+  });
+
+  const steadyQ = QB.byUnit(steadyCard.unit)[0];
+  const slumpQ = QB.byUnit(slumpCard.unit)[0];
+  const fillerQ = QB.bySubject('edu')[0];
+  for(let i = 0; i < 20; i++) Store.record(slumpQ.id, true);       // 과거 숙달
+  for(let i = 0; i < 10; i++) Store.record(steadyQ.id, i < 6);    // 누적 60%
+  for(let i = 0; i < 50; i++) Store.record(fillerQ.id, true);     // 최근 창 밖으로 밀기
+  for(let i = 0; i < 5; i++) Store.record(slumpQ.id, false);      // 최근 5문항 0%
+
+  const slump = Store.theoryNeed(slumpCard);
+  const steady = Store.theoryNeed(steadyCard);
+  eq([slump.acc, slump.recentN, slump.recentAcc, slump.score], [80,5,0,52], '최근 급락 집계');
+  eq([steady.acc, steady.recentN, steady.score], [60,0,60], '안정 단원 집계');
+  ok(slump.score < steady.score, '최근 급락이 추천 점수에 반영되지 않음');
+  eq(Store.nextCard().id, slumpCard.id, '최근 급락 카드 추천');
+  const ui = rd('js/ui.js');
+  ok(/최근 \$\{need\.recentN\}문항 \$\{need\.recentAcc\}%/.test(ui),
+    '최근 근거 안내 없음');
+});
+
+t('이론 추천 — 최근 5문항 회복은 오래된 약점에 계속 묶어 두지 않는다', () => {
+  fresh();
+  const steadyCard = QB.theory.find(c => c.subject === 'eng' && c.unit === 'eng-vocab' && c.tier === 'S');
+  const recoveringCard = QB.theory.find(c => c.subject === 'eng' && c.unit === 'eng-conv' && c.tier === 'S');
+  ok(steadyCard && recoveringCard, '최근 회복 비교 카드 없음');
+  Store.s.readCards = {};
+  QB.theory.forEach(card => {
+    if(card.id !== steadyCard.id && card.id !== recoveringCard.id)
+      Store.s.readCards[card.id] = { read:'2000-01-01', drill:0 };
+  });
+
+  const steadyQ = QB.byUnit(steadyCard.unit)[0];
+  const recoveringQ = QB.byUnit(recoveringCard.unit)[0];
+  const fillerQ = QB.bySubject('edu')[0];
+  for(let i = 0; i < 10; i++) Store.record(recoveringQ.id, i < 2); // 과거 20%
+  for(let i = 0; i < 10; i++) Store.record(steadyQ.id, i < 6);     // 누적 60%
+  for(let i = 0; i < 50; i++) Store.record(fillerQ.id, true);
+  for(let i = 0; i < 5; i++) Store.record(recoveringQ.id, true);  // 최근 5문항 100%
+
+  const recovering = Store.theoryNeed(recoveringCard);
+  const steady = Store.theoryNeed(steadyCard);
+  eq([recovering.acc, recovering.recentN, recovering.recentAcc, recovering.score],
+    [47,5,100,66], '최근 회복 집계');
+  eq(Store.nextCard().id, steadyCard.id, '회복한 단원이 오래된 누적 약점에 고정됨');
+  ok(recovering.score > steady.score, '최근 회복이 추천 점수에 반영되지 않음');
 });
 
 t('이론 추천 — 도감을 완주한 뒤에도 약한 카드를 하루 한 장 다시 본다', () => {

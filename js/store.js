@@ -251,23 +251,40 @@ const Store = (() => {
   /* 이론 카드가 받쳐 줘야 할 범위를 실제 풀이 기록에서 찾는다.
      과목 평균만 쓰면 영어 어휘 0%가 영어 전체 80%에 묻힐 수 있으므로,
      해당 단원을 푼 적이 있으면 단원 성적을 먼저 쓴다. 단원 기록이 없을
-     때만 과목 성적으로 넓히고, 아무 기록도 없으면 중립값 100으로 둔다. */
+     때만 과목 성적으로 넓힌다. 1문항의 우연을 0%·100%로 확정하지 않게
+     5회 미만 표본은 70% 쪽으로 완화한다. 최근 50개 답안 안에서 같은
+     범위를 5회 이상 풀었다면 최근 성적을 최대 70%까지 더 반영한다. */
   function theoryNeed(card){
+    const recentWindow = Array.isArray(S.answerLog) ? S.answerLog.slice(-50) : [];
     const fold = rows => {
+      const ids = new Set(rows.map(q => q.id));
       let n = 0, ok = 0;
       for(const q of rows){
         const c = S.cards[q.id];
         if(!c) continue;
         n += c.n; ok += c.ok;
       }
-      return { n, acc:n ? Math.round(ok / n * 100) : 100 };
+      const rawAcc = n ? ok / n * 100 : 100;
+      const acc = Math.round(rawAcc);
+      const confidence = Math.min(n / 5, 1);
+      const stableAcc = n ? Math.round(rawAcc * confidence + 70 * (1 - confidence)) : 100;
+      const recent = recentWindow.filter(row => ids.has(row.id)).slice(-20);
+      const recentN = recent.length;
+      const recentOk = recent.filter(row => row.ok).length;
+      const recentAcc = recentN ? Math.round(recentOk / recentN * 100) : null;
+      const recentWeight = recentN >= 5 ? Math.min(.7, recentN * .07) : 0;
+      const score = Math.round(stableAcc * (1 - recentWeight) +
+        (recentAcc == null ? stableAcc : recentAcc) * recentWeight);
+      return { n, acc, stableAcc, recentN, recentAcc, score };
     };
-    if(!card) return { scope:'none', n:0, acc:100 };
+    const blank = { scope:'none', n:0, acc:100, stableAcc:100,
+                    recentN:0, recentAcc:null, score:100 };
+    if(!card) return blank;
     const unit = fold(QB.byUnit(card.unit));
     if(unit.n) return { scope:'unit', ...unit };
     const subject = fold(QB.bySubject(card.subject));
     if(subject.n) return { scope:'subject', ...subject };
-    return { scope:'none', n:0, acc:100 };
+    return blank;
   }
 
   function theoryReadToday(){
@@ -396,7 +413,7 @@ const Store = (() => {
     if(theoryReadToday()) return null;
     const unread = QB.theory.filter(c => !(S.readCards[c.id] || {}).read);
     const RANK = { S:0, A:1, B:2 };
-    const needDiff = (a, b) => theoryNeed(a).acc - theoryNeed(b).acc;
+    const needDiff = (a, b) => theoryNeed(a).score - theoryNeed(b).score;
 
     if(unread.length){
       return unread.slice().sort((a, b) => {

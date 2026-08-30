@@ -196,7 +196,10 @@ const UI = (() => {
         const need = Store.theoryNeed(c);
         const reread = !!(Store.s.readCards[c.id] || {}).read;
         const scope = need.scope === 'unit' ? '단원' : need.scope === 'subject' ? '과목' : '';
-        const reason = scope ? ` · 정답률 ${need.acc}% ${scope} ${reread ? '다시 보기' : '보강'}` : '';
+        const accuracy = need.recentN >= 5
+          ? `최근 ${need.recentN}문항 ${need.recentAcc}%`
+          : `누적 ${need.acc}%`;
+        const reason = scope ? ` · ${accuracy} ${scope} ${reread ? '다시 보기' : '보강'}` : '';
         return `<button class="pc-card" data-go="codex" data-card="${c.id}">
           <span class="tier tier-${c.tier}" style="position:static">${c.tier}</span>
           <span class="pcc-body"><b>${reread ? '오늘 다시 볼 카드' : '오늘 읽을 카드'}${reason}</b>
