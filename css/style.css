@@ -334,6 +334,13 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 .res-rewards{display:flex;gap:10px;justify-content:center;margin-bottom:20px}
 .res-rewards span{background:rgba(242,194,0,.20);border-radius:99px;padding:6px 15px;font-family:var(--f-round);font-size:14px}
 .res-review{text-align:left;display:grid;gap:8px;margin-bottom:20px}
+.daily-result{background:color-mix(in srgb,var(--brand) 7%,var(--card));border:2px solid color-mix(in srgb,var(--brand) 35%,var(--line));border-radius:15px;padding:14px}
+.daily-result h3{font-size:15px;margin:0 0 10px}
+.dr-kinds{display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:7px}
+.dr-kinds span{display:flex;align-items:center;justify-content:space-between;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 9px}
+.dr-kinds small{color:var(--ink2);font-size:11px}.dr-kinds b{font-family:var(--f-round);font-size:14px}
+.daily-result p{margin:10px 0 0;font-size:12.5px;line-height:1.55;color:var(--ink2)}
+.daily-result p strong{color:var(--brand-ink)}.daily-result p.good strong{color:var(--good)}
 .rev-item{background:var(--card);border:2px solid var(--line);border-left:5px solid var(--bad);border-radius:12px;padding:11px 13px}
 .rev-item .rq{font-size:13.5px;line-height:1.6;word-break:keep-all}
 .rev-item .ra{font-size:12px;color:var(--good);margin-top:5px;font-family:var(--f-round)}

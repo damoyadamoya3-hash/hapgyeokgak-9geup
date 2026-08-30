@@ -1333,6 +1333,23 @@ const UI = (() => {
               })()
             : `<p class="cut-ok">✅ 40점 미만 과목이 없습니다. 과락 위험은 넘겼습니다.</p>`}` : '';
 
+    const dailyInsight = S.mode === 'daily' && fin.studySummary ? (() => {
+      const labels = { review:'복습', fresh:'새 문제', practice:'약점 보강' };
+      const rows = Object.keys(labels).filter(key => fin.studySummary.kinds[key].n);
+      const weak = fin.studySummary.weakest;
+      return `<section class="daily-result" aria-label="오늘의 학습 진단">
+        <h3>🎯 오늘의 학습 진단</h3>
+        <div class="dr-kinds">${rows.map(key => {
+          const item = fin.studySummary.kinds[key];
+          return `<span><small>${labels[key]}</small><b>${item.ok}/${item.n}</b></span>`;
+        }).join('')}</div>
+        ${weak
+          ? `<p><strong>다음 한 걸음</strong> · <b>${esc(weak.name)}</b>에서 ${weak.ok}/${weak.n} 정답.
+              아래 버튼으로 이번 오답부터 바로 회복하세요.</p>`
+          : '<p class="good"><strong>잘했어요</strong> · 이번 맞춤 세트에는 남은 오답이 없습니다.</p>'}
+      </section>`;
+    })() : '';
+
     const normalReview = S.wrongList.length
       ? `<h3 style="font-size:15px;margin:0 0 4px">📌 다시 볼 문제 ${S.wrongList.length}개</h3>` +
         S.wrongList.slice(0, 8).map(q => `
@@ -1349,7 +1366,8 @@ const UI = (() => {
         <i><em style="width:${recovery.total ? Math.round(recovery.recovered / recovery.total * 100) : 0}%"></em></i>
       </div>` : '';
     const review = $('#res-review');
-    review.innerHTML = subTable + (S.mode === 'exam' ? examReviewHtml(S) : paperProgress + normalReview);
+    review.innerHTML = subTable + dailyInsight +
+      (S.mode === 'exam' ? examReviewHtml(S) : paperProgress + normalReview);
     bindReviewReveal(review);
 
     const paperBtn = $('#btn-res-paper');
@@ -1369,9 +1387,12 @@ const UI = (() => {
 
     // 방금 틀린 게 있으면 그 자리에서 바로잡을 길을 열어 준다
     const wrongBtn = $('#btn-res-wrong');
-    const hasWrong = Store.wrongCards().length > 0;
-    wrongBtn.classList.toggle('hidden', !hasWrong);
-    if(hasWrong) wrongBtn.textContent = `📕 틀린 것만 다시 (${Store.wrongCards().length})`;
+    const sessionWrongIds = (S.mode === 'exam' || S.mode === 'paper') ? [] :
+      [...new Set((S.wrongList || []).map(q => q.id).filter(Boolean))];
+    const retryN = Math.min(sessionWrongIds.length, 30);
+    wrongBtn.classList.toggle('hidden', !retryN);
+    wrongBtn.dataset.ids = JSON.stringify(sessionWrongIds);
+    if(retryN) wrongBtn.textContent = `📕 이번 오답 ${retryN}개 바로 풀기${sessionWrongIds.length > retryN ? ' (우선)' : ''}`;
 
     if(win){ Sfx.win(); Fx.confetti(fin.acc === 100 ? 60 : 36); }
     else Sfx.lose();

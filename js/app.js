@@ -807,7 +807,9 @@
        것을 바로잡을 기회를 그대로 흘려보내게 된다. 오답이 있을 때만 뜬다. */
     $('#btn-res-wrong').addEventListener('click', () => {
       Sfx.tap();
-      start('wrong', {});
+      let ids = [];
+      try{ ids = JSON.parse($('#btn-res-wrong').dataset.ids || '[]'); }catch(_){ ids = []; }
+      start('wrong', ids.length ? { ids } : {});
     });
 
     $('#btn-res-again').addEventListener('click', () => {

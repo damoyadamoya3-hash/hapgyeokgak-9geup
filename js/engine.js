@@ -247,6 +247,45 @@ const Engine = (() => {
     return `약점 ${names.join(' · ')}${weak.length > 2 ? ' 외' : ''}`;
   }
 
+  /* 맞춤 세트는 결과를 정답률 하나로 뭉개지 않는다. 복습·새 문제·보강의
+     성취를 따로 세고, 방금 가장 많이 막힌 단원과 즉시 다시 풀 오답을
+     돌려준다. 저장 형식에는 손대지 않는 세션 단위 진단이다. */
+  function studySummary(S){
+    const kinds = {
+      review:{ n:0, ok:0 }, fresh:{ n:0, ok:0 }, practice:{ n:0, ok:0 }
+    };
+    const units = new Map();
+    const wrongIds = [], seenWrong = new Set();
+    for(const row of (S && S.answered) || []){
+      const kind = S.studyKinds && S.studyKinds[row.id];
+      if(kinds[kind]){
+        kinds[kind].n++;
+        if(row.__ok) kinds[kind].ok++;
+      }
+      const q = QB.byId(row.id);
+      if(!q) continue;
+      const key = q.unit || ('subject:' + q.subject);
+      if(!units.has(key)){
+        const unit = QB.unit(q.unit), subject = QB.subject(q.subject);
+        units.set(key, { id:key, name:(unit || subject || {}).name || key,
+                         n:0, ok:0, wrong:0 });
+      }
+      const group = units.get(key);
+      group.n++;
+      if(row.__ok) group.ok++;
+      else{
+        group.wrong++;
+        if(!seenWrong.has(q.id)){
+          seenWrong.add(q.id); wrongIds.push(q.id);
+        }
+      }
+    }
+    const weakest = [...units.values()].filter(x => x.wrong)
+      .sort((a, b) => (b.wrong - a.wrong) ||
+        ((a.ok / a.n) - (b.ok / b.n)) || (b.n - a.n))[0] || null;
+    return { kinds, weakest, wrongIds };
+  }
+
   /* 새 문항은 최근 모의고사 과락 과목을 먼저, 과락이 없으면 아직 가장
      덜 본 단원을 먼저 낸다. 그 범위가 부족할 때만 나머지 은행으로 넓힌다. */
   function freshPick(n, used = new Set()){
@@ -368,8 +407,15 @@ const Engine = (() => {
                           fresh:count('fresh'), practice:count('practice') } };
     }
     else if(mode === 'wrong'){
-      const ids = Store.wrongCards();
-      pool = shuffle(ids.map(id => QB.byId(id)).filter(Boolean)).slice(0, cfg.n);
+      const targeted = Array.isArray(opt.ids);
+      const seen = new Set();
+      const ids = (targeted ? opt.ids : Store.wrongCards()).filter(id => {
+        if(!id || seen.has(id) || !QB.byId(id)) return false;
+        seen.add(id); return true;
+      });
+      const limit = targeted ? Math.min(ids.length, 30) : cfg.n;
+      pool = shuffle(ids.map(id => QB.byId(id)).filter(Boolean)).slice(0, limit);
+      cfg = { ...cfg, label:targeted ? '이번 오답 회복' : cfg.label, n:pool.length };
     }
     else if(mode === 'paper'){
       // 최근 시험에서 틀렸거나 비워 뒀거나 검토 표시한 문항만 당시 번호
@@ -739,11 +785,12 @@ const Engine = (() => {
     }
 
     return { acc, total, bonusXp, bonusCoin, leveled, stars, newAch, bySub, doneTasks,
+             studySummary:S.mode === 'daily' ? studySummary(S) : null,
              streak: streakInfo.streak, streakReward: streakInfo.reward, paperReview };
   }
 
   return { build, current, submit, clearExamAnswer, examIndexes, examPlan, dailyBatch,
-           practiceWeight, practicePick, practiceFocus,
+           practiceWeight, practicePick, practiceFocus, studySummary,
            timerRemaining, extendTimerDeadline,
            gradeExam, examReview, examPaper,
            advance, finish, isCorrect, shuffle, MODE };

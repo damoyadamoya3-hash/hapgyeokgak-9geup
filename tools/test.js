@@ -615,6 +615,39 @@ t('오늘 맞춤 학습 — 3문항 보강은 약한 세 단원을 한 문항씩
   eq(new Set(picked.map(q => q.unit)), new Set(weakUnits), '약점 단원 분산 보장');
 });
 
+t('오늘 맞춤 학습 — 결과 진단 뒤 이번 오답만 바로 회복한다', () => {
+  fresh();
+  const weak = QB.byUnit('eng-conv').slice(0, 2);
+  const strong = QB.byUnit('eng-vocab')[0];
+  ok(weak.length === 2 && strong, '결과 진단 비교 문항 부족');
+  const session = {
+    answered:[
+      { id:weak[0].id, subject:weak[0].subject, __ok:false },
+      { id:strong.id, subject:strong.subject, __ok:true },
+      { id:weak[1].id, subject:weak[1].subject, __ok:false }
+    ],
+    studyKinds:{
+      [weak[0].id]:'review', [strong.id]:'fresh', [weak[1].id]:'practice'
+    }
+  };
+  const summary = Engine.studySummary(session);
+  eq(summary.kinds, {
+    review:{ n:1, ok:0 }, fresh:{ n:1, ok:1 }, practice:{ n:1, ok:0 }
+  }, '학습 종류별 성취');
+  eq(summary.weakest.id, weak[0].unit, '방금 가장 막힌 단원');
+  eq(summary.wrongIds, weak.map(q => q.id), '이번 세트 오답 순서');
+
+  const retry = Engine.build('wrong', {
+    ids:[weak[0].id, '삭제된-id', weak[0].id, weak[1].id]
+  });
+  eq(retry.queue.map(q => q.id).sort(), weak.map(q => q.id).sort(), '이번 오답만 재출제');
+  eq(retry.cfg.label, '이번 오답 회복', '회복 세트 안내');
+
+  const ui = rd('js/ui.js'), app = rd('js/app.js');
+  ok(/오늘의 학습 진단/.test(ui) && /fin\.studySummary/.test(ui), '결과 진단 화면 없음');
+  ok(/wrongBtn\.dataset\.ids/.test(ui) && /dataset\.ids/.test(app), '이번 오답 전달 경로 없음');
+});
+
 t('오늘 맞춤 학습 — 맞힌 복습 문항은 복습 임무에도 반영한다', () => {
   fresh();
   for(let i = 0; i < 10; i++)
