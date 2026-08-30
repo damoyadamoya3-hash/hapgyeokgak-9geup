@@ -189,9 +189,11 @@ const UI = (() => {
         const c = Store.nextCard();
         if(!c) return `<p class="pc-card done">📜 이론 카드를 모두 읽었어요 — 이제 빈칸으로 굳히세요</p>`;
         const sub = QB.subject(c.subject) || { name:'', emoji:'📘' };
+        const seen = Store.subjectSeen(c.subject);
+        const reason = seen ? ` · 정답률 ${Store.subjectAccuracy(c.subject)}% 과목 보강` : '';
         return `<button class="pc-card" data-go="codex" data-card="${c.id}">
           <span class="tier tier-${c.tier}" style="position:static">${c.tier}</span>
-          <span class="pcc-body"><b>오늘 읽을 카드</b>
+          <span class="pcc-body"><b>오늘 읽을 카드${reason}</b>
             <span>${sub.emoji} ${esc(c.title)}</span></span>
           <span class="pcc-go">▶</span>
         </button>`;

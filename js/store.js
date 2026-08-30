@@ -368,7 +368,12 @@ const Store = (() => {
     if(!unread.length) return null;
     const RANK = { S:0, A:1, B:2 };
     const accOf = {};
-    for(const sub of QB.SUBJECTS) accOf[sub.id] = subjectAccuracy(sub.id) || 100;
+    for(const sub of QB.SUBJECTS){
+      /* 0%는 '기록 없음'이 아니라 가장 보강이 필요한 실제 성적이다.
+         `정답률 || 100`으로 쓰면 전부 틀린 과목을 100%로 뒤집어 추천에서
+         밀어냈다. 학습 기록이 없을 때만 중립값 100을 쓴다. */
+      accOf[sub.id] = subjectSeen(sub.id) ? subjectAccuracy(sub.id) : 100;
+    }
     return unread.slice().sort((a, b) => {
       const t = (RANK[a.tier] ?? 9) - (RANK[b.tier] ?? 9);
       if(t) return t;

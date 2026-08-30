@@ -385,6 +385,31 @@ t('학습 계획 — 오늘 목표는 고정되고 푼 만큼만 남는다', () 
   eq(after.review + after.fresh + after.practice, after.remaining, '남은 배분 합계');
 });
 
+t('이론 추천 — 실제 0% 과목을 미학습 100%로 바꾸지 않고 먼저 보강한다', () => {
+  fresh();
+  const tier = QB.theory.filter(c => c.tier === 'S');
+  const weakCard = tier.find(c => c.subject === 'eng');
+  const strongerCard = tier.find(c => c.subject === 'edu');
+  ok(weakCard && strongerCard, '비교할 같은 등급 카드 없음');
+
+  // 두 카드만 안 읽은 상태로 만들어 등급은 같고 과목 성적만 다르게 한다.
+  Store.s.readCards = {};
+  for(const card of QB.theory){
+    if(card.id !== weakCard.id && card.id !== strongerCard.id)
+      Store.s.readCards[card.id] = { read:Store.today(), drill:0 };
+  }
+  const weakQ = QB.bySubject(weakCard.subject)[0];
+  const strongerQ = QB.bySubject(strongerCard.subject)[0];
+  Store.record(weakQ.id, false);             // 실제 학습 기록이 있는 0%
+  Store.record(strongerQ.id, true);
+  Store.record(strongerQ.id, false);         // 50%
+
+  eq([Store.subjectAccuracy('eng'), Store.subjectAccuracy('edu')], [0,50], '비교 성적');
+  eq(Store.nextCard().id, weakCard.id, '0% 약점 카드 추천');
+  const ui = rd('js/ui.js');
+  ok(/정답률.*과목 보강/.test(ui), '추천 근거 안내 없음');
+});
+
 t('오늘 맞춤 학습 — 복습과 새 문제를 안내한 수만큼 섞는다', () => {
   fresh();
   const due = new Set();
