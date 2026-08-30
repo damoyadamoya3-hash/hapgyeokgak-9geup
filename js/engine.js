@@ -46,13 +46,13 @@ const Engine = (() => {
      낮아도 영영 뽑히지 않는다. 실제로 "숙달했지만 복습 시점이 된" 문항이
      3% 밖에 나오지 않아 간격 반복이 무력해졌다.
      이제는 가중치에 비례한 확률로 뽑되 모든 문항에 기회를 준다. */
-  function weightedPick(pool, n){
-    const items = pool.map(q => ({ q, w: weightOf(q) }));
+  function weightedPick(pool, n, getWeight = weightOf, random = Math.random){
+    const items = pool.map(q => ({ q, w:getWeight(q) }));
     const out = [];
     let total = items.reduce((a, x) => a + x.w, 0);
 
     while(out.length < n && items.length){
-      let r = Math.random() * total;
+      let r = random() * total;
       let i = 0;
       while(i < items.length - 1 && (r -= items[i].w) > 0) i++;
       out.push(items[i].q);
@@ -182,6 +182,24 @@ const Engine = (() => {
     return out;
   }
 
+  /* 숙달 보강은 문항 자체의 오답뿐 아니라 같은 단원의 최근 흐름도 본다.
+     최근 약점 단원의 이미 맞힌 문항도 다시 불러와 개념 전체를 보강하되,
+     최소 가중치를 남겨 다른 문항이 영원히 굶지는 않게 한다. */
+  function practiceWeight(q, need = Store.unitNeed(q.unit, q.subject)){
+    const unitBoost = .8 + (100 - need.score) * .016; // 100점 .8배 ↔ 0점 2.4배
+    return Math.max(weightOf(q) * unitBoost, .6);
+  }
+
+  function practicePick(pool, n, random = Math.random){
+    const needs = new Map();
+    const weight = q => {
+      const key = q.unit || ('subject:' + q.subject);
+      if(!needs.has(key)) needs.set(key, Store.unitNeed(q.unit, q.subject));
+      return practiceWeight(q, needs.get(key));
+    };
+    return weightedPick(pool, n, weight, random);
+  }
+
   /* 새 문항은 최근 모의고사 과락 과목을 먼저, 과락이 없으면 아직 가장
      덜 본 단원을 먼저 낸다. 그 범위가 부족할 때만 나머지 은행으로 넓힌다. */
   function freshPick(n, used = new Set()){
@@ -287,7 +305,7 @@ const Engine = (() => {
       // 총량까지만 채운다.
       const practiceNeed = Math.max(0, request.total - rows.length);
       const practicePool = QB.items.filter(q => Store.s.cards[q.id] && !used.has(q.id));
-      add(weightedPick(shuffle(practicePool), practiceNeed), 'practice');
+      add(practicePick(shuffle(practicePool), practiceNeed), 'practice');
 
       // 오래된 id 등으로 계획 재료가 빠졌다면 남은 실제 문항으로만 메운다.
       if(rows.length < request.total){
@@ -676,6 +694,7 @@ const Engine = (() => {
   }
 
   return { build, current, submit, clearExamAnswer, examIndexes, examPlan, dailyBatch,
+           practiceWeight, practicePick,
            timerRemaining, extendTimerDeadline,
            gradeExam, examReview, examPaper,
            advance, finish, isCorrect, shuffle, MODE };

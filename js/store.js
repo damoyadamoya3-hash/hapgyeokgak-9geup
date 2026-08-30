@@ -248,43 +248,49 @@ const Store = (() => {
     return QB.bySubject(sid).filter(q => S.cards[q.id]).length;
   }
 
-  /* 이론 카드가 받쳐 줘야 할 범위를 실제 풀이 기록에서 찾는다.
-     과목 평균만 쓰면 영어 어휘 0%가 영어 전체 80%에 묻힐 수 있으므로,
-     해당 단원을 푼 적이 있으면 단원 성적을 먼저 쓴다. 단원 기록이 없을
-     때만 과목 성적으로 넓힌다. 1문항의 우연을 0%·100%로 확정하지 않게
-     5회 미만 표본은 70% 쪽으로 완화한다. 최근 50개 답안 안에서 같은
-     범위를 5회 이상 풀었다면 최근 성적을 최대 70%까지 더 반영한다. */
-  function theoryNeed(card){
+  /* 이론 추천과 문제 보강이 같은 약점 기준을 쓰게 범위 성적을 한곳에서
+     계산한다. 1문항의 우연을 0%·100%로 확정하지 않게 5회 미만 표본은
+     70% 쪽으로 완화하고, 최근 50개 답안 안에서 같은 범위를 5회 이상
+     풀었다면 최근 성적을 최대 70%까지 더 반영한다. */
+  function needStats(rows){
     const recentWindow = Array.isArray(S.answerLog) ? S.answerLog.slice(-50) : [];
-    const fold = rows => {
-      const ids = new Set(rows.map(q => q.id));
-      let n = 0, ok = 0;
-      for(const q of rows){
-        const c = S.cards[q.id];
-        if(!c) continue;
-        n += c.n; ok += c.ok;
-      }
-      const rawAcc = n ? ok / n * 100 : 100;
-      const acc = Math.round(rawAcc);
-      const confidence = Math.min(n / 5, 1);
-      const stableAcc = n ? Math.round(rawAcc * confidence + 70 * (1 - confidence)) : 100;
-      const recent = recentWindow.filter(row => ids.has(row.id)).slice(-20);
-      const recentN = recent.length;
-      const recentOk = recent.filter(row => row.ok).length;
-      const recentAcc = recentN ? Math.round(recentOk / recentN * 100) : null;
-      const recentWeight = recentN >= 5 ? Math.min(.7, recentN * .07) : 0;
-      const score = Math.round(stableAcc * (1 - recentWeight) +
-        (recentAcc == null ? stableAcc : recentAcc) * recentWeight);
-      return { n, acc, stableAcc, recentN, recentAcc, score };
-    };
-    const blank = { scope:'none', n:0, acc:100, stableAcc:100,
-                    recentN:0, recentAcc:null, score:100 };
-    if(!card) return blank;
-    const unit = fold(QB.byUnit(card.unit));
+    const ids = new Set(rows.map(q => q.id));
+    let n = 0, ok = 0;
+    for(const q of rows){
+      const c = S.cards[q.id];
+      if(!c) continue;
+      n += c.n; ok += c.ok;
+    }
+    const rawAcc = n ? ok / n * 100 : 100;
+    const acc = Math.round(rawAcc);
+    const confidence = Math.min(n / 5, 1);
+    const stableAcc = n ? Math.round(rawAcc * confidence + 70 * (1 - confidence)) : 100;
+    const recent = recentWindow.filter(row => ids.has(row.id)).slice(-20);
+    const recentN = recent.length;
+    const recentOk = recent.filter(row => row.ok).length;
+    const recentAcc = recentN ? Math.round(recentOk / recentN * 100) : null;
+    const recentWeight = recentN >= 5 ? Math.min(.7, recentN * .07) : 0;
+    const score = Math.round(stableAcc * (1 - recentWeight) +
+      (recentAcc == null ? stableAcc : recentAcc) * recentWeight);
+    return { n, acc, stableAcc, recentN, recentAcc, score };
+  }
+
+  const blankNeed = () => ({ scope:'none', n:0, acc:100, stableAcc:100,
+                              recentN:0, recentAcc:null, score:100 });
+
+  /* 과목 평균만 쓰면 영어 어휘 0%가 영어 전체 80%에 묻힐 수 있으므로
+     단원 기록을 먼저 쓰고, 없을 때만 과목 성적으로 넓힌다. */
+  function unitNeed(unitId, subjectId){
+    const blank = blankNeed();
+    const unit = needStats(QB.byUnit(unitId));
     if(unit.n) return { scope:'unit', ...unit };
-    const subject = fold(QB.bySubject(card.subject));
+    const subject = needStats(QB.bySubject(subjectId));
     if(subject.n) return { scope:'subject', ...subject };
     return blank;
+  }
+
+  function theoryNeed(card){
+    return card ? unitNeed(card.unit, card.subject) : blankNeed();
   }
 
   function theoryReadToday(){
@@ -1325,7 +1331,7 @@ const Store = (() => {
     weekAttendance, nextStreakGoal, STREAK_REWARDS, setExamDate, plan,
     SHOP, buy, useItem, has, logExam, examLog, lastExam, lastExamPaper,
     updateExamPaperReview, paperReviewSummary,
-    subjectAccuracy, subjectSeen, theoryNeed, theoryReadToday, touchStreak, daily, progressTask,
+    subjectAccuracy, subjectSeen, unitNeed, theoryNeed, theoryReadToday, touchStreak, daily, progressTask,
     checkAch, ACHS, exportData, inspectData, importData, mergeData,
     hasImportBackup, backupInfo, restoreImportBackup, clearImportBackup,
     reset, resetWithBackup, today, dateKey,

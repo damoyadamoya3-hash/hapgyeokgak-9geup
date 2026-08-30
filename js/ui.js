@@ -175,7 +175,7 @@ const UI = (() => {
         <button class="pc-rev ${p.due > p.review ? 'over' : ''}" data-go="srs" ${p.review ? '' : 'disabled'}>🔁 복습 <b>${p.review}</b>${
           p.due > p.review ? ` <small>대기 ${p.due}</small>` : ''}</button>
         <button class="pc-new" data-go="fresh" ${p.fresh ? '' : 'disabled'}>✨ 새 문제 <b>${p.fresh}</b></button>
-        ${p.practice ? `<button class="pc-practice" data-go="practice">🧠 보강 <b>${p.practice}</b></button>` : ''}
+        ${p.practice ? `<button class="pc-practice" data-go="practice">🧠 약점 보강 <b>${p.practice}</b></button>` : ''}
       </div>
       ${p.remaining
         ? `<button class="btn-primary pc-start" data-go="today">

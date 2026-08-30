@@ -555,6 +555,33 @@ t('오늘 맞춤 학습 — 전 문항을 본 뒤에는 약한 문항 보강으�
   ok(Object.values(s.studyKinds).every(x => x === 'practice'), '보강 외 문항이 섞임');
 });
 
+t('오늘 맞춤 학습 — 숙달 보강은 최근 약한 단원의 다른 문항까지 끌어올린다', () => {
+  fresh();
+  const weakRows = QB.byUnit('eng-conv');
+  const strongRows = QB.byUnit('eng-vocab');
+  const weakCandidate = weakRows[0], weakDriver = weakRows[1];
+  const strongCandidate = strongRows[0];
+  ok(weakCandidate && weakDriver && strongCandidate, '보강 가중치 비교 문항 없음');
+
+  // 후보 문항 자체의 숙달도는 같게 두고, 같은 단원의 다른 문항에서만
+  // 최근 오답을 만들어 단원 흐름이 실제 가중치 차이를 만드는지 본다.
+  const mastered = { n:5, ok:5, ng:0, box:5, due:shift(10), last:Store.today() };
+  Store.s.cards[weakCandidate.id] = { ...mastered };
+  Store.s.cards[strongCandidate.id] = { ...mastered };
+  for(let i = 0; i < 5; i++) Store.record(weakDriver.id, false);
+
+  ok(typeof Engine.practicePick === 'function', '최근 약점 보강 추출기 없음');
+  const weakWeight = Engine.practiceWeight(weakCandidate);
+  const strongWeight = Engine.practiceWeight(strongCandidate);
+  ok(weakWeight > strongWeight, '최근 약한 단원 가중치가 높아지지 않음');
+  eq(Engine.practicePick([weakCandidate, strongCandidate], 1, () => .6)[0].id,
+    weakCandidate.id, '최근 약한 단원 문항을 보강에서 놓침');
+
+  const engine = rd('js/engine.js'), ui = rd('js/ui.js');
+  ok(/practicePick\(shuffle\(practicePool\)/.test(engine), '실제 맞춤 세트가 약점 보강 추출기를 쓰지 않음');
+  ok(/약점 보강/.test(ui), '보강 기준 안내 없음');
+});
+
 t('오늘 맞춤 학습 — 맞힌 복습 문항은 복습 임무에도 반영한다', () => {
   fresh();
   for(let i = 0; i < 10; i++)
