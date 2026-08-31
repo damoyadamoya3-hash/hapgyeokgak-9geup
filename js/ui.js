@@ -166,7 +166,8 @@ const UI = (() => {
         </span>
         <span class="pc-bar"><i style="width:${p.pct}%"></i></span>
         <span class="pc-goal">
-          <span>오늘 목표 <b>${done} / ${p.goal}</b>문항</span>
+          <span>오늘 목표 <b>${done} / ${p.goal}</b>문항
+            <small class="pc-unique" title="같은 문제를 여러 번 풀어도 오늘 목표에서는 한 번만 셉니다">중복 제외</small></span>
           <span class="pc-left">${p.remaining ? `오늘 ${p.remaining}문항 남음` : '오늘 목표 완료'}</span>
         </span>
         <span class="pc-today"><i style="width:${ratio}%"></i></span>

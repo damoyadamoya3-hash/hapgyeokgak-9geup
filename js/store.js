@@ -359,7 +359,15 @@ const Store = (() => {
     const total = QB.items.length;
     const seen  = Object.keys(S.cards).filter(id => !!QB.byId(id)).length;
     const left  = Math.max(total - seen, 0);
-    const todayN = (S.dayStats[today()] || { n:0 }).n;
+    const stamp = today();
+    const todayAttempts = (S.dayStats[stamp] || { n:0 }).n;
+    /* 오늘 목표는 '풀이 버튼을 누른 횟수'가 아니라 서로 다른 문항을
+       실제로 다룬 수다. 오답을 바로잡느라 같은 문항을 여러 번 풀어도
+       계획된 새 문제·복습 분량까지 끝난 것으로 지우지 않는다. */
+    const todayN = Object.keys(S.cards).filter(id => {
+      const c = S.cards[id];
+      return !!QB.byId(id) && c && c.last === stamp;
+    }).length;
 
     /* 하루 목표를 '복습'과 '새 문제'로 나눠 준다.
        측정해 보면 이 배분이 결과를 가른다. 복습을 적게 하면 진도는
@@ -397,7 +405,6 @@ const Store = (() => {
         Math.ceil(dueNow / Math.max(Math.min(days, 14), 1))
       : 30;
     const suggested = hasDate ? Math.min(Math.max(raw, 10), 120) : 30;
-    const stamp = today();
     const examStamp = S.examDate || null;
     if(!S.studyPlan || S.studyPlan.date !== stamp || S.studyPlan.examDate !== examStamp){
       S.studyPlan = { date:stamp, examDate:examStamp, goal:suggested, capped:raw > suggested };
@@ -405,7 +412,7 @@ const Store = (() => {
     }
     const goal = Math.min(Math.max(Number(S.studyPlan.goal) || suggested, 1), 120);
     const remaining = Math.max(goal - todayN, 0);
-    return { hasDate, date:S.examDate, days, total, seen, left, todayN,
+    return { hasDate, date:S.examDate, days, total, seen, left, todayN, todayAttempts,
              pct: total ? Math.round(seen / total * 100) : 0,
              goal, remaining, capped:!!S.studyPlan.capped, ...split(remaining) };
   }

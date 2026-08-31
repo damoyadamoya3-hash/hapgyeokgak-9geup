@@ -337,7 +337,7 @@ t('학습 계획 — 남은 복습·새 문제·보강의 합이 남은 목표�
   for(const [due, days] of [[0,120],[300,120],[900,60],[5,30],[0,null]]){
     Store.reset();
     for(let i = 0; i < due; i++)
-      Store.s.cards[all[i].id] = { n:1, ok:0, ng:1, box:0, due: shift(-1), last: Store.today() };
+      Store.s.cards[all[i].id] = { n:1, ok:0, ng:1, box:0, due: shift(-1), last: shift(-1) };
     if(days) Store.setExamDate(shift(days));
     Store.save();
     const p = Store.plan();
@@ -350,7 +350,7 @@ t('학습 계획 — 안 본 문항이 남아 있으면 새 문제를 반드시 
   Store.reset();
   const all = QB.items;
   for(let i = 0; i < 900; i++)                       // 복습이 크게 밀린 상황
-    Store.s.cards[all[i].id] = { n:1, ok:0, ng:1, box:0, due: shift(-5), last: Store.today() };
+    Store.s.cards[all[i].id] = { n:1, ok:0, ng:1, box:0, due: shift(-5), last: shift(-5) };
   Store.setExamDate(shift(20));
   Store.save();
   const p = Store.plan();
@@ -362,7 +362,7 @@ t('학습 계획 — 복습이 밀리면 목표도 함께 늘어난다', () => {
   const goalWith = due => {
     Store.reset();
     for(let i = 0; i < due; i++)
-      Store.s.cards[all[i].id] = { n:1, ok:0, ng:1, box:0, due: shift(-1), last: Store.today() };
+      Store.s.cards[all[i].id] = { n:1, ok:0, ng:1, box:0, due: shift(-1), last: shift(-1) };
     Store.setExamDate(shift(60));
     Store.save();
     return Store.plan().goal;
@@ -383,6 +383,22 @@ t('학습 계획 — 오늘 목표는 고정되고 푼 만큼만 남는다', () 
   eq(after.goal, before.goal, '공부 중 목표선이 움직임');
   eq(after.remaining, Math.max(before.goal - 12, 0), '오늘 푼 양만큼 줄지 않음');
   eq(after.review + after.fresh + after.practice, after.remaining, '남은 배분 합계');
+});
+
+t('학습 계획 — 같은 오답을 반복해도 목표 문항을 중복으로 채우지 않는다', () => {
+  fresh();
+  const q = QB.items[0];
+  Store.record(q.id, false);
+  Store.record(q.id, true);
+  Store.record(q.id, true);
+  const afterRetry = Store.plan();
+  eq([afterRetry.todayN, afterRetry.todayAttempts], [1,3], '고유 문항과 실제 풀이 횟수');
+  eq(afterRetry.remaining, afterRetry.goal - 1, '반복 풀이가 계획 진도를 과장');
+
+  Store.record(QB.items[1].id, true);
+  const afterNew = Store.plan();
+  eq([afterNew.todayN, afterNew.todayAttempts], [2,4], '새 문항만 목표 진도에 추가');
+  ok(/중복 제외/.test(rd('js/ui.js')), '고유 문항 기준 화면 안내 없음');
 });
 
 t('이론 추천 — 실제 0% 과목을 미학습 100%로 바꾸지 않고 먼저 보강한다', () => {
@@ -545,7 +561,7 @@ t('오늘 맞춤 학습 — 복습과 새 문제를 안내한 수만큼 섞는�
 t('오늘 맞춤 학습 — 전 문항을 본 뒤에는 약한 문항 보강으로 채운다', () => {
   fresh();
   QB.items.forEach((q, i) => Store.s.cards[q.id] = {
-    n:2, ok:i % 3 ? 2 : 0, ng:i % 3 ? 0 : 2, box:6, due:shift(30), last:Store.today()
+    n:2, ok:i % 3 ? 2 : 0, ng:i % 3 ? 0 : 2, box:6, due:shift(30), last:shift(-1)
   });
   Store.save();
   const p = Store.plan();

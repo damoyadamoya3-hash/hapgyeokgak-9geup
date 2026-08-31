@@ -713,6 +713,8 @@ body.fever .combo-badge{background:linear-gradient(120deg,#ff2e88,#ffd600);anima
   font-size:12.5px;color:var(--ink2);gap:8px}
 .pc-goal b{font-family:var(--f-round);color:var(--brand-ink);font-size:14px;
   font-variant-numeric:tabular-nums}
+.pc-unique{display:inline-block;margin-left:3px;padding:1px 5px;border-radius:99px;
+  background:var(--line);color:var(--ink2);font-size:9.5px;vertical-align:1px}
 .pc-left{font-size:11.5px;white-space:nowrap}
 .pc-today{display:block;height:7px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:6px}
 .pc-today i{display:block;height:100%;border-radius:99px;
