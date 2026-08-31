@@ -4,9 +4,10 @@ import { HeadTracker, type TrackerState } from './tracking/headTracker';
 import { WebtoonScene } from './render/webtoonScene';
 import { ViewerRenderer } from './render/viewerRenderer';
 import { ScrollController } from './viewer/scrollController';
-import { disposePages, loadPages, type Page } from './viewer/pageStore';
+import { disposePages, loadPages, loadPagesFromUrls, type Page } from './viewer/pageStore';
 import { DepthCache } from './depth/depthCache';
 import { HeuristicDepthProvider, NoDepthProvider, type DepthProvider } from './depth/depthProvider';
+import { DepthAnythingProvider } from './depth/depthAnythingProvider';
 import { UI } from './ui/controls';
 
 const canvas = document.getElementById('stage') as HTMLCanvasElement;
@@ -27,6 +28,7 @@ const tracker = new HeadTracker({
 const ui = new UI(config, {
   onConfigChange: (patch) => applyConfig(patch),
   onFiles: (files) => void openFiles(files),
+  onUrls: (urls) => void openUrls(urls),
   onToggleTracking: () => toggleTracking(),
   onResetConfig: () => {
     // 트래킹 on/off 는 사용자가 방금 내린 결정이므로 초기화에서 제외한다.
@@ -58,13 +60,27 @@ function applyConfig(patch: Partial<AppConfig>): void {
 }
 
 function makeDepthProvider(mode: string): DepthProvider {
-  return mode === 'heuristic' ? new HeuristicDepthProvider() : new NoDepthProvider();
+  if (mode === 'heuristic') return new HeuristicDepthProvider();
+  if (mode === 'depth-anything') {
+    const provider = new DepthAnythingProvider();
+    // 모델이 수십 MB라 진행 상황을 알려 주지 않으면 멈춘 것처럼 보인다.
+    let lastShown = -1;
+    provider.onProgress = (ratio, label) => {
+      const percent = Math.round(ratio * 100);
+      if (percent === lastShown) return;
+      lastShown = percent;
+      if (percent % 10 === 0 || percent === 100) ui.toast(`${label} ${percent}%`, 900);
+    };
+    return provider;
+  }
+  return new NoDepthProvider();
 }
 
 function setDepthMode(mode: string): void {
-  depthCache.setProvider(makeDepthProvider(mode));
+  const provider = makeDepthProvider(mode);
+  depthCache.setProvider(provider);
   scene.invalidateDepth();
-  ui.toast(mode === 'none' ? '깊이 추정 끔' : '간이 깊이 추정 사용');
+  ui.toast(mode === 'none' ? '깊이 추정 끔' : `${provider.label} 사용`);
 }
 
 async function openFiles(files: File[]): Promise<void> {
@@ -78,13 +94,34 @@ async function openFiles(files: File[]): Promise<void> {
     return;
   }
 
+  showPages(loaded);
+  ui.toast(`${pages.length}장을 불러왔습니다`);
+}
+
+async function openUrls(urls: string[]): Promise<void> {
+  ui.toast(`${urls.length}개 주소를 여는 중…`);
+  const { pages: loaded, failed } = await loadPagesFromUrls(urls, (done, total) => {
+    if (total > 4 && done % 4 === 0) ui.toast(`${done} / ${total}`, 700);
+  });
+
+  if (failed.length) {
+    // 대부분 CORS 거부다. 원인을 알려 주지 않으면 사용자가 원인을 짐작할 수 없다.
+    ui.toast(`${failed.length}개 주소를 열지 못했습니다 (CORS 미허용 가능성)`, 3600);
+  }
+  if (!loaded.length) return;
+
+  showPages(loaded);
+  ui.toast(`${loaded.length}장을 불러왔습니다`);
+}
+
+/** 새로 불러온 페이지로 교체하고 뷰 상태를 초기화한다. */
+function showPages(loaded: Page[]): void {
   disposePages(pages);
   pages = loaded;
   scene.setPages(pages);
   scroll.reset();
   updateScrollLimits();
   ui.setDropzoneVisible(false);
-  ui.toast(`${pages.length}장을 불러왔습니다`);
 }
 
 function updateScrollLimits(): void {

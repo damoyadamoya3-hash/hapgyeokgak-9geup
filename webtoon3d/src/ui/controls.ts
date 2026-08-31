@@ -4,6 +4,7 @@ import type { TrackerState } from '../tracking/headTracker';
 export interface UIHandlers {
   onConfigChange(patch: Partial<AppConfig>): void;
   onFiles(files: File[]): void;
+  onUrls(urls: string[]): void;
   onToggleTracking(): void;
   onResetConfig(): void;
   onDepthModeChange(mode: string): void;
@@ -63,6 +64,21 @@ export class UI {
         input.value = '';
       });
     }
+
+    const dialog = el<HTMLDialogElement>('url-dialog');
+    const urlInput = el<HTMLTextAreaElement>('url-input');
+    el('btn-url').addEventListener('click', () => {
+      dialog.showModal();
+      urlInput.focus();
+    });
+    dialog.addEventListener('close', () => {
+      if (dialog.returnValue !== 'ok') return;
+      const urls = urlInput.value
+        .split(/[\n\s]+/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+      if (urls.length) this.handlers.onUrls(urls);
+    });
 
     this.trackingBtn.addEventListener('click', () => this.handlers.onToggleTracking());
     el('btn-settings').addEventListener('click', () => this.togglePanel());

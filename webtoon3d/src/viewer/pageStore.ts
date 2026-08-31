@@ -6,8 +6,8 @@ export interface Page {
   image: HTMLImageElement;
   width: number;
   height: number;
-  /** 해제해야 할 objectURL. */
-  objectUrl: string;
+  /** 로컬 파일에서 만든 objectURL. 원격 이미지는 null 이다. */
+  objectUrl: string | null;
 }
 
 const SUPPORTED = /\.(png|jpe?g|webp|gif|bmp|avif)$/i;
@@ -67,9 +67,43 @@ async function loadPage(file: File): Promise<Page> {
   }
 }
 
-function decodeImage(url: string): Promise<HTMLImageElement> {
+/**
+ * 직접 이미지 주소로 페이지를 불러온다.
+ *
+ * 깊이 추정과 WebGL 텍스처 업로드 모두 픽셀을 읽어야 해서 CORS 허용이 필수다.
+ * 허용하지 않는 서버의 이미지는 화면에 띄울 수 없으므로 실패로 처리한다.
+ */
+export async function loadPagesFromUrls(
+  urls: string[],
+  onProgress?: (loaded: number, total: number) => void,
+): Promise<{ pages: Page[]; failed: string[] }> {
+  const targets = urls.map((url) => url.trim()).filter(Boolean);
+  const pages: Page[] = [];
+  const failed: string[] = [];
+
+  for (const [index, url] of targets.entries()) {
+    try {
+      const image = await decodeImage(url, 'anonymous');
+      pages.push({
+        id: `url:${url}`,
+        name: url.split('/').pop() || url,
+        image,
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+        objectUrl: null,
+      });
+    } catch {
+      failed.push(url);
+    }
+    onProgress?.(index + 1, targets.length);
+  }
+  return { pages, failed };
+}
+
+function decodeImage(url: string, crossOrigin?: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
+    if (crossOrigin) image.crossOrigin = crossOrigin;
     image.onload = () => resolve(image);
     image.onerror = () => reject(new Error('이미지 디코딩 실패'));
     image.src = url;
@@ -77,5 +111,7 @@ function decodeImage(url: string): Promise<HTMLImageElement> {
 }
 
 export function disposePages(pages: Page[]): void {
-  for (const page of pages) URL.revokeObjectURL(page.objectUrl);
+  for (const page of pages) {
+    if (page.objectUrl) URL.revokeObjectURL(page.objectUrl);
+  }
 }

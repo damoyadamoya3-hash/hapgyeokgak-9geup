@@ -479,3 +479,66 @@ kbd {
 .drop-overlay[hidden] {
   display: none;
 }
+
+/* ── URL 입력 다이얼로그 ─────────────────────────────────── */
+.dialog {
+  width: min(520px, calc(100vw - 32px));
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-solid);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.dialog::backdrop {
+  background: rgba(4, 4, 6, 0.66);
+  backdrop-filter: blur(3px);
+}
+
+.dialog-form {
+  padding: 20px;
+}
+
+.dialog h2 {
+  margin: 0 0 10px;
+  font-size: 16px;
+  font-weight: 620;
+}
+
+.dialog textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #0d0e13;
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.dialog textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #04121f;
+  font-weight: 600;
+}
+
+.btn-primary:hover {
+  background: #7cbcff;
+  border-color: #7cbcff;
+}

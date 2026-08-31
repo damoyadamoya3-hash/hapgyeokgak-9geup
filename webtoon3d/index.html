@@ -17,6 +17,7 @@
       <div class="topbar-actions">
         <button id="btn-files" class="btn" type="button">이미지 열기</button>
         <button id="btn-folder" class="btn" type="button">폴더 열기</button>
+        <button id="btn-url" class="btn" type="button">URL 열기</button>
         <button id="btn-tracking" class="btn btn-toggle" type="button" aria-pressed="false">
           트래킹 켜기
         </button>
@@ -131,6 +132,27 @@
     </div>
 
     <div class="drop-overlay" id="drop-overlay" hidden><span>여기에 놓기</span></div>
+
+    <dialog class="dialog" id="url-dialog">
+      <form method="dialog" class="dialog-form">
+        <h2>이미지 URL 열기</h2>
+        <p class="hint">
+          직접 이미지 주소를 한 줄에 하나씩 붙여 넣으세요. 브라우저가 픽셀을 읽어야 하므로,
+          서버가 CORS 를 허용하는 주소만 열 수 있습니다. 로그인이나 결제로 보호된 사이트의
+          콘텐츠는 지원하지 않습니다.
+        </p>
+        <textarea
+          id="url-input"
+          rows="7"
+          spellcheck="false"
+          placeholder="https://example.com/webtoon/01.jpg&#10;https://example.com/webtoon/02.jpg"
+        ></textarea>
+        <div class="dialog-actions">
+          <button class="btn" value="cancel" type="submit">취소</button>
+          <button class="btn btn-primary" id="url-confirm" value="ok" type="submit">불러오기</button>
+        </div>
+      </form>
+    </dialog>
 
     <input id="input-files" type="file" accept="image/*" multiple hidden />
     <input id="input-folder" type="file" multiple hidden webkitdirectory directory />
