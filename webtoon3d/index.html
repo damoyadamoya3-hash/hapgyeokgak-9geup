@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Webtoon 3D — 헤드 트래킹 입체 웹툰 뷰어</title>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+
+    <header class="topbar" id="topbar">
+      <div class="brand">
+        <span class="brand-mark">3D</span>
+        <span class="brand-name">Webtoon 3D</span>
+      </div>
+
+      <div class="topbar-actions">
+        <button id="btn-files" class="btn" type="button">이미지 열기</button>
+        <button id="btn-folder" class="btn" type="button">폴더 열기</button>
+        <button id="btn-tracking" class="btn btn-toggle" type="button" aria-pressed="false">
+          트래킹 켜기
+        </button>
+        <button id="btn-settings" class="btn btn-icon" type="button" aria-label="설정">⚙</button>
+      </div>
+
+      <div class="status" id="status" data-state="idle">
+        <span class="status-dot"></span>
+        <span class="status-text">대기 중</span>
+      </div>
+    </header>
+
+    <aside class="panel" id="panel" hidden>
+      <h2 class="panel-title">설정</h2>
+
+      <section class="panel-section">
+        <h3>입체 효과</h3>
+        <label class="field">
+          <span class="field-label">시차 강도 <b id="v-parallax">1.00</b></span>
+          <input id="s-parallax" type="range" min="0" max="3" step="0.05" value="1" />
+        </label>
+        <label class="field">
+          <span class="field-label">깊이 강도 <b id="v-depth">0.50</b></span>
+          <input id="s-depth" type="range" min="0" max="1.5" step="0.05" value="0.5" />
+        </label>
+        <label class="field">
+          <span class="field-label">떨림 억제 <b id="v-smooth">0.50</b></span>
+          <input id="s-smooth" type="range" min="0" max="1" step="0.05" value="0.5" />
+        </label>
+        <label class="field">
+          <span class="field-label">깊이 추정 방식</span>
+          <select id="sel-depth">
+            <option value="none">없음 (평면)</option>
+            <option value="heuristic">간이 (밝기 기반)</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="panel-section">
+        <h3>기기 보정</h3>
+        <p class="hint">
+          Off-Axis 투영은 화면의 실제 크기를 기준으로 계산합니다. 값이 정확할수록 입체감이
+          자연스러워집니다.
+        </p>
+        <label class="field">
+          <span class="field-label">화면 대각선 <b id="v-diag">14.0</b>″</span>
+          <input id="s-diag" type="range" min="10" max="34" step="0.5" value="14" />
+        </label>
+        <label class="field">
+          <span class="field-label">웹캠 화각 <b id="v-fov">62</b>°</span>
+          <input id="s-fov" type="range" min="40" max="100" step="1" value="62" />
+        </label>
+        <label class="field">
+          <span class="field-label">양안 간격 <b id="v-iod">63</b>mm</span>
+          <input id="s-iod" type="range" min="52" max="76" step="1" value="63" />
+        </label>
+        <label class="field">
+          <span class="field-label">웹캠 위치(상단 여백) <b id="v-bezel">1.0</b>cm</span>
+          <input id="s-bezel" type="range" min="0" max="6" step="0.1" value="1" />
+        </label>
+      </section>
+
+      <section class="panel-section">
+        <h3>보기</h3>
+        <label class="field field-inline">
+          <input id="c-preview" type="checkbox" checked />
+          <span>웹캠 미리보기 표시</span>
+        </label>
+        <label class="field">
+          <span class="field-label">스크롤 속도 <b id="v-scroll">0.25</b></span>
+          <input id="s-scroll" type="range" min="0.05" max="1" step="0.05" value="0.25" />
+        </label>
+        <button id="btn-reset-config" class="btn btn-ghost" type="button">설정 초기화</button>
+      </section>
+
+      <section class="panel-section">
+        <h3>단축키</h3>
+        <ul class="keys">
+          <li><kbd>Space</kbd> 자동 스크롤 재생 / 일시정지</li>
+          <li><kbd>F</kbd> 전체화면</li>
+          <li><kbd>R</kbd> 트래킹 리셋</li>
+          <li><kbd>T</kbd> 트래킹 켜기 / 끄기</li>
+          <li><kbd>H</kbd> UI 숨기기</li>
+          <li><kbd>↑</kbd><kbd>↓</kbd> / <kbd>PgUp</kbd><kbd>PgDn</kbd> 스크롤</li>
+          <li><kbd>Home</kbd><kbd>End</kbd> 처음 / 끝</li>
+        </ul>
+      </section>
+    </aside>
+
+    <div class="preview" id="preview" hidden>
+      <video id="preview-video" muted playsinline></video>
+    </div>
+
+    <div class="scrollbar" id="scrollbar" hidden>
+      <div class="scrollbar-thumb" id="scrollbar-thumb"></div>
+    </div>
+
+    <div class="hud" id="hud"></div>
+
+    <div class="dropzone" id="dropzone">
+      <div class="dropzone-inner">
+        <h1>웹툰 이미지를 끌어다 놓으세요</h1>
+        <p>
+          이미지 파일 여러 장 또는 화 폴더를 그대로 드롭하면 순서대로 이어 붙여 세로 스크롤로
+          보여 줍니다.
+        </p>
+        <p class="dropzone-note">
+          트래킹을 켜면 웹캠으로 머리 위치를 추적해 화면을 “창문”처럼 다룹니다. 이미지를 열기
+          전에도 배경의 층 구조로 효과를 미리 확인할 수 있습니다.
+        </p>
+      </div>
+    </div>
+
+    <div class="drop-overlay" id="drop-overlay" hidden><span>여기에 놓기</span></div>
+
+    <input id="input-files" type="file" accept="image/*" multiple hidden />
+    <input id="input-folder" type="file" multiple hidden webkitdirectory directory />
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

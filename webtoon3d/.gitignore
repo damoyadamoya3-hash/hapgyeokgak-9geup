@@ -1,0 +1,5 @@
+node_modules/
+dist/
+public/models/*.task
+public/models/*.onnx
+.DS_Store
