@@ -6,6 +6,7 @@ export interface UIHandlers {
   onFiles(files: File[]): void;
   onUrls(urls: string[]): void;
   onToggleTracking(): void;
+  onToggleScreen(): void;
   onResetConfig(): void;
   onDepthModeChange(mode: string): void;
 }
@@ -37,6 +38,7 @@ export class UI {
   private readonly scrollbar = el('scrollbar');
   private readonly scrollThumb = el('scrollbar-thumb');
   private readonly trackingBtn = el<HTMLButtonElement>('btn-tracking');
+  private readonly screenBtn = el<HTMLButtonElement>('btn-screen');
   private dragDepth = 0;
 
   constructor(
@@ -81,6 +83,7 @@ export class UI {
     });
 
     this.trackingBtn.addEventListener('click', () => this.handlers.onToggleTracking());
+    this.screenBtn.addEventListener('click', () => this.handlers.onToggleScreen());
     el('btn-settings').addEventListener('click', () => this.togglePanel());
     el('btn-reset-config').addEventListener('click', () => this.handlers.onResetConfig());
 
@@ -197,6 +200,16 @@ export class UI {
   setTrackingPressed(enabled: boolean): void {
     this.trackingBtn.setAttribute('aria-pressed', String(enabled));
     this.trackingBtn.textContent = enabled ? '트래킹 끄기' : '트래킹 켜기';
+  }
+
+  setScreenPressed(active: boolean): void {
+    this.screenBtn.setAttribute('aria-pressed', String(active));
+    this.screenBtn.textContent = active ? '화면 중지' : '화면 가져오기';
+  }
+
+  setScreenAvailable(available: boolean): void {
+    this.screenBtn.disabled = !available;
+    if (!available) this.screenBtn.title = '이 브라우저는 화면 공유를 지원하지 않습니다';
   }
 
   setPreviewSource(video: HTMLVideoElement | null): void {

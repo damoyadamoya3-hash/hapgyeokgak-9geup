@@ -12,6 +12,13 @@ export class DepthCache {
   private readonly entries = new Map<string, Entry>();
   private provider: DepthProvider;
   private preparing: Promise<void> | null = null;
+  /**
+   * 추정을 한 건씩 직렬로 흘려보내는 꼬리.
+   *
+   * 스크롤로 여러 페이지가 한꺼번에 보이면 요청도 한꺼번에 들어온다. 모델 추론은
+   * 페이지당 수백 ms 가 나올 수 있어, 동시에 던지면 서로 자원을 다투며 전부 느려진다.
+   */
+  private queue: Promise<unknown> = Promise.resolve();
 
   constructor(provider: DepthProvider) {
     this.provider = provider;
@@ -35,8 +42,7 @@ export class DepthCache {
     if (cached && cached.providerId === this.provider.id) return cached.promise;
 
     const provider = this.provider;
-    const promise = this.ensurePrepared()
-      .then(() => provider.estimate(image))
+    const promise = this.enqueue(() => this.ensurePrepared().then(() => provider.estimate(image)))
       .catch((error) => {
         console.warn('[depth] 추정 실패:', error);
         // 실패한 항목은 지워 다음 기회에 다시 시도할 수 있게 한다.
@@ -46,6 +52,14 @@ export class DepthCache {
 
     this.entries.set(key, { promise, providerId: provider.id });
     return promise;
+  }
+
+  /** 앞선 작업이 끝난 뒤에 실행되도록 줄을 세운다. */
+  private enqueue<T>(task: () => Promise<T>): Promise<T> {
+    const result = this.queue.then(task, task);
+    // 실패가 뒤따르는 작업까지 막지 않도록 꼬리는 항상 성공으로 만든다.
+    this.queue = result.catch(() => undefined);
+    return result;
   }
 
   private ensurePrepared(): Promise<void> {

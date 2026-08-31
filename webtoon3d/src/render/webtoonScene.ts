@@ -11,6 +11,7 @@ import {
   Scene,
   SRGBColorSpace,
   Texture,
+  VideoTexture,
   WebGLRenderer,
 } from 'three';
 import type { Page } from '../viewer/pageStore';
@@ -29,6 +30,31 @@ const DISPLACEMENT_PER_STRENGTH = 0.14;
 const TEXTURE_MARGIN_SCREENS = 1.0;
 /** 깊이 변위를 표현할 세로 격자 수. 가로는 종횡비에 맞춰 계산한다. */
 const DEPTH_SEGMENTS = 72;
+/** 화면 공유 영상의 깊이를 다시 추정하는 간격(ms). */
+const LIVE_DEPTH_INTERVAL_MS = 900;
+/** 깊이 추정용으로 영상을 줄일 폭(px). */
+const LIVE_DEPTH_WIDTH = 384;
+
+interface LiveLayer {
+  video: HTMLVideoElement;
+  mesh: Mesh;
+  material: MeshBasicMaterial;
+  texture: VideoTexture;
+  uniforms: DisplacementUniforms;
+  depthTexture: CanvasTexture | null;
+  /** 마지막으로 깊이를 갱신한 시각(performance.now()). */
+  lastDepthAt: number;
+  depthInFlight: boolean;
+  subdivided: boolean;
+  /** 마지막으로 배치에 반영한 영상 크기. 크기가 바뀌면 다시 맞춘다. */
+  laidOut: string;
+}
+
+interface DisplacementUniforms {
+  uDepth: { value: Texture | null };
+  uHasDepth: { value: number };
+  uDisplacement: { value: number };
+}
 
 interface PageEntry {
   page: Page;
@@ -43,11 +69,7 @@ interface PageEntry {
   depthRequested: boolean;
   /** 깊이맵을 반영해 세분화된 지오메트리를 만들었는지. */
   subdivided: boolean;
-  uniforms: {
-    uDepth: { value: Texture | null };
-    uHasDepth: { value: number };
-    uDisplacement: { value: number };
-  };
+  uniforms: DisplacementUniforms;
 }
 
 /**
@@ -61,6 +83,9 @@ export class WebtoonScene {
   readonly scene = new Scene();
   private readonly content = new Group();
   private readonly demo = new Group();
+  private readonly liveGroup = new Group();
+  private live: LiveLayer | null = null;
+  private liveCanvas: HTMLCanvasElement | null = null;
   private entries: PageEntry[] = [];
   private contentHeight = 0;
   private screen: ScreenGeometry | null = null;
@@ -71,6 +96,7 @@ export class WebtoonScene {
     this.scene.background = new Color(0x0b0b0f);
     this.scene.add(this.content);
     this.scene.add(this.demo);
+    this.scene.add(this.liveGroup);
   }
 
   init(renderer: WebGLRenderer): void {
@@ -80,15 +106,20 @@ export class WebtoonScene {
   setScreen(screen: ScreenGeometry): void {
     this.screen = screen;
     if (this.entries.length) this.layout();
+    // 화면 크기가 바뀌면 영상 배치도 다시 계산해야 한다.
+    if (this.live) this.live.laidOut = '';
     if (this.demo.children.length) this.buildDemo();
   }
 
   setDepthStrength(strength: number): void {
     this.depthStrength = strength;
-    this.content.position.z = -(BASE_RECESS + strength * RECESS_PER_STRENGTH);
+    const recess = -(BASE_RECESS + strength * RECESS_PER_STRENGTH);
+    this.content.position.z = recess;
+    this.liveGroup.position.z = recess;
     for (const entry of this.entries) {
       entry.uniforms.uDisplacement.value = strength * DISPLACEMENT_PER_STRENGTH;
     }
+    if (this.live) this.live.uniforms.uDisplacement.value = strength * DISPLACEMENT_PER_STRENGTH;
     if (this.demo.children.length) this.buildDemo();
   }
 
@@ -102,7 +133,6 @@ export class WebtoonScene {
 
   setPages(pages: Page[]): void {
     this.clearPages();
-    this.demo.visible = pages.length === 0;
 
     for (const page of pages) {
       const uniforms = {
@@ -131,6 +161,7 @@ export class WebtoonScene {
       });
     }
     this.layout();
+    this.updateDemoVisibility();
   }
 
   clearPages(): void {
@@ -143,7 +174,148 @@ export class WebtoonScene {
     }
     this.entries = [];
     this.contentHeight = 0;
-    this.demo.visible = true;
+    this.updateDemoVisibility();
+  }
+
+  hasLive(): boolean {
+    return this.live !== null;
+  }
+
+  /**
+   * 화면 공유 영상을 입체 레이어로 건다.
+   *
+   * 사용자가 다른 창에서 정상적으로 보고 있는 화면을 그대로 받아 깊이를 입힐 뿐,
+   * 영상을 저장하거나 어디로도 보내지 않는다.
+   */
+  setLiveSource(video: HTMLVideoElement | null): void {
+    this.clearLive();
+    if (video) {
+      const uniforms: DisplacementUniforms = {
+        uDepth: { value: null },
+        uHasDepth: { value: 0 },
+        uDisplacement: { value: this.depthStrength * DISPLACEMENT_PER_STRENGTH },
+      };
+      const material = createDisplacedMaterial(uniforms);
+      const texture = new VideoTexture(video);
+      texture.colorSpace = SRGBColorSpace;
+      texture.minFilter = LinearFilter;
+      texture.magFilter = LinearFilter;
+      texture.generateMipmaps = false;
+      material.map = texture;
+
+      const mesh = new Mesh(new PlaneGeometry(1, 1, 1, 1), material);
+      this.liveGroup.add(mesh);
+
+      this.live = {
+        video,
+        mesh,
+        material,
+        texture,
+        uniforms,
+        depthTexture: null,
+        lastDepthAt: 0,
+        depthInFlight: false,
+        subdivided: false,
+        laidOut: '',
+      };
+    }
+    this.updateDemoVisibility();
+  }
+
+  clearLive(): void {
+    const live = this.live;
+    if (!live) return;
+    this.liveGroup.remove(live.mesh);
+    live.mesh.geometry.dispose();
+    live.material.dispose();
+    live.texture.dispose();
+    live.depthTexture?.dispose();
+    this.live = null;
+    this.updateDemoVisibility();
+  }
+
+  private updateDemoVisibility(): void {
+    this.demo.visible = this.entries.length === 0 && this.live === null;
+    this.content.visible = this.live === null;
+  }
+
+  /** 영상 종횡비에 맞춰 창문 안에 들어가도록(contain) 크기를 잡는다. */
+  private layoutLive(live: LiveLayer): void {
+    const screen = this.screen;
+    if (!screen) return;
+
+    const videoW = live.video.videoWidth;
+    const videoH = live.video.videoHeight;
+    if (!videoW || !videoH) return;
+
+    const key = `${videoW}x${videoH}:${screen.widthM.toFixed(4)}x${screen.heightM.toFixed(4)}`;
+    if (key === live.laidOut) return;
+    live.laidOut = key;
+
+    const scale = Math.min(screen.widthM / videoW, screen.heightM / videoH);
+    live.mesh.scale.set(videoW * scale, videoH * scale, 1);
+    if (live.subdivided) {
+      live.mesh.geometry.dispose();
+      live.mesh.geometry = subdividedPlane(videoW, videoH);
+    }
+  }
+
+  /**
+   * 영상은 계속 바뀌므로 캐시가 의미 없다. 대신 간격을 두고 한 번에 한 건씩만
+   * 추정해 렌더 루프가 밀리지 않게 한다.
+   */
+  private refreshLiveDepth(live: LiveLayer, now: number): void {
+    if (live.depthInFlight) return;
+    if (now - live.lastDepthAt < LIVE_DEPTH_INTERVAL_MS) return;
+
+    const provider = this.depthCache.getProvider();
+    if (provider.id === 'none' || this.depthStrength <= 0) return;
+
+    const videoW = live.video.videoWidth;
+    const videoH = live.video.videoHeight;
+    if (!videoW || !videoH || live.video.readyState < 2) return;
+
+    live.depthInFlight = true;
+    live.lastDepthAt = now;
+
+    const width = Math.min(LIVE_DEPTH_WIDTH, videoW);
+    const height = Math.max(1, Math.round((videoH / videoW) * width));
+
+    this.liveCanvas ??= document.createElement('canvas');
+    const canvas = this.liveCanvas;
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      live.depthInFlight = false;
+      return;
+    }
+    ctx.drawImage(live.video, 0, 0, width, height);
+
+    void createImageBitmap(canvas)
+      .then((bitmap) => provider.estimate(bitmap).finally(() => bitmap.close()))
+      .then((depth) => {
+        // 추정이 도는 동안 사용자가 공유를 끊었을 수 있다.
+        if (!depth || this.live !== live) return;
+        const texture = new CanvasTexture(depth.canvas);
+        texture.generateMipmaps = false;
+        texture.minFilter = LinearFilter;
+        texture.magFilter = LinearFilter;
+        live.depthTexture?.dispose();
+        live.depthTexture = texture;
+        live.uniforms.uDepth.value = texture;
+        live.uniforms.uHasDepth.value = 1;
+
+        if (!live.subdivided) {
+          live.mesh.geometry.dispose();
+          live.mesh.geometry = subdividedPlane(videoW, videoH);
+          live.subdivided = true;
+        }
+      })
+      .catch((error) => console.warn('[live] 깊이 추정 실패:', error))
+      .finally(() => {
+        live.depthInFlight = false;
+      });
   }
 
   /** 페이지 폭과 누적 높이를 화면 크기에 맞춰 다시 계산한다. */
@@ -177,6 +349,12 @@ export class WebtoonScene {
   update(scroll: number): void {
     const screen = this.screen;
     if (!screen) return;
+
+    if (this.live) {
+      this.layoutLive(this.live);
+      this.refreshLiveDepth(this.live, performance.now());
+      return;
+    }
 
     // 콘텐츠 상단이 화면 위 모서리에 오도록 두고, 스크롤만큼 끌어올린다.
     this.content.position.y = screen.heightM / 2 + scroll;
@@ -287,10 +465,11 @@ export class WebtoonScene {
       mesh.position.z = -depthSpan * layer.depth - 0.02;
       this.demo.add(mesh);
     }
-    this.demo.visible = this.entries.length === 0;
+    this.updateDemoVisibility();
   }
 
   dispose(): void {
+    this.clearLive();
     this.clearPages();
     for (const child of [...this.demo.children]) {
       this.demo.remove(child);

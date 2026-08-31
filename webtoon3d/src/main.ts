@@ -8,6 +8,7 @@ import { disposePages, loadPages, loadPagesFromUrls, type Page } from './viewer/
 import { DepthCache } from './depth/depthCache';
 import { HeuristicDepthProvider, NoDepthProvider, type DepthProvider } from './depth/depthProvider';
 import { DepthAnythingProvider } from './depth/depthAnythingProvider';
+import { ScreenSource } from './viewer/screenSource';
 import { UI } from './ui/controls';
 
 const canvas = document.getElementById('stage') as HTMLCanvasElement;
@@ -19,6 +20,7 @@ const depthCache = new DepthCache(makeDepthProvider('none'));
 const scene = new WebtoonScene(depthCache);
 const renderer = new ViewerRenderer(canvas, scene, config);
 const scroll = new ScrollController();
+const screenSource = new ScreenSource();
 const tracker = new HeadTracker({
   fovDeg: config.cameraFovDeg,
   interocularMm: config.interocularMm,
@@ -30,6 +32,7 @@ const ui = new UI(config, {
   onFiles: (files) => void openFiles(files),
   onUrls: (urls) => void openUrls(urls),
   onToggleTracking: () => toggleTracking(),
+  onToggleScreen: () => void toggleScreenCapture(),
   onResetConfig: () => {
     // 트래킹 on/off 는 사용자가 방금 내린 결정이므로 초기화에서 제외한다.
     applyConfig({ ...DEFAULT_CONFIG, trackingEnabled: config.trackingEnabled });
@@ -42,6 +45,43 @@ const ui = new UI(config, {
 scene.setDepthStrength(config.depthStrength);
 scene.buildDemo();
 ui.setStatus('idle');
+ui.setScreenAvailable(ScreenSource.isSupported());
+
+screenSource.onEnded = () => {
+  scene.setLiveSource(null);
+  ui.setScreenPressed(false);
+  ui.setDropzoneVisible(!scene.hasPages());
+  ui.toast('화면 가져오기를 중지했습니다');
+};
+
+/**
+ * 다른 창에서 보고 있는 화면을 받아 입체로 보여 준다.
+ *
+ * 어디에도 접속하지 않고, 받은 영상을 저장하거나 내보내지 않는다. 공유 대상 선택과
+ * 중단은 브라우저가 관장한다.
+ */
+async function toggleScreenCapture(): Promise<void> {
+  if (screenSource.isActive()) {
+    screenSource.stop();
+    scene.setLiveSource(null);
+    ui.setScreenPressed(false);
+    ui.setDropzoneVisible(!scene.hasPages());
+    ui.toast('화면 가져오기를 중지했습니다');
+    return;
+  }
+
+  try {
+    const video = await screenSource.start();
+    scene.setLiveSource(video);
+    ui.setScreenPressed(true);
+    ui.setDropzoneVisible(false);
+    ui.toast('공유한 화면을 입체로 보여 줍니다');
+  } catch (error) {
+    // 사용자가 선택 창을 닫은 경우도 여기로 온다. 오류로 시끄럽게 알리지 않는다.
+    if (error instanceof DOMException && error.name === 'NotAllowedError') return;
+    ui.toast('화면을 가져오지 못했습니다');
+  }
+}
 
 /** 설정 변경은 한 곳으로 모아, 영향을 받는 하위 모듈에 일괄 반영한다. */
 function applyConfig(patch: Partial<AppConfig>): void {
@@ -116,6 +156,13 @@ async function openUrls(urls: string[]): Promise<void> {
 
 /** 새로 불러온 페이지로 교체하고 뷰 상태를 초기화한다. */
 function showPages(loaded: Page[]): void {
+  // 화면 공유와 페이지는 같은 자리를 두고 다투므로, 파일을 열면 공유를 접는다.
+  if (screenSource.isActive()) {
+    screenSource.stop();
+    scene.setLiveSource(null);
+    ui.setScreenPressed(false);
+  }
+
   disposePages(pages);
   pages = loaded;
   scene.setPages(pages);
@@ -195,6 +242,10 @@ window.addEventListener('keydown', (event) => {
     case 'T':
       toggleTracking();
       break;
+    case 's':
+    case 'S':
+      void toggleScreenCapture();
+      break;
     case 'h':
     case 'H':
       ui.toast(ui.toggleUI() ? 'UI 표시' : 'UI 숨김');
@@ -261,7 +312,8 @@ renderer.onFrame = (dt) => {
   ui.setScroll(
     scroll.getProgress(),
     total > 0 ? screen.heightM / total : 1,
-    scene.hasPages() && scroll.getMax() > 0,
+    // 화면 공유 중에는 스크롤이 공유한 창 쪽에서 일어난다.
+    scene.hasPages() && !scene.hasLive() && scroll.getMax() > 0,
   );
   return position;
 };
@@ -272,6 +324,7 @@ if (config.trackingEnabled) {
 }
 
 window.addEventListener('beforeunload', () => {
+  screenSource.stop();
   tracker.dispose();
   renderer.dispose();
   scene.dispose();
