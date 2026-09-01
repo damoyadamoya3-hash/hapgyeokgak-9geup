@@ -1296,20 +1296,26 @@ const UI = (() => {
 
   /* ── 결과 ──────────────────────────────────────────── */
   function result(S, fin, onPaperQuiz){
-    const win = S.mode === 'boss' ? S.reason === 'kill' : fin.acc >= 60;
+    const completed = fin.completed === true;
+    const win = completed && (S.mode === 'boss' ? S.reason === 'kill' : fin.acc >= 60);
     const savedPaper = Store.lastExamPaper();
     const activePaper = savedPaper && (S.mode === 'exam' ||
       (S.mode === 'paper' && savedPaper.t === S.opt.paperT)) ? savedPaper : null;
     const recovery = activePaper ? Store.paperReviewSummary(activePaper) : null;
-    $('#res-emoji').textContent = fin.acc === 100 ? '🏆' : win ? '🎉' : '😵';
-    $('#res-title').textContent = S.mode === 'paper' && recovery
+    $('#res-emoji').textContent = !completed
+      ? (S.reason === 'heart' ? '💔' : '⏸️')
+      : fin.acc === 100 ? '🏆' : win ? '🎉' : '😵';
+    $('#res-title').textContent = !completed
+      ? (S.reason === 'heart' ? '하트를 모두 잃었어요' :
+         S.mode === 'exam' ? '모의고사를 중간 제출했어요' : '학습을 중간에 마쳤어요')
+      : S.mode === 'paper' && recovery
       ? (recovery.remaining ? '약점 복기 중!' : '복기 완료!')
       : S.mode === 'boss'
       ? (win ? '보스 격파!' : '패배…')
       : (win ? '스테이지 클리어!' : '아쉬워요');
     let sub = '';
-    if(S.mode === 'quest' && fin.stars) sub = '★'.repeat(fin.stars) + '☆'.repeat(3 - fin.stars) + ' 획득';
-    else if(S.mode === 'ox') sub = `60초 동안 ${S.correct}문제 정답!`;
+    if(completed && S.mode === 'quest' && fin.stars)
+      sub = '★'.repeat(fin.stars) + '☆'.repeat(3 - fin.stars) + ' 획득';
     else if(S.mode === 'exam'){
       const sec = Math.round((Date.now() - S.startedAt) / 1000);
       const elapsed = sec >= 60 ? `${Math.floor(sec / 60)}분 ${sec % 60}초` : `${sec}초`;
@@ -1318,7 +1324,9 @@ const UI = (() => {
     }
     else if(S.mode === 'paper' && recovery)
       sub = `시험 복기 ${recovery.recovered}/${recovery.total}문항 바로잡음`;
-    else if(S.reason === 'heart') sub = '하트를 모두 잃었어요';
+    else if(!completed)
+      sub = `푼 ${fin.total}문항 기록은 저장했어요 · 완료 보상은 완주 시 지급돼요`;
+    else if(S.mode === 'ox') sub = `60초 동안 ${S.correct}문제 정답!`;
     else sub = `${Math.round((Date.now() - S.startedAt)/1000)}초 소요`;
     $('#res-sub').textContent = sub;
 
@@ -1422,7 +1430,7 @@ const UI = (() => {
     if(retryN) wrongBtn.textContent = `📕 이번 오답 ${retryN}개 바로 풀기${sessionWrongIds.length > retryN ? ' (우선)' : ''}`;
 
     if(win){ Sfx.win(); Fx.confetti(fin.acc === 100 ? 60 : 36); }
-    else Sfx.lose();
+    else if(completed || S.reason === 'heart') Sfx.lose();
 
     if(fin.leveled){
       setTimeout(() => { Sfx.levelup(); Fx.toast(`🎊 레벨 업! Lv.${fin.leveled} — ${Store.title().name}`, true, 3200); Fx.confetti(50); }, 700);

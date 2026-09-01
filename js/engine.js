@@ -734,21 +734,33 @@ const Engine = (() => {
   }
 
   /* ── 판 종료 정산 ──────────────────────────────────── */
+  function completedSession(S){
+    if(!S) return false;
+    if(S.mode === 'exam') return S.reason === 'submit' || S.reason === 'time';
+    if(S.mode === 'ox') return S.reason === 'time';
+    if(S.mode === 'boss') return S.reason === 'kill';
+    return S.reason === 'end';
+  }
+
   function finish(S){
     if(S.mode === 'exam') gradeExam(S);
     const total = S.correct + S.wrong;
     const acc = total ? Math.round(S.correct / total * 100) : 0;
+    const completed = completedSession(S);
 
-    // 보너스
+    // 중도 종료한 판은 푼 문항의 기본 보상과 학습 기록만 남긴다. 한두 문제만
+    // 맞히고 나가서 퀘스트 별·완벽 보상을 받는 우회는 단원 진도를 왜곡한다.
     let bonusXp = 0, bonusCoin = 0;
-    if(S.mode === 'quest' && acc >= 60){ bonusXp += 30; bonusCoin += 10; }
-    if(acc === 100 && total >= 5){ bonusXp += 50; bonusCoin += 25; Store.s.hadPerfect = true; }
+    if(completed && S.mode === 'quest' && acc >= 60){ bonusXp += 30; bonusCoin += 10; }
+    if(completed && acc === 100 && total >= 5){
+      bonusXp += 50; bonusCoin += 25; Store.s.hadPerfect = true;
+    }
     if(S.mode === 'boss' && S.reason === 'kill'){
       bonusXp += 120; bonusCoin += 50; Store.s.bossKills++;
       Store.progressTask('boss', 1);
     }
-    if(S.mode === 'exam'){ Store.s.examCount++; Store.progressTask('exam', 1); }
-    if(S.mode === 'ox' && S.correct > Store.s.bestOx){ Store.s.bestOx = S.correct; }
+    if(completed && S.mode === 'exam'){ Store.s.examCount++; Store.progressTask('exam', 1); }
+    if(completed && S.mode === 'ox' && S.correct > Store.s.bestOx){ Store.s.bestOx = S.correct; }
 
     S.xp += bonusXp; S.coin += bonusCoin;
 
@@ -757,7 +769,11 @@ const Engine = (() => {
 
     const leveled = Store.addXp(S.xp);
     Store.addCoin(S.coin);
-    const streakInfo = Store.touchStreak();
+    // 시작하자마자 그만둔 0문항 세션은 학습일로 세지 않는다.
+    const activityCount = S.mode === 'exam' ? S.examAnsweredCount : total;
+    const streakInfo = activityCount > 0
+      ? Store.touchStreak()
+      : { streak:Store.s.streak, reward:null };
 
     // 일일 임무 진행
     const doneTasks = [];
@@ -770,12 +786,12 @@ const Engine = (() => {
         a.__ok && S.studyKinds && S.studyKinds[a.id] === 'review').length;
       task('srs', reviewed);
     }
-    if(acc >= 80 && total >= 5) task('acc80', 1);
+    if(completed && acc >= 80 && total >= 5) task('acc80', 1);
     task('combo', S.maxCombo);
 
     // 단원 별 획득
     let stars = 0;
-    if(S.mode === 'quest' && S.opt.unit) stars = Store.unitResult(S.opt.unit, acc);
+    if(completed && S.mode === 'quest' && S.opt.unit) stars = Store.unitResult(S.opt.unit, acc);
 
     Store.save();
     const newAch = Store.checkAch();
@@ -800,7 +816,7 @@ const Engine = (() => {
       );
     }
 
-    return { acc, total, bonusXp, bonusCoin, leveled, stars, newAch, bySub, doneTasks,
+    return { acc, total, completed, bonusXp, bonusCoin, leveled, stars, newAch, bySub, doneTasks,
              studySummary:S.mode === 'daily' ? studySummary(S) : null,
              streak: streakInfo.streak, streakReward: streakInfo.reward, paperReview };
   }

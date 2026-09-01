@@ -188,6 +188,50 @@ t('세션 복구 — 진도 이동 코드에는 진행 중인 판을 넣지 않�
   ok(!('activeSession' in raw.s), '진도 코드에 진행 중 세션이 포함됨');
 });
 
+/* ── 종료 정산 ───────────────────────────────────────────── */
+t('종료 정산 — 퀘스트를 중간에 그만두면 풀이만 기록하고 완료 보상은 주지 않는다', () => {
+  fresh();
+  const s = Engine.build('quest', { unit:'kor-gram', subject:'kor' });
+  for(let i = 0; i < 5; i++){
+    s.i = i;
+    Engine.submit(s, s.queue[i].a);
+  }
+  const earnedXp = s.xp, earnedCoin = s.coin;
+  s.reason = 'quit'; s.over = true;
+  const fin = Engine.finish(s);
+  eq([fin.completed, fin.acc, fin.total, fin.bonusXp, fin.bonusCoin, fin.stars],
+     [false,100,5,0,0,0], '중도 종료 정산');
+  eq([s.xp, s.coin, Store.s.totalAnswered], [earnedXp,earnedCoin,5], '푼 문항 기록');
+  ok(!Store.s.units['kor-gram'], '중도 종료가 단원 별을 남김');
+  ok(!Store.s.hadPerfect, '중도 종료가 만점 업적을 남김');
+
+  const app = rd('js/app.js'), ui = rd('js/ui.js');
+  ok((app.match(/S\.reason = 'quit'/g) || []).length >= 2, '종료 버튼·뒤로가기 사유 기록 없음');
+  ok(/fin\.completed === true/.test(ui) && /학습을 중간에 마쳤어요/.test(ui) &&
+     /완료 보상은 완주 시 지급돼요/.test(ui), '중도 종료 결과 안내 없음');
+});
+
+t('종료 정산 — 퀘스트를 끝까지 풀어야 별과 완벽 보상을 준다', () => {
+  fresh();
+  const s = Engine.build('quest', { unit:'kor-gram', subject:'kor' });
+  s.queue.forEach((q, i) => { s.i = i; Engine.submit(s, q.a); });
+  s.reason = 'end'; s.over = true;
+  const fin = Engine.finish(s);
+  eq([fin.completed, fin.acc, fin.total, fin.bonusXp, fin.bonusCoin, fin.stars],
+     [true,100,s.queue.length,80,35,3], '완주 정산');
+  eq(Store.s.units['kor-gram'].stars, 3, '완주 단원 별');
+  ok(Store.s.hadPerfect, '완주 만점 업적 표식 없음');
+});
+
+t('종료 정산 — 한 문제도 풀지 않은 종료는 연속 학습일로 세지 않는다', () => {
+  fresh();
+  const s = Engine.build('quest', { unit:'kor-gram', subject:'kor' });
+  s.reason = 'quit'; s.over = true;
+  const fin = Engine.finish(s);
+  eq([fin.completed, fin.total, fin.streak, fin.streakReward, Store.s.lastPlay],
+     [false,0,0,null,null], '0문항 종료 학습일');
+});
+
 /* ── 최근 성과 흐름 ───────────────────────────────────────── */
 t('학습 분석 — 최근 50문항을 직전 50문항과 비교한다', () => {
   fresh();

@@ -587,6 +587,8 @@
   /* ── 종료 ──────────────────────────────────────────── */
   function end(){
     if(!S) return;
+    // 모든 종료 경로에 이유를 남겨 정산이 중도 종료를 완주로 오해하지 않게 한다.
+    if(!S.reason) S.reason = S.i >= S.queue.length ? 'end' : 'quit';
     stopTimer();
     if(examMoveTimer){ clearTimeout(examMoveTimer); examMoveTimer = null; }
     closeExamSheet(false);
@@ -812,7 +814,7 @@
       const msg = S.mode === 'exam'
         ? '현재까지 작성한 답안만 제출하고 모의고사를 끝낼까요? 미응답은 오답 처리됩니다.'
         : '정말 그만둘까요? 지금까지의 기록은 저장됩니다.';
-      if(confirm(msg)){ if(S.mode === 'exam') S.reason = 'quit'; end(); }
+      if(confirm(msg)){ S.reason = 'quit'; end(); }
     });
     $('#btn-res-home').addEventListener('click', () => { Sfx.tap(); UI.home(); UI.show('scr-home'); });
     /* 틀린 문제를 눈앞에 두고 갈 곳이 홈과 '한 판 더' 뿐이면, 방금 틀린
@@ -964,6 +966,7 @@
   function handleBack(){
     if(S && UI.currentScreen() === 'scr-play'){
       if(confirm('풀이를 그만둘까요? 지금까지의 기록은 저장됩니다.')){
+        S.reason = 'quit';
         end();                       // 결과 화면으로 정상 종료
       }else{
         // 사용자가 계속 풀겠다고 했으므로 히스토리 항목을 되돌려 놓는다
