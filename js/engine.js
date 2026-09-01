@@ -149,7 +149,9 @@ const Engine = (() => {
       total:100,
       timer:110 * 60,
       secondsPerQuestion:66,
-      historyRequirement:reformed ? '한국사능력검정시험 3급 이상' : null
+      historyRequirement:reformed ? '한국사능력검정시험 3급 이상' : null,
+      historyValidity:reformed ? '유효기간 없음 · 과거 취득 성적 인정' : null,
+      policyChecked:'2026-09-01'
     };
   }
 
@@ -502,7 +504,9 @@ const Engine = (() => {
           timer:Math.round(pool.length * policy.secondsPerQuestion),
           examYear:policy.year,
           reformed:policy.reformed,
-          historyRequirement:policy.historyRequirement }
+          historyRequirement:policy.historyRequirement,
+          historyValidity:policy.historyValidity,
+          policyChecked:policy.policyChecked }
       : cfg;
 
     return {

@@ -711,7 +711,9 @@ t('모의고사 — 2027 회차는 한국사를 뺀 4과목 100문항·110분', 
   for(const sid of ['edu','eng','kor','law'])
     eq(s.queue.filter(q => q.subject === sid).length, 25, sid + ' 배분');
   eq([s.cfg.timer, s.cfg.examYear, s.cfg.reformed], [6600,2027,true], '시간·제도 기준');
-  eq(s.cfg.historyRequirement, '한국사능력검정시험 3급 이상', '한국사 대체 기준');
+  eq([s.cfg.historyRequirement, s.cfg.historyValidity, s.cfg.policyChecked],
+    ['한국사능력검정시험 3급 이상','유효기간 없음 · 과거 취득 성적 인정','2026-09-01'],
+    '한국사 대체·유효기간·확인일 기준');
 
   const one = Engine.build('exam', { subject:'edu' });
   eq([one.queue.length, one.cfg.timer], [25,1650], '개편 필기 과목별 연습');
@@ -720,7 +722,9 @@ t('모의고사 — 2027 회차는 한국사를 뺀 4과목 100문항·110분', 
     [20,1320,'한능검 대비 연습'], '한국사 별도 연습');
 
   const app = rd('js/app.js'), html = rd('index.html');
-  ok(/cntId=191/.test(app) && /c09919aa/.test(app), '공식 제도 출처 링크 없음');
+  ok(/cntId=191/.test(app) && /gongmuwon\.gosi\.kr/.test(app) && /c09919aa/.test(app),
+    '공식 제도 출처 링크 없음');
+  ok(/인정 유효기간은 없고 과거 취득 성적도 인정/.test(app), '한능검 유효기간 안내 없음');
   ok(/id="mc-exam-desc"/.test(html) && /100문항 · 110분/.test(html), '홈 시험 안내 없음');
 });
 

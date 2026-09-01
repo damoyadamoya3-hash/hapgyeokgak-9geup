@@ -690,12 +690,14 @@
         const policy = Engine.examPlan();
         const policyNote = policy.reformed
           ? `<b>${policy.year}년 개편 기준</b> — 국어·영어·교육학·행정법 각 25문항, 총 100문항·110분입니다. ` +
-            `한국사는 필기에서 빠지고 <b>한능검 3급 이상</b>으로 대체됩니다. 한국사 과목 카드는 별도 한능검 연습입니다.`
+            `한국사는 필기에서 빠지고 <b>한능검 3급 이상</b>으로 대체됩니다. ` +
+            `<b>인정 유효기간은 없고 과거 취득 성적도 인정</b>됩니다. 한국사 과목 카드는 별도 한능검 연습입니다.`
           : `<b>${policy.year}년 현행 기준</b> — 5과목 각 20문항, 총 100문항·110분입니다.`;
         UI.selectSubject('📝 모의고사 범위',
           policyNote + '<br>실전처럼 <b>해설 없이</b> 끝까지 풀고 마지막에 한꺼번에 채점합니다. ' +
-          '오답은 자동으로 오답노트에 담깁니다.<br>' +
+          `오답은 자동으로 오답노트에 담깁니다.<br><small>공식 기준 ${policy.policyChecked} 확인</small><br>` +
           '<a href="https://www.mpm.go.kr/mpm/comm/policyPR/mpmFocus/?cntId=191&amp;mode=view" target="_blank" rel="noopener noreferrer">인사혁신처 공식 개편 안내 ↗</a> · ' +
+          '<a href="https://gongmuwon.gosi.kr/rccom/ComBbRcrutTestSnthsGdFaqLst.do" target="_blank" rel="noopener noreferrer">국가공무원 채용 FAQ ↗</a> · ' +
           '<a href="https://www.goe.go.kr/resource/goe/na/bbs_2584/2026/01/c09919aa-1cfd-46d6-bb8a-e3d5ba4cb430.pdf" target="_blank" rel="noopener noreferrer">교육청 제도 안내 ↗</a>',
           sid => start('exam', { subject: sid }),
           { id:'all', name:'전 과목 통합 회차', emoji:'🏁',

@@ -263,7 +263,7 @@ const UI = (() => {
     const policy = Engine.examPlan();
     const examDesc = $('#mc-exam-desc');
     if(examDesc) examDesc.textContent = policy.reformed
-      ? '4과목 × 25문항 · 110분 · 한능검 대체'
+      ? '4과목 × 25문항 · 110분 · 한능검 3급(유효기간 없음)'
       : '5과목 × 20문항 · 110분 실전 감각';
     $('#mc-wrong-tag').textContent = `${Store.wrongCards().length}문제 수감`;
     const ct = $('#mc-codex-tag');
