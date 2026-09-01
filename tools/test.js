@@ -1072,6 +1072,34 @@ t('업적 — 조건을 채우면 27개가 모두 달성된다', () => {
 });
 
 /* ── 기기 간 이어하기 ────────────────────────────────────── */
+t('진도 보관 — 성공한 코드 복사 이후 변경량과 재보관 시점을 계산한다', () => {
+  fresh();
+  QB.items.slice(0, 20).forEach(q => Store.record(q.id, true));
+  ok(Store.progressCopyInfo().recommended, '첫 진도 코드 보관을 권하지 않음');
+
+  const copiedAt = 1800000000000;
+  ok(Store.markProgressCopy(copiedAt), '성공한 복사 시점 기록 실패');
+  eq(Store.progressCopyInfo(copiedAt + 40 * 86400000), {
+    at:copiedAt, copied:true, copiedAnswered:20, pending:0, days:40, recommended:false
+  }, '변경 없는 코드 재보관 권장');
+
+  Store.record(QB.items[20].id, true);
+  ok(!Store.progressCopyInfo(copiedAt + 29 * 86400000).recommended, '30일 전 조기 권장');
+  ok(Store.progressCopyInfo(copiedAt + 30 * 86400000).recommended, '30일 지난 변경분을 놓침');
+
+  Store.markProgressCopy(copiedAt + 30 * 86400000);
+  for(let i = 0; i < 100; i++) Store.record(QB.items[21].id, i % 2 === 0);
+  const changed = Store.progressCopyInfo(copiedAt + 31 * 86400000);
+  eq([changed.pending, changed.recommended], [100,true], '100회 변경 재보관 권장');
+
+  const raw = JSON.parse(decodeURIComponent(escape(atob(Store.exportData()))));
+  ok(!('lastProgressCopyAt' in raw.s) && !('lastProgressCopyAnswered' in raw.s),
+    '기기별 복사 상태가 진도 코드에 섞임');
+  const ui = rd('js/ui.js');
+  ok(/Store\.markProgressCopy/.test(ui) && /if\(document\.execCommand\('copy'\)\) done\(\)/.test(ui),
+    '실제 복사 성공만 기록하는 화면 경로 없음');
+});
+
 t('이어하기 — 합쳐도 더 많이 공부한 쪽이 남는다', () => {
   fresh();
   const all = QB.items;

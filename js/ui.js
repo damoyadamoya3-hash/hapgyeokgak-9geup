@@ -376,6 +376,14 @@ const UI = (() => {
     const lv = Store.levelInfo(Store.s.xp);
     const backup = Store.backupInfo();
     const code = Store.exportData();   // 압축본이 준비될 때까지 보여 줄 임시본
+    const copyStatusText = info => {
+      if(!Store.s.totalAnswered) return '아직 복사할 학습 진도가 없습니다.';
+      if(!info.copied) return '진도 코드를 아직 복사하지 않았습니다. 기기 밖에 한 번 보관해 두세요.';
+      const when = info.days ? `${info.days}일 전` : '오늘';
+      const changed = info.pending ? `이후 ${info.pending.toLocaleString()}회 더 풂` : '이후 추가 풀이 없음';
+      return `최근 코드 복사: ${when} · ${changed}`;
+    };
+    const copyInfo = Store.progressCopyInfo();
 
     $('#sync-body').innerHTML = `
       <div class="sync-card">
@@ -400,6 +408,8 @@ const UI = (() => {
         <p class="sync-note">아래 코드를 복사해 다른 기기의 <b>2번 칸</b>에 붙여 넣으세요.</p>
         <textarea id="sync-out" class="sync-box" readonly rows="3">${esc(code)}</textarea>
         <button class="btn-primary" id="sync-copy">📋 코드 복사 (${(code.length/1024).toFixed(0)}KB)</button>
+        <p id="sync-copy-status" class="sync-copy-status${copyInfo.recommended ? ' warn' : ''}" role="status">${esc(copyStatusText(copyInfo))}</p>
+        <p class="sync-note">복사한 코드를 메모나 다른 기기에 붙여 넣어야 기기 밖 백업이 됩니다.</p>
       </div>
 
       <div class="sync-card">
@@ -441,12 +451,28 @@ const UI = (() => {
     $('#sync-copy').addEventListener('click', () => {
       const ta = $('#sync-out');
       ta.select(); ta.setSelectionRange(0, ta.value.length);
-      const done = () => Fx.toast('코드를 복사했어요 📋 다른 기기에 붙여 넣으세요', true, 2600);
-      if(navigator.clipboard) navigator.clipboard.writeText(ta.value).then(done, () => {
-        try{ document.execCommand('copy'); done(); }
-        catch(e){ Fx.toast('길게 눌러 직접 복사해 주세요'); }
-      });
-      else { try{ document.execCommand('copy'); done(); }catch(e){} }
+      const paintCopyStatus = () => {
+        const info = Store.progressCopyInfo();
+        const el = $('#sync-copy-status');
+        if(!el) return;
+        el.textContent = copyStatusText(info);
+        el.classList.toggle('warn', info.recommended);
+      };
+      const done = () => {
+        Store.markProgressCopy();
+        paintCopyStatus();
+        Fx.toast('코드를 복사했어요 📋 메모나 다른 기기에 붙여 넣으세요', true, 2800);
+      };
+      const manual = () => Fx.toast('자동 복사에 실패했어요. 코드를 길게 눌러 직접 복사해 주세요', false, 3400);
+      const fallback = () => {
+        try{
+          if(document.execCommand('copy')) done();
+          else manual();
+        }catch(e){ manual(); }
+      };
+      if(navigator.clipboard && typeof navigator.clipboard.writeText === 'function')
+        navigator.clipboard.writeText(ta.value).then(done, fallback);
+      else fallback();
     });
 
     $('#sync-merge').addEventListener('click', () => {

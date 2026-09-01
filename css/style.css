@@ -826,6 +826,9 @@ body.fever .combo-badge{background:linear-gradient(120deg,#ff2e88,#ffd600);anima
 .sync-grid b{ display:block; font-family:var(--f-round); font-size:17px; color:var(--brand-ink); }
 .sync-grid span{ font-size:11px; color:var(--muted); }
 .sync-card .btn-ghost{ width:100%; margin-top:8px; }
+.sync-copy-status{margin:10px 0 0;padding:8px 10px;border-radius:10px;background:var(--bg);
+  color:var(--good-ink);font-size:12px;line-height:1.55}
+.sync-copy-status.warn{background:rgba(242,194,0,.16);color:var(--gold-ink);font-weight:700}
 .sync-foot{ font-size:12px; color:var(--muted); line-height:1.7; margin:4px 4px 24px; }
 @media (max-width:400px){
   .sync-grid{ grid-template-columns:repeat(2,1fr); }

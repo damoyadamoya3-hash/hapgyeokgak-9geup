@@ -32,6 +32,10 @@ const Store = (() => {
     studyPlan: null,
     // 이 사람이 스스로 붙인 이름. 기기를 오갈 때 누구 진도인지 알아보는 표시
     nick: '',
+    // 이 기기에서 진도 코드를 마지막으로 실제 복사한 시각과 당시 풀이 수.
+    // 기기별 안전 상태이므로 내보내기 코드에는 포함하지 않는다.
+    lastProgressCopyAt: 0,
+    lastProgressCopyAnswered: 0,
     guideDone: false,
     // 모의고사 성적: [{t:시각, s:'all'|과목, n, ok, sub:{과목:[맞힘,푼수]}}]
     // 수험 준비에서 가장 알고 싶은 건 '내가 나아지고 있는가'인데
@@ -822,10 +826,39 @@ const Store = (() => {
      학습 기록은 문항 수만큼 늘어나 그대로 직렬화하면 코드가 100KB를 넘는다.
      기기 간 옮길 때 붙여 넣기 어려우므로, 문항 기록만 배열로 압축한다.
      (v1 = 옛 형식, v2~v3 = 압축 형식, v4 = 마지막 풀이일 포함) */
+  function progressCopyInfo(now = Date.now()){
+    const answered = Math.max(0, Math.floor(Number(S.totalAnswered) || 0));
+    const rawAt = Number(S.lastProgressCopyAt);
+    const at = Number.isFinite(rawAt) && rawAt > 0 ? rawAt : 0;
+    const copiedAnswered = Math.min(answered,
+      Math.max(0, Math.floor(Number(S.lastProgressCopyAnswered) || 0)));
+    const pending = Math.max(answered - copiedAnswered, 0);
+    const days = at ? Math.floor(Math.max(Number(now) - at, 0) / 86400000) : null;
+    const recommended = answered >= 20 && (
+      !at || copiedAnswered === 0 || pending >= 100 || (pending > 0 && days >= 30)
+    );
+    return { at, copied:!!at, copiedAnswered, pending, days, recommended };
+  }
+
+  function markProgressCopy(now = Date.now()){
+    const at = Math.floor(Number(now));
+    if(!Number.isFinite(at) || at <= 0) return false;
+    const beforeAt = S.lastProgressCopyAt;
+    const beforeAnswered = S.lastProgressCopyAnswered;
+    S.lastProgressCopyAt = at;
+    S.lastProgressCopyAnswered = Math.max(0, Math.floor(Number(S.totalAnswered) || 0));
+    if(save()) return true;
+    S.lastProgressCopyAt = beforeAt;
+    S.lastProgressCopyAnswered = beforeAnswered;
+    return false;
+  }
+
   function exportData(){
     const packed = { v:4, s:{ ...S } };
     delete packed.s.cards;
     delete packed.s.activeSession;
+    delete packed.s.lastProgressCopyAt;
+    delete packed.s.lastProgressCopyAnswered;
 
     // 날짜 문자열이 문항마다 반복되므로 사전으로 묶어 번호로 대체한다.
     // 마지막 풀이일도 함께 보내야 횟수가 같은 두 기록 중 최신을 고를 수 있다.
@@ -1348,6 +1381,7 @@ const Store = (() => {
     updateExamPaperReview, paperReviewSummary,
     subjectAccuracy, subjectSeen, unitNeed, theoryNeed, theoryReadToday, touchStreak, daily, progressTask,
     checkAch, ACHS, exportData, inspectData, importData, mergeData,
+    progressCopyInfo, markProgressCopy,
     hasImportBackup, backupInfo, restoreImportBackup, clearImportBackup,
     reset, resetWithBackup, today, dateKey,
     saveSession, restoreSession, sessionInfo, clearSession,
