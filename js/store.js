@@ -220,7 +220,15 @@ const Store = (() => {
       });
   }
   function wrongCards(){
-    return Object.keys(S.cards).filter(id => S.cards[id].ng > 0 && S.cards[id].box <= 2);
+    return Object.keys(S.cards)
+      .filter(id => S.cards[id].ng > 0 && S.cards[id].box <= 2)
+      .sort((a, b) => {
+        const x = S.cards[a], y = S.cards[b];
+        if(x.ng !== y.ng) return y.ng - x.ng;               // 반복해서 틀린 것 먼저
+        if(x.box !== y.box) return x.box - y.box;           // 덜 정착된 것 먼저
+        if(x.due !== y.due) return x.due < y.due ? -1 : 1; // 오래 밀린 것 먼저
+        return a.localeCompare(b);
+      });
   }
 
   /* ── 단원 진행도 ────────────────────────────────────── */

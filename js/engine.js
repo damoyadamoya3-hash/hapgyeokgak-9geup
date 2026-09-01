@@ -416,8 +416,20 @@ const Engine = (() => {
         seen.add(id); return true;
       });
       const limit = targeted ? Math.min(ids.length, 30) : cfg.n;
-      pool = shuffle(ids.map(id => QB.byId(id)).filter(Boolean)).slice(0, limit);
-      cfg = { ...cfg, label:targeted ? '이번 오답 회복' : cfg.label, n:pool.length };
+      if(targeted){
+        pool = shuffle(ids.map(id => QB.byId(id)).filter(Boolean)).slice(0, limit);
+      } else {
+        // 오답이 많아져도 가장 자주 틀린 핵심 문항이 무작위 추출에서 밀리지
+        // 않게 상위 3개를 보장하고, 나머지는 섞어 세트의 다양성을 남긴다.
+        const priorityCount = Math.min(3, limit, ids.length);
+        const picked = ids.slice(0, priorityCount).concat(
+          shuffle(ids.slice(priorityCount)).slice(0, Math.max(0, limit - priorityCount))
+        );
+        pool = shuffle(picked.map(id => QB.byId(id)).filter(Boolean));
+      }
+      cfg = { ...cfg,
+              label:targeted ? '이번 오답 회복' : '오답 지옥 · 최다 오답 우선',
+              n:pool.length };
     }
     else if(mode === 'paper'){
       // 최근 시험에서 틀렸거나 비워 뒀거나 검토 표시한 문항만 당시 번호

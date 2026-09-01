@@ -1262,6 +1262,26 @@ t('OX — 한쪽으로 찍어서 맞을 수 없다', () => {
 });
 
 /* ── 결과 ────────────────────────────────────────────────── */
+t('오답 지옥 — 가장 많이 틀린 세 문항은 큰 오답 더미에서도 빠지지 않는다', () => {
+  fresh();
+  const rows = QB.items.slice(0, 24);
+  const priority = rows.slice(0, 3);
+  rows.forEach((q, i) => {
+    Store.s.cards[q.id] = {
+      n:10, ok:9, ng:i < 3 ? 9 - i : 1, box:i < 3 ? i : 2,
+      due:shift(i < 3 ? -10 + i : -1), last:shift(-1)
+    };
+  });
+  Store.save();
+
+  eq(Store.wrongCards().slice(0, 3), priority.map(q => q.id), '오답 우선순위');
+  const session = Engine.build('wrong');
+  const picked = new Set(session.queue.map(q => q.id));
+  eq(session.queue.length, 15, '오답 세트 분량');
+  priority.forEach(q => ok(picked.has(q.id), `최다 오답 누락: ${q.id}`));
+  eq(session.cfg.label, '오답 지옥 · 최다 오답 우선', '우선 출제 안내');
+});
+
 console.log('');
 for(const [mark, name, msg] of results)
   console.log(' ' + mark + ' ' + name + (msg ? '\n     └ ' + msg : ''));
