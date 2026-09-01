@@ -16,6 +16,16 @@
   let examModalReturnFocus = null;
   let examMoveTimer = null;
 
+  /* 해설이 열린 동안 Enter/Space는 빠른 '다음' 키로 쓴다. 다만 사용자가
+     Tab으로 북마크·이론·다음 버튼에 도착했다면 그 버튼의 기본 동작을
+     우선해야 한다. 그렇지 않으면 키보드로 해당 기능을 실행할 수 없다. */
+  function feedbackShortcutAllowed(target){
+    if(!target || typeof target.closest !== 'function') return true;
+    return !target.closest(
+      'button,a,input,select,textarea,summary,[contenteditable="true"],[role="button"],[role="link"]'
+    );
+  }
+
   /* ── 부팅 ──────────────────────────────────────────── */
   const BOOT_MSGS = [
     '문제 은행 여는 중…', '기출문제 정렬 중…', '한능검 연표 펼치는 중…',
@@ -824,7 +834,10 @@
       if(!$('#scr-play').classList.contains('active')) return;
       if(!$('#modal-exam-sheet').classList.contains('hidden')) return;
       const fbOpen = !$('#feedback').classList.contains('hidden');
-      if(fbOpen && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); next(); return; }
+      if(fbOpen && (e.key === 'Enter' || e.key === ' ')){
+        if(!feedbackShortcutAllowed(e.target)) return;
+        e.preventDefault(); next(); return;
+      }
       if(fbOpen) return;
       const box = $('#q-choices');
       if(S && S.mode === 'exam'){
@@ -980,5 +993,5 @@
     UI.setGuideHandler(guideStep);
     wire(); boot();
   });
-  window.__app = { start, get session(){ return S; } };
+  window.__app = { start, feedbackShortcutAllowed, get session(){ return S; } };
 })();

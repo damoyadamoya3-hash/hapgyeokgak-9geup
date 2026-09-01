@@ -11,6 +11,7 @@
 const fs   = require('fs');
 const path = require('path');
 const childProcess = require('child_process');
+const vm   = require('vm');
 const ROOT = path.resolve(__dirname, '..');
 const rd   = p => fs.readFileSync(path.join(ROOT, p), 'utf8');
 
@@ -121,6 +122,22 @@ t('접근성 — 화면 이동과 설정창에 초점 안내가 있다', () => {
     '학습 계획이 중첩 버튼 구조임');
   const ui = rd('js/ui.js');
   ok(/\.inert\s*=/.test(ui) && /aria-hidden/.test(ui), '숨은 화면의 초점 차단 없음');
+});
+
+t('접근성 — 해설의 Enter·Space가 포커스된 버튼을 가로채지 않는다', () => {
+  const sandbox = {
+    UI:{ $(){}, $$(){} },
+    document:{ addEventListener(){} }
+  };
+  sandbox.window = sandbox;
+  vm.runInNewContext(rd('js/app.js'), sandbox);
+  const control = { closest(){ return {}; } };
+  const reading = { closest(){ return null; } };
+  eq([
+    sandbox.__app.feedbackShortcutAllowed(control),
+    sandbox.__app.feedbackShortcutAllowed(reading)
+  ], [false, true], '해설 단축키 대상 판별');
+  ok(/feedbackShortcutAllowed\(e\.target\)/.test(rd('js/app.js')), '키 입력 경로에 판별 함수가 연결되지 않음');
 });
 
 /* ── 진행 중 세션 복구 ───────────────────────────────────── */
