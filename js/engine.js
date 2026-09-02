@@ -362,10 +362,9 @@ const Engine = (() => {
       const requested = Math.max(0, Number(opt.n) || 0);
       const size = requested || (ids.length > 200 ? 30 : ids.length > 60 ? 24 : cfg.n);
       pool = ids.slice(0, size).map(id => QB.byId(id)).filter(Boolean);
-      if(pool.length < size){
-        const extra = QB.items.filter(q => !Store.s.cards[q.id]);
-        pool = pool.concat(shuffle(extra).slice(0, size - pool.length));
-      }
+      // 복습 대기가 적다고 빈자리를 새 문항으로 채우면, 사용자는 새 개념을
+      // 복습으로 오해하고 일일 '복습 카드' 임무도 거짓으로 올라간다. 오늘
+      // 만기인 문항만 짧게 끝내고 새 문제는 별도 모드에서 시작하게 한다.
       pool = shuffle(pool);
       cfg = { ...cfg, n: pool.length };
     }

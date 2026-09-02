@@ -356,6 +356,40 @@ t('복습 — 많이 밀리면 한 판을 늘린다', () => {
   ok(s.queue.length > 15, '밀린 양이 많은데 판이 ' + s.queue.length + '문항');
 });
 
+t('복습 — 대기 문항이 없으면 새 문제를 복습으로 섞지 않는다', () => {
+  fresh();
+  eq(Engine.build('srs', {}), null, '빈 복습 세션');
+  ok(/복습할 카드가 없어요\. 새 문제부터!/.test(rd('js/app.js')), '빈 복습 안내 없음');
+});
+
+t('복습 — 대기 문항이 적으면 그 문항만 정확히 복습한다', () => {
+  fresh();
+  const due = QB.items.slice(0, 3);
+  const future = QB.items.slice(3, 8);
+  due.forEach(q => Store.s.cards[q.id] = {
+    n:1, ok:0, ng:1, box:0, due:shift(-1), last:shift(-1)
+  });
+  future.forEach(q => Store.s.cards[q.id] = {
+    n:2, ok:2, ng:0, box:2, due:shift(2), last:shift(-1)
+  });
+  Store.save();
+
+  const s = Engine.build('srs', { n:15 });
+  eq(s.queue.map(q => q.id).sort(), due.map(q => q.id).sort(), '복습 세트 문항');
+  eq([s.queue.length, s.cfg.n], [3,3], '복습 세트 크기');
+  ok(s.queue.every(q => Store.s.cards[q.id] && Store.s.cards[q.id].due <= Store.today()),
+     '만기 전·새 문항이 복습에 섞임');
+
+  Store.s.daily = { date:Store.today(), tasks:[
+    { id:'review-ten', text:'복습 10문항', goal:10, xp:1, coin:1,
+      key:'srs', prog:0, done:false, claimed:false }
+  ]};
+  s.queue.forEach((q, i) => { s.i = i; Engine.submit(s, q.a); });
+  s.reason = 'end'; s.over = true;
+  Engine.finish(s);
+  eq(Store.s.daily.tasks[0].prog, 3, '복습 임무가 실제 만기 문항보다 더 진행됨');
+});
+
 t('복습 — 가장 밀린 문항이 반드시 포함된다', () => {
   fresh();
   const all = QB.items;
