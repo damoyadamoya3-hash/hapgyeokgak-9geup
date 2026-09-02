@@ -4,6 +4,8 @@
 const Store = (() => {
   const KEY = 'hapgyeokgak9_v1';
   const BACKUP_KEY = 'hapgyeokgak9_import_backup_v1';
+  const LEASE_KEY = 'hapgyeokgak9_learning_lease_v1';
+  const LEASE_TTL = 45000;
 
   const DEFAULT = {
     xp: 0, lv: 1, coin: 0,
@@ -76,6 +78,55 @@ const Store = (() => {
       merged.daily    = Object.assign(structuredClone(DEFAULT.daily),    p.daily    || {});
       return merged;
     }catch(e){ return structuredClone(DEFAULT); }
+  }
+
+  /* storage 이벤트를 받은 대기 탭은 메모리에 남은 오래된 상태를 버리고
+     현재 저장본을 다시 읽는다. 학습 중인 탭은 앱 쪽 임대권 보호가 먼저 멈춘다. */
+  function reload(){ S = load(); return S; }
+
+  function readLease(){
+    try{
+      const raw = localStorage.getItem(LEASE_KEY);
+      if(!raw) return null;
+      const lease = JSON.parse(raw);
+      if(!lease || typeof lease.owner !== 'string' || !Number.isFinite(lease.until)) return null;
+      return lease;
+    }catch(e){ return undefined; }
+  }
+
+  /* 한 기기에서 한 탭만 학습 세션을 쓰도록 짧은 임대권을 둔다. 저장소 자체를
+     쓸 수 없는 환경에서는 기존 저장 오류 안내가 작동하도록 보호만 실패 개방한다. */
+  function claimLease(owner, now = Date.now()){
+    if(typeof owner !== 'string' || !owner) return false;
+    const current = readLease();
+    if(current === undefined) return true;
+    if(current && current.owner !== owner && current.until > now) return false;
+    try{
+      localStorage.setItem(LEASE_KEY, JSON.stringify({ owner, until:now + LEASE_TTL }));
+      const check = readLease();
+      return check === undefined || !!check && check.owner === owner;
+    }catch(e){ return true; }
+  }
+  function touchLease(owner, now = Date.now()){
+    const current = readLease();
+    if(current === undefined) return true;
+    if(!current || current.owner !== owner) return false;
+    try{
+      localStorage.setItem(LEASE_KEY, JSON.stringify({ owner, until:now + LEASE_TTL }));
+      const check = readLease();
+      return check === undefined || !!check && check.owner === owner;
+    }catch(e){ return true; }
+  }
+  function ownsLease(owner, now = Date.now()){
+    const current = readLease();
+    return current === undefined || !!current && current.owner === owner && current.until > now;
+  }
+  function releaseLease(owner){
+    const current = readLease();
+    if(current === undefined) return true;
+    if(!current || current.owner !== owner) return false;
+    try{ localStorage.removeItem(LEASE_KEY); return true; }
+    catch(e){ return false; }
   }
   /* 저장 실패를 조용히 삼키면 하루 종일 공부한 것이 사라졌다는 사실을
      아무도 모른 채 창을 닫게 된다. 눈에 보이는 오류보다 나쁘다.
@@ -1457,6 +1508,7 @@ const Store = (() => {
   function reset(){ S = structuredClone(DEFAULT); save(); }
 
   return {
+    DATA_KEY:KEY, LEASE_KEY, LEASE_TTL,
     get s(){ return S; }, save, levelInfo, title, addXp, addCoin,
     record, dueCards, wrongCards, unitResult, subjectProgress,
     markRead, markDrill, readCount, recentDays, unitStats, recentPerformance, summary, INTERVAL, nextCard,
@@ -1468,7 +1520,7 @@ const Store = (() => {
     checkAch, ACHS, exportData, inspectData, importData, mergeData,
     progressCopyInfo, markProgressCopy,
     hasImportBackup, backupInfo, restoreImportBackup, clearImportBackup,
-    reset, resetWithBackup, today, dateKey,
+    reset, resetWithBackup, reload, claimLease, touchLease, ownsLease, releaseLease, today, dateKey,
     saveSession, restoreSession, sessionInfo, clearSession,
     onSaveError, get saveBroken(){ return saveBroken; },
     exportPacked, unpack, CAN_ZIP

@@ -15,6 +15,10 @@
   let modalReturnFocus = null;
   let examModalReturnFocus = null;
   let examMoveTimer = null;
+  const TAB_ID = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  let leaseTimer = null;
+  let leaseLost = false;
 
   /* 해설이 열린 동안 Enter/Space는 빠른 '다음' 키로 쓴다. 다만 사용자가
      Tab으로 북마크·이론·다음 버튼에 도착했다면 그 버튼의 기본 동작을
@@ -73,10 +77,50 @@
     }, 600);
   }
 
+  function stopLeasePulse(){
+    if(leaseTimer){ clearInterval(leaseTimer); leaseTimer = null; }
+  }
+  function releaseLearningLease(){
+    stopLeasePulse();
+    Store.releaseLease(TAB_ID);
+    leaseLost = false;
+  }
+  function handleLeaseLost(){
+    if(leaseLost) return false;
+    leaseLost = true;
+    stopLeasePulse();
+    releaseSessionRuntime(false);
+    Store.releaseLease(TAB_ID);       // 다른 탭 소유라면 건드리지 않는다
+    Store.reload();
+    applyTheme();
+    UI.home(); UI.show('scr-home'); refreshResumeCard();
+    Fx.toast('⚠️ 다른 탭에서 진도가 변경되어 최신 저장본으로 돌아왔어요', false, 4200);
+    return false;
+  }
+  function renewLearningLease(){
+    if(!S) return false;
+    return Store.touchLease(TAB_ID) ? true : handleLeaseLost();
+  }
+  function acquireLearningLease(){
+    if(!Store.claimLease(TAB_ID)){
+      Fx.toast('다른 탭에서 학습 중이에요. 그 탭을 닫거나 잠시 후 다시 시도하세요', false, 4200);
+      return false;
+    }
+    Store.reload();                  // 잠들어 있던 탭의 오래된 메모리 상태를 버린다
+    leaseLost = false;
+    stopLeasePulse();
+    leaseTimer = setInterval(() => {
+      if(S && document.visibilityState === 'visible') renewLearningLease();
+    }, 10000);
+    return true;
+  }
+
   /* ── 세션 시작 ─────────────────────────────────────── */
   function start(mode, opt = {}){
+    if(!acquireLearningLease()) return;
     const sess = Engine.build(mode, opt);
     if(!sess){
+      releaseLearningLease();
       Fx.toast(mode === 'wrong' ? '수감된 오답이 없어요! 먼저 문제를 풀어보세요'
              : mode === 'srs'   ? '복습할 카드가 없어요. 새 문제부터!'
              : '아직 이 범위의 문항이 준비 중이에요');
@@ -182,11 +226,12 @@
   /* 진도 덮어쓰기·복구·초기화 뒤에는 화면 밖의 세션 객체도 버린다.
      그대로 두면 beforeunload 체크포인트가 새 진도에 예전 판을 다시 써서
      방금 한 변경을 오염시킬 수 있다. 저장돼 있던 이어하기는 건드리지 않는다. */
-  function releaseSessionRuntime(){
+  function releaseSessionRuntime(releaseLease = true){
     stopTimer();
     if(examMoveTimer){ clearTimeout(examMoveTimer); examMoveTimer = null; }
     Tetris.stop(); Hype.stopFever(); Hype.Bgm.stop();
     S = null; lastPlay = null; locked = false; paused = false; pauseStart = 0;
+    if(releaseLease) releaseLearningLease();
   }
 
   /* 반복 콜백을 한 번 실행될 때마다 1초로 간주하지 않고, 현재 시각과
@@ -225,7 +270,9 @@
   }
 
   function checkpoint(awaitingNext){
-    if(S) Store.saveSession(S, {
+    if(!S) return;
+    if(!Store.touchLease(TAB_ID)){ handleLeaseLost(); return; }
+    Store.saveSession(S, {
       timerLeft,
       timerDeadline:S.cfg.timer && !paused ? timerDeadline : 0,
       awaitingNext
@@ -331,6 +378,7 @@
 
   function submitExam(){
     if(!S || S.mode !== 'exam') return;
+    if(!renewLearningLease()) return;
     const answered = Object.keys(S.examAnswers || {}).length;
     const blank = S.queue.length - answered;
     const msg = blank
@@ -383,8 +431,10 @@
   }
 
   function resumeSession(){
+    if(!acquireLearningLease()) return;
     const sess = Store.restoreSession();
     if(!sess){
+      releaseLearningLease();
       refreshResumeCard();
       return Fx.toast('이어 풀 기록을 불러오지 못했어요');
     }
@@ -408,6 +458,7 @@
 
   function useHint(){
     if(!S || locked) return;
+    if(!renewLearningLease()) return;
     const q = Engine.current(S);
     if(!q || q.type !== 'mcq') return;
     if(!Store.useItem('hint')){ Fx.toast('힌트가 없어요. 상점에서 살 수 있습니다'); return; }
@@ -432,6 +483,7 @@
   /* ── 답안 제출 ─────────────────────────────────────── */
   function onAnswer(ans, btn){
     if(locked || !S) return;
+    if(!renewLearningLease()) return;
     // 제한시간과 클릭이 겹친 경우 만료된 뒤의 답을 받지 않는다.
     if(syncTimer(true)) return;
     locked = true;
@@ -552,6 +604,7 @@
   /* 하트를 모두 잃었을 때 — 보유 중이면 이어서 풀지 물어본다 */
   function offerHeart(){
     if(!S || !S.cfg.hearts || S.hearts > 0) return false;
+    if(!renewLearningLease()) return false;
     if(!Store.has('heart')) return false;
     if(!confirm('하트를 모두 잃었어요. 하트 충전(보유 '
                 + Store.s.inv.heart + '개)을 써서 이어서 풀까요?')) return false;
@@ -564,6 +617,7 @@
 
   function next(){
     if(!S) return;
+    if(!renewLearningLease()) return;
     locked = false;
     // 해설을 읽은 시간만큼 FEVER 시간을 되돌려준다
     if(pauseStart){
@@ -595,6 +649,7 @@
   /* ── 종료 ──────────────────────────────────────────── */
   function end(){
     if(!S) return;
+    if(!renewLearningLease()) return;
     // 모든 종료 경로에 이유를 남겨 정산이 중도 종료를 완주로 오해하지 않게 한다.
     if(!S.reason) S.reason = S.i >= S.queue.length ? 'end' : 'quit';
     stopTimer();
@@ -612,6 +667,7 @@
     UI.result(S, fin, (ids, paperT) => start('paper', { ids, paperT }));
     const done = S;
     S = null;
+    releaseLearningLease();
     return done;
   }
 
@@ -949,11 +1005,25 @@
       if(document.visibilityState === 'hidden'){
         syncTimer(false);
         checkpoint(S && S.mode === 'exam' ? false : locked);
-      }else syncTimer(true);
+      }else if(S){
+        if(renewLearningLease()) syncTimer(true);
+      }else{
+        Store.reload(); applyTheme(); UI.hud(); refreshResumeCard();
+      }
+    });
+    window.addEventListener('storage', e => {
+      if(e.key === Store.LEASE_KEY){
+        if(S && !Store.ownsLease(TAB_ID)) handleLeaseLost();
+        return;
+      }
+      if(e.key !== Store.DATA_KEY) return;
+      if(S) handleLeaseLost();
+      else{ Store.reload(); applyTheme(); UI.hud(); refreshResumeCard(); }
     });
     window.addEventListener('beforeunload', () => {
       syncTimer(false);
       checkpoint(S && S.mode === 'exam' ? false : locked);
+      releaseLearningLease();
     });
 
     window.addEventListener('beforeinstallprompt', e => {

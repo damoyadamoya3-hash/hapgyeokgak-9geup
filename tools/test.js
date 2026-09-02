@@ -188,6 +188,40 @@ t('세션 복구 — 진도 이동 코드에는 진행 중인 판을 넣지 않�
   ok(!('activeSession' in raw.s), '진도 코드에 진행 중 세션이 포함됨');
 });
 
+t('다중 탭 — 활성 학습 임대권은 다른 탭의 동시 시작을 막고 만료 뒤 인계된다', () => {
+  localStorage.removeItem(Store.LEASE_KEY);
+  const now = 100000;
+  ok(Store.claimLease('tab-a', now), '첫 탭 임대권 획득');
+  ok(!Store.claimLease('tab-b', now + 1000), '활성 임대권을 다른 탭이 빼앗음');
+  ok(Store.touchLease('tab-a', now + 10000), '활성 탭 갱신 실패');
+  ok(Store.ownsLease('tab-a', now + 20000), '갱신한 임대권 소유 확인');
+  ok(!Store.claimLease('tab-b', now + 50000), '갱신된 임대권이 너무 일찍 만료됨');
+
+  const afterExpiry = now + 10000 + Store.LEASE_TTL + 1;
+  ok(Store.claimLease('tab-b', afterExpiry), '만료 뒤 다른 탭 인계 실패');
+  ok(!Store.touchLease('tab-a', afterExpiry), '옛 탭이 인계된 임대권을 갱신함');
+  ok(!Store.releaseLease('tab-a'), '옛 탭이 새 탭의 임대권을 해제함');
+  ok(Store.releaseLease('tab-b'), '현재 탭 임대권 해제 실패');
+});
+
+t('다중 탭 — 대기 탭은 외부 저장 뒤 최신 진도를 다시 읽는다', () => {
+  fresh();
+  Store.s.nick = '이전 탭'; Store.s.coin = 7; Store.save();
+  const external = JSON.parse(localStorage.getItem(Store.DATA_KEY));
+  external.nick = '학습 탭'; external.coin = 321;
+  localStorage.setItem(Store.DATA_KEY, JSON.stringify(external));
+  eq([Store.s.nick,Store.s.coin], ['이전 탭',7], '메모리 상태가 저절로 바뀜');
+  Store.reload();
+  eq([Store.s.nick,Store.s.coin], ['학습 탭',321], '외부 최신 저장 다시 읽기');
+
+  const app = rd('js/app.js');
+  ok(/function start[\s\S]{0,160}acquireLearningLease/.test(app) &&
+     /function resumeSession[\s\S]{0,120}acquireLearningLease/.test(app),
+     '새 학습·이어 풀기에 임대권 확인이 없음');
+  ok(/window\.addEventListener\('storage'/.test(app) && /e\.key !== Store\.DATA_KEY/.test(app) &&
+     /Store\.touchLease\(TAB_ID\)/.test(app), '외부 저장·임대권 갱신 연결이 없음');
+});
+
 /* ── 종료 정산 ───────────────────────────────────────────── */
 t('종료 정산 — 퀘스트를 중간에 그만두면 풀이만 기록하고 완료 보상은 주지 않는다', () => {
   fresh();
