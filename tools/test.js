@@ -333,6 +333,50 @@ t('연속 학습 — 같은 보상을 두 번 주지 않는다', () => {
   ok(!second.reward, '같은 단계를 다시 지급');
 });
 
+t('연속 학습 — 첫 답안을 풀면 결과 화면 전에도 출석과 보상을 저장한다', () => {
+  fresh();
+  Store.s.streak = 2; Store.s.lastPlay = shift(-1); Store.save();
+  const s = Engine.build('quest', { unit:'kor-gram', subject:'kor' });
+  Engine.submit(s, s.queue[0].a);
+  eq([Store.s.streak,Store.s.lastPlay,s.streakDay,s.streakReward && s.streakReward.days],
+     [3,Store.today(),Store.today(),3], '첫 답안 출석');
+  eq([Store.s.xp,Store.s.coin], [80,30], '첫 답안 연속 보상');
+
+  Store.saveSession(s, { awaitingNext:true });
+  const restored = Store.restoreSession();
+  eq([restored.streakDay,restored.streakReward && restored.streakReward.days],
+     [Store.today(),3], '이어 풀기 출석 보상');
+  restored.reason = 'quit'; restored.over = true;
+  const fin = Engine.finish(restored);
+  eq([fin.streak,fin.streakReward && fin.streakReward.days], [3,3], '결과 보상 안내');
+  eq(Store.s.streak, 3, '결과 정산이 출석을 중복 증가');
+});
+
+t('연속 학습 — 결과 전에 닫힌 전날 기록도 다음 학습에서 이어 붙인다', () => {
+  fresh();
+  const yesterday = shift(-1), before = shift(-2);
+  Store.s.streak = 5; Store.s.lastPlay = before;
+  Store.s.dayStats[yesterday] = { n:7, ok:5 };
+  Store.s.playedDays = [before];
+  Store.save();
+  const info = Store.touchStreak();
+  eq([info.streak,info.reward && info.reward.days], [7,7], '중단 세션 연속일 복구');
+  ok(Store.s.playedDays.includes(yesterday) && Store.s.playedDays.includes(Store.today()),
+     '복구한 학습일이 출석 목록에 없음');
+});
+
+t('연속 학습 — 전날 푼 세션의 결과만 오늘 열어도 오늘 출석으로 세지 않는다', () => {
+  fresh();
+  const yesterday = shift(-1);
+  Store.s.streak = 4; Store.s.lastPlay = yesterday;
+  Store.s.dayStats[yesterday] = { n:1, ok:1 };
+  Store.save();
+  const s = Engine.build('quest', { unit:'kor-gram', subject:'kor' });
+  s.correct = 1; s.streakDay = yesterday; s.reason = 'end'; s.over = true;
+  const fin = Engine.finish(s);
+  eq([fin.streak,Store.s.streak,Store.s.lastPlay], [4,4,yesterday], '결과 화면 허위 출석');
+});
+
 /* ── 라이트너 복습 ───────────────────────────────────────── */
 t('복습 — 많이 밀린 문항이 앞에 온다', () => {
   fresh();

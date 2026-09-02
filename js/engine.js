@@ -537,6 +537,8 @@ const Engine = (() => {
       examAnsweredCount: 0,
       examBlank: 0,
       examGraded: false,
+      streakDay: null,
+      streakReward: null,
       bossHp: mode === 'boss' ? (QB.BOSSES[opt.subject] || {hp:10}).hp : 0,
       bossMax: mode === 'boss' ? (QB.BOSSES[opt.subject] || {hp:10}).hp : 0,
       startedAt: Date.now(),
@@ -567,6 +569,10 @@ const Engine = (() => {
     const ok = isCorrect(q, ans);
 
     Store.record(q.id, ok);
+    // 결과 화면까지 가지 않고 앱을 닫아도 실제 첫 풀이가 연속 학습일로 남는다.
+    const streakInfo = Store.touchStreak();
+    S.streakDay = Store.today();
+    if(streakInfo.reward) S.streakReward = { ...streakInfo.reward };
 
     let gain = 0;
     if(ok){
@@ -665,6 +671,7 @@ const Engine = (() => {
     });
 
     S.examGraded = true;
+    if(S.examAnsweredCount) S.streakDay = Store.today();
     if(S.maxCombo > Store.s.maxCombo){ Store.s.maxCombo = S.maxCombo; Store.save(); }
     return S;
   }
@@ -768,11 +775,15 @@ const Engine = (() => {
 
     const leveled = Store.addXp(S.xp);
     Store.addCoin(S.coin);
-    // 시작하자마자 그만둔 0문항 세션은 학습일로 세지 않는다.
+    // 일반 학습은 첫 답안에서 이미 출석을 저장한다. 모의고사는 제출 시점에
+    // 처음 채점되므로 여기서 저장한다. 어제 마지막 답을 푼 세션을 오늘
+    // 결과 화면만 열었다고 오늘까지 출석시키지는 않는다.
     const activityCount = S.mode === 'exam' ? S.examAnsweredCount : total;
-    const streakInfo = activityCount > 0
+    const streakInfo = activityCount > 0 && S.streakDay === Store.today()
       ? Store.touchStreak()
       : { streak:Store.s.streak, reward:null };
+    if(!streakInfo.reward && S.streakReward)
+      streakInfo.reward = { ...S.streakReward };
 
     // 일일 임무 진행
     const doneTasks = [];

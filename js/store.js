@@ -517,6 +517,8 @@ const Store = (() => {
       examAnsweredCount:sess.examAnsweredCount || 0,
       examBlank:sess.examBlank || 0,
       examGraded:!!sess.examGraded,
+      streakDay:sess.streakDay || null,
+      streakReward:sess.streakReward ? { ...sess.streakReward } : null,
       hints:{ ...(sess.hints || {}) }, boost:sess.boost || 1,
       elapsed:Math.max(0, Date.now() - (sess.startedAt || Date.now())),
       timerLeft:Math.max(0, Number(meta.timerLeft) || 0),
@@ -582,6 +584,8 @@ const Store = (() => {
       examAnsweredCount:x.examAnsweredCount || 0,
       examBlank:x.examBlank || 0,
       examGraded:!!x.examGraded,
+      streakDay:x.streakDay || null,
+      streakReward:x.streakReward ? { ...x.streakReward } : null,
       hints:{ ...(x.hints || {}) }, boost:x.boost || 1,
       startedAt:Date.now() - Math.max(0, x.elapsed || 0),
       over:false, reason:null,
@@ -698,11 +702,38 @@ const Store = (() => {
   function touchStreak(){
     const t = today();
     if(S.lastPlay === t) return { streak: S.streak, reward: null };
-    const y = new Date(); y.setDate(y.getDate()-1);
-    const yy = dateKey(y);
-    S.streak = (S.lastPlay === yy) ? S.streak + 1 : 1;
+    const current = dayNumber(t);
+    const previous = S.lastPlay ? dayNumber(S.lastPlay) : NaN;
+    const keyAt = n => new Date(n * 86400000).toISOString().slice(0, 10);
+    let bridged = [];
+
+    /* 결과 화면 전에 앱이 닫혀도 문항 기록(dayStats)은 이미 남는다. 마지막
+       정산일과 오늘 사이의 모든 날에 실제 풀이가 있으면 그 기록으로 끊긴
+       연속일을 복구한다. 날짜 차이가 비정상적으로 크면 긴 반복을 피한다. */
+    const gap = current - previous;
+    if(Number.isFinite(previous) && gap > 0 && gap <= 36600){
+      let continuous = true;
+      for(let n = previous + 1; n < current; n++){
+        const key = keyAt(n);
+        if(!(S.dayStats[key] && S.dayStats[key].n > 0)){ continuous = false; break; }
+        bridged.push(key);
+      }
+      S.streak = continuous ? Math.max(0, Number(S.streak) || 0) + gap : 1;
+      if(!continuous) bridged = [];
+    }else if(!S.lastPlay){
+      // 구형·가져온 진도에 마지막 정산일이 없어도 연속 학습량은 복구한다.
+      S.streak = 1;
+      for(let n = current - 1, checked = 0; checked < 36600; n--, checked++){
+        const key = keyAt(n);
+        if(!(S.dayStats[key] && S.dayStats[key].n > 0)) break;
+        bridged.unshift(key); S.streak++;
+      }
+    }else{
+      S.streak = 1;
+    }
     S.lastPlay = t;
-    if(!S.playedDays.includes(t)) S.playedDays.push(t);
+    const played = Array.isArray(S.playedDays) ? S.playedDays : [];
+    S.playedDays = [...new Set([...played, ...bridged, t])].sort();
 
     // 도달한 단계 중 아직 받지 않은 보상을 지급
     let reward = null;
