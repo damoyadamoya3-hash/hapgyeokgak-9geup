@@ -401,6 +401,34 @@ t('복습 — 가장 밀린 문항이 반드시 포함된다', () => {
   ok(s.queue.some(q => Store.s.cards[q.id].due === oldest), '가장 밀린 문항이 빠짐');
 });
 
+t('복습 — 같은 날 반복 정답은 풀이만 기록하고 간격은 한 번만 늘린다', () => {
+  fresh();
+  const q = QB.items[0];
+  Store.record(q.id, true);
+  const firstDue = Store.s.cards[q.id].due;
+  Store.record(q.id, true);
+  Store.record(q.id, true);
+  const c = Store.s.cards[q.id];
+  eq([c.n,c.ok,c.ng,c.box,c.due,Store.s.totalAnswered,Store.s.totalCorrect],
+     [3,3,0,1,firstDue,3,3], '같은 날 반복 정답 기록');
+  eq(firstDue, shift(1), '첫 정답 복습일');
+  ok(/복습 간격은 하루에 한 단계만 늘어납니다/.test(rd('js/ui.js')),
+     '같은 날 승급 규칙 안내 없음');
+});
+
+t('복습 — 같은 날 오답 뒤 바로잡으면 다음 날부터 다시 확인한다', () => {
+  fresh();
+  const q = QB.items[0];
+  Store.s.cards[q.id] = { n:4, ok:4, ng:0, box:4, due:Store.today(), last:shift(-7) };
+  Store.save();
+  Store.record(q.id, true);
+  eq([Store.s.cards[q.id].box, Store.s.cards[q.id].due], [5,shift(15)], '만기 정답 승급');
+  Store.record(q.id, false);
+  eq([Store.s.cards[q.id].box, Store.s.cards[q.id].due], [0,Store.today()], '당일 오답 초기화');
+  Store.record(q.id, true);
+  eq([Store.s.cards[q.id].box, Store.s.cards[q.id].due], [1,shift(1)], '오답 회복 재예약');
+});
+
 t('복습 — 30일 박스도 만기에는 다시 나오고 맞히면 30일 뒤로 간다', () => {
   fresh();
   const mature = QB.items[0], future = QB.items[1];
