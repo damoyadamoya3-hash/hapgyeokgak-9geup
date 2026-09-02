@@ -10,7 +10,7 @@
    진도는 localStorage 에 있으므로 캐시를 지워도 사라지지 않는다.
    ══════════════════════════════════════════════════════════ */
 const CACHE_PREFIX = 'hg9-';
-const CACHE = CACHE_PREFIX + 'v9';
+const CACHE = CACHE_PREFIX + 'v10';
 // GitHub Pages의 './'와 './index.html'은 같은 1.3MB 번들을 돌려준다.
 // canonical index 한 사본만 저장해 첫 설치 다운로드와 캐시 공간을 반으로 줄인다.
 const CORE_ASSETS = ['./index.html'];

@@ -539,6 +539,10 @@ const Engine = (() => {
       examGraded: false,
       streakDay: null,
       streakReward: null,
+      // 새 세션은 답안마다 일일 임무 진도를 저장한다. 구형 이어 풀기
+      // 세션은 이 표식이 없어 종료 시 한꺼번에 정산한다.
+      tasksLive: true,
+      doneTasks: [],
       bossHp: mode === 'boss' ? (QB.BOSSES[opt.subject] || {hp:10}).hp : 0,
       bossMax: mode === 'boss' ? (QB.BOSSES[opt.subject] || {hp:10}).hp : 0,
       startedAt: Date.now(),
@@ -553,6 +557,21 @@ const Engine = (() => {
   function isCorrect(q, ans){
     if(q.type === 'ox') return !!q.a === !!ans;
     return q.a === ans;
+  }
+
+  function rememberTasks(S, entries){
+    if(!S.tasksLive) return [];
+    const completed = Store.progressTasks(entries);
+    if(!completed.length) return completed;
+    const remembered = S.doneTasks || (S.doneTasks = []);
+    const ids = new Set(remembered.map(t => t.id));
+    completed.forEach(t => {
+      if(!ids.has(t.id)){
+        remembered.push({ id:t.id, text:t.text, xp:t.xp || 0, coin:t.coin || 0, key:t.key });
+        ids.add(t.id);
+      }
+    });
+    return completed;
   }
 
   /* ── 답안 제출 → 결과 객체 반환 ────────────────────── */
@@ -599,6 +618,16 @@ const Engine = (() => {
 
     // 과목별 집계를 위해 푼 문항을 기록 (원본을 건드리지 않도록 얕은 복사)
     (S.answered || (S.answered = [])).push({ id:q.id, subject:q.subject, __ok:ok });
+
+    // 앱이 결과 화면 전에 닫혀도 실제로 푼 답안의 일일 임무 진도는 남긴다.
+    const events = [{ key:'answered', amount:1 }];
+    // “OX 스피드런 30문제”는 정답 수가 아니라 실제 풀이 수를 센다.
+    if(S.mode === 'ox') events.push({ key:'ox', amount:1 });
+    if(ok && S.mode === 'srs') events.push({ key:'srs', amount:1 });
+    if(ok && S.mode === 'daily' && S.studyKinds && S.studyKinds[q.id] === 'review')
+      events.push({ key:'srs', amount:1 });
+    if(S.maxCombo) events.push({ key:'combo', amount:S.maxCombo });
+    rememberTasks(S, events);
 
     return { ok, q, gain, combo: S.combo };
   }
@@ -753,6 +782,15 @@ const Engine = (() => {
     const total = S.correct + S.wrong;
     const acc = total ? Math.round(S.correct / total * 100) : 0;
     const completed = completedSession(S);
+    const doneTasks = (S.doneTasks || []).map(t => ({ ...t }));
+    const doneTaskIds = new Set(doneTasks.map(t => t.id));
+    const task = (key, amount) => {
+      const rows = Store.progressTask(key, amount);
+      for(const t of rows || []) if(!doneTaskIds.has(t.id)){
+        doneTasks.push(t);
+        doneTaskIds.add(t.id);
+      }
+    };
 
     // 중도 종료한 판은 푼 문항의 기본 보상과 학습 기록만 남긴다. 한두 문제만
     // 맞히고 나가서 퀘스트 별·완벽 보상을 받는 우회는 단원 진도를 왜곡한다.
@@ -763,9 +801,9 @@ const Engine = (() => {
     }
     if(S.mode === 'boss' && S.reason === 'kill'){
       bonusXp += 120; bonusCoin += 50; Store.s.bossKills++;
-      Store.progressTask('boss', 1);
+      task('boss', 1);
     }
-    if(completed && S.mode === 'exam'){ Store.s.examCount++; Store.progressTask('exam', 1); }
+    if(completed && S.mode === 'exam'){ Store.s.examCount++; task('exam', 1); }
     if(completed && S.mode === 'ox' && S.correct > Store.s.bestOx){ Store.s.bestOx = S.correct; }
 
     S.xp += bonusXp; S.coin += bonusCoin;
@@ -785,19 +823,23 @@ const Engine = (() => {
     if(!streakInfo.reward && S.streakReward)
       streakInfo.reward = { ...S.streakReward };
 
-    // 일일 임무 진행
-    const doneTasks = [];
-    const task = (k, v) => { const r = Store.progressTask(k, v); if(r && r.length) doneTasks.push(...r); };
-    task('answered', S.mode === 'exam' ? S.examAnsweredCount : total);
-    if(S.mode === 'ox') task('ox', S.correct);
-    if(S.mode === 'srs') task('srs', S.correct);
-    if(S.mode === 'daily'){
-      const reviewed = (S.answered || []).filter(a =>
-        a.__ok && S.studyKinds && S.studyKinds[a.id] === 'review').length;
-      task('srs', reviewed);
+    // 모의고사는 제출 때 처음 채점하므로 여기서 답안 진도를 반영한다.
+    // 구형 이어 풀기 세션도 실시간 표식이 없으므로 기존 방식으로 한 번만 정산한다.
+    if(S.mode === 'exam'){
+      task('answered', S.examAnsweredCount);
+      task('combo', S.maxCombo);
+    }else if(!S.tasksLive){
+      task('answered', total);
+      if(S.mode === 'ox') task('ox', total);
+      if(S.mode === 'srs') task('srs', S.correct);
+      if(S.mode === 'daily'){
+        const reviewed = (S.answered || []).filter(a =>
+          a.__ok && S.studyKinds && S.studyKinds[a.id] === 'review').length;
+        task('srs', reviewed);
+      }
+      task('combo', S.maxCombo);
     }
     if(completed && acc >= 80 && total >= 5) task('acc80', 1);
-    task('combo', S.maxCombo);
 
     // 단원 별 획득
     let stars = 0;

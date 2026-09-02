@@ -519,6 +519,10 @@ const Store = (() => {
       examGraded:!!sess.examGraded,
       streakDay:sess.streakDay || null,
       streakReward:sess.streakReward ? { ...sess.streakReward } : null,
+      tasksLive:sess.tasksLive === true,
+      doneTasks:(sess.doneTasks || []).map(t => ({
+        id:t.id, text:t.text, xp:t.xp || 0, coin:t.coin || 0, key:t.key
+      })),
       hints:{ ...(sess.hints || {}) }, boost:sess.boost || 1,
       elapsed:Math.max(0, Date.now() - (sess.startedAt || Date.now())),
       timerLeft:Math.max(0, Number(meta.timerLeft) || 0),
@@ -586,6 +590,10 @@ const Store = (() => {
       examGraded:!!x.examGraded,
       streakDay:x.streakDay || null,
       streakReward:x.streakReward ? { ...x.streakReward } : null,
+      // 이 필드가 없는 구형 세션은 종료 정산 방식으로 처리해 이미 푼
+      // 문항을 새 실시간 임무 진도와 겹쳐 세지 않는다.
+      tasksLive:x.tasksLive === true,
+      doneTasks:(x.doneTasks || []).map(t => ({ ...t })),
       hints:{ ...(x.hints || {}) }, boost:x.boost || 1,
       startedAt:Date.now() - Math.max(0, x.elapsed || 0),
       over:false, reason:null,
@@ -809,6 +817,39 @@ const Store = (() => {
       }
     }
     for(const t of finished){     // 지급은 상태를 저장한 뒤에
+      addXp(t.xp || 0);
+      addCoin(t.coin || 0);
+    }
+    save();
+    return finished;
+  }
+
+  /* 한 답안에서 문제 수·모드·콤보 진도를 함께 반영한다. 각각 progressTask를
+     부르면 저장소를 여러 번 쓰게 되므로 한 번의 순회와 저장으로 묶는다. */
+  function progressTasks(entries){
+    const d = daily();
+    const finished = [];
+    const changes = new Map();
+    for(const entry of entries || []){
+      if(!entry || typeof entry.key !== 'string') continue;
+      const amount = Math.max(0, Number(entry.amount) || 0);
+      if(!amount) continue;
+      if(entry.key === 'combo')
+        changes.set(entry.key, Math.max(changes.get(entry.key) || 0, amount));
+      else
+        changes.set(entry.key, (changes.get(entry.key) || 0) + amount);
+    }
+    for(const t of d.tasks){
+      if(t.done || !changes.has(t.key)) continue;
+      const amount = changes.get(t.key);
+      t.prog = t.key === 'combo' ? Math.max(t.prog, amount) : t.prog + amount;
+      if(t.prog >= t.goal){
+        t.prog = t.goal;
+        t.done = true;
+        finished.push(t);
+      }
+    }
+    for(const t of finished){
       addXp(t.xp || 0);
       addCoin(t.coin || 0);
     }
@@ -1421,7 +1462,7 @@ const Store = (() => {
     weekAttendance, nextStreakGoal, STREAK_REWARDS, setExamDate, plan,
     SHOP, buy, useItem, has, logExam, examLog, lastExam, lastExamPaper,
     updateExamPaperReview, paperReviewSummary,
-    subjectAccuracy, subjectSeen, unitNeed, theoryNeed, theoryReadToday, touchStreak, daily, progressTask,
+    subjectAccuracy, subjectSeen, unitNeed, theoryNeed, theoryReadToday, touchStreak, daily, progressTask, progressTasks,
     checkAch, ACHS, exportData, inspectData, importData, mergeData,
     progressCopyInfo, markProgressCopy,
     hasImportBackup, backupInfo, restoreImportBackup, clearImportBackup,

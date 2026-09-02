@@ -304,6 +304,85 @@ t('일일 임무 — 8가지 키가 모두 진행된다', () => {
   }
 });
 
+t('일일 임무 — 푼 문제 진도는 결과 화면 전에도 저장된다', () => {
+  oneTask('answered', 2);
+  const s = Engine.build('quest', { unit:'kor-gram', subject:'kor' });
+  Engine.submit(s, s.queue[0].a);
+  eq(Store.s.daily.tasks[0].prog, 1, '첫 답안 즉시 진도');
+
+  Store.saveSession(s, { awaitingNext:true });
+  const restored = Store.restoreSession();
+  eq([restored.tasksLive, restored.doneTasks.length], [true,0], '실시간 임무 세션 상태');
+  restored.reason = 'quit'; restored.over = true;
+  Engine.finish(restored);
+  eq(Store.s.daily.tasks[0].prog, 1, '결과 정산에서 진도 중복');
+});
+
+t('일일 임무 — 도중에 완료한 임무는 이어 풀기 뒤 결과에도 안내된다', () => {
+  oneTask('answered', 1);
+  const s = Engine.build('quest', { unit:'kor-gram', subject:'kor' });
+  Engine.submit(s, s.queue[0].a);
+  eq([Store.s.daily.tasks[0].done, Store.s.xp, Store.s.coin], [true,60,20], '즉시 완료 보상');
+  eq(s.doneTasks.map(x => x.id), ['t'], '세션 완료 목록');
+
+  Store.saveSession(s, { awaitingNext:true });
+  const restored = Store.restoreSession();
+  restored.reason = 'quit'; restored.over = true;
+  const fin = Engine.finish(restored);
+  eq(fin.doneTasks.map(x => x.id), ['t'], '복구 뒤 완료 안내');
+  eq([Store.s.xp, Store.s.coin], [60 + restored.xp,20 + restored.coin], '완료 보상 중복');
+});
+
+t('일일 임무 — OX 풀이·정답 복습·최고 콤보를 답안마다 반영한다', () => {
+  oneTask('ox', 1);
+  const sprint = Engine.build('ox');
+  Engine.submit(sprint, !sprint.queue[0].a);
+  ok(Store.s.daily.tasks[0].done, 'OX 오답 풀이 진도');
+
+  oneTask('srs', 1);
+  const review = Engine.build('quest', { unit:'kor-gram', subject:'kor' });
+  review.mode = 'srs';
+  Engine.submit(review, review.queue[0].a);
+  ok(Store.s.daily.tasks[0].done, '복습 정답 즉시 진도');
+
+  oneTask('combo', 10);
+  Store.progressTasks([{ key:'combo', amount:6 }, { key:'combo', amount:5 }]);
+  Store.progressTasks([{ key:'combo', amount:6 }]);
+  eq(Store.s.daily.tasks[0].prog, 6, '여러 판 콤보를 합산함');
+  Store.progressTasks([{ key:'combo', amount:10 }]);
+  ok(Store.s.daily.tasks[0].done, '10콤보 달성 누락');
+});
+
+t('일일 임무 — 구형 이어 풀기는 종료 때 한 번만 호환 정산한다', () => {
+  oneTask('answered', 2);
+  const s = Engine.build('quest', { unit:'kor-gram', subject:'kor' });
+  s.tasksLive = false;
+  for(let i = 0; i < 2; i++){
+    s.i = i;
+    Engine.submit(s, s.queue[i].a);
+  }
+  eq(Store.s.daily.tasks[0].prog, 0, '구형 세션 조기 정산');
+  Store.saveSession(s, {});
+  const restored = Store.restoreSession();
+  restored.reason = 'quit'; restored.over = true;
+  Engine.finish(restored);
+  eq([Store.s.daily.tasks[0].prog, Store.s.daily.tasks[0].done], [2,true], '구형 세션 종료 정산');
+});
+
+t('일일 임무 — 보스와 모의고사 완료도 결과 알림에 포함된다', () => {
+  const cases = [
+    ['boss','boss','kill',{ subject:'kor' }],
+    ['exam','exam','submit',{ subject:'kor' }]
+  ];
+  for(const [key, mode, reason, opt] of cases){
+    oneTask(key, 1);
+    const s = Engine.build(mode, opt);
+    s.reason = reason; s.over = true;
+    const fin = Engine.finish(s);
+    eq(fin.doneTasks.map(x => x.id), ['t'], key + ' 완료 안내');
+  }
+});
+
 /* ── 연속 학습 ───────────────────────────────────────────── */
 t('연속 학습 — 같은 날 두 번 눌러도 늘지 않는다', () => {
   fresh(); Store.s.streak = 5; Store.s.lastPlay = Store.today(); Store.save();
