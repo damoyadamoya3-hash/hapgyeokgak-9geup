@@ -82,7 +82,12 @@
              : '아직 이 범위의 문항이 준비 중이에요');
       return;
     }
-    Store.clearSession();
+    const settled = Engine.settleSavedSession();
+    // 이전 판 정산으로 부스터가 소비됐을 수 있으므로 새 판의 예약 상태를
+    // 현재 보유량 기준으로 다시 맞춘다.
+    sess.boost = 1;
+    sess.boostPending = Store.has('boost');
+    sess.settledPrevious = settled && settled.total > 0 ? settled.total : 0;
     S = sess; lastPlay = { mode, opt }; locked = false; paused = false;
     enterSession(false);
   }
@@ -144,10 +149,13 @@
       if(timerLeft > 0) timerId = setInterval(() => syncTimer(true), 500);
     } else { timerLeft = 0; timerDeadline = 0; tEl.classList.add('hidden'); }
 
-    // XP 부스터가 있으면 이번 판에 쓴다
+    // 이전 판의 실제 풀이 보상과 이번 판의 예약 부스터를 함께 안내한다.
     if(!resumed){
-      S.boost = Store.has('boost') && Store.useItem('boost') ? 1.5 : 1;
-      if(S.boost > 1) Fx.toast('⚡ XP 부스터 적용 — 이번 판 1.5배', true, 2000);
+      const notes = [];
+      if(S.settledPrevious) notes.push(`이전 판 ${S.settledPrevious}문항 보상 정산`);
+      if(S.boostPending) notes.push('XP 부스터 준비 — 한 문제 이상 풀면 1.5배');
+      if(notes.length) Fx.toast(`⚡ ${notes.join(' · ')}`, true, 2600);
+      delete S.settledPrevious;
     }
 
     UI.show('scr-play');
@@ -599,7 +607,6 @@
     S.over = true;
     Store.clearSession();
     refreshResumeCard();
-    if(S.mode === 'cloze' && S.opt.card) Store.markDrill(S.opt.card);
     const fin = Engine.finish(S);
     UI.hud();
     UI.result(S, fin, (ids, paperT) => start('paper', { ids, paperT }));

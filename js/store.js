@@ -524,6 +524,7 @@ const Store = (() => {
         id:t.id, text:t.text, xp:t.xp || 0, coin:t.coin || 0, key:t.key
       })),
       hints:{ ...(sess.hints || {}) }, boost:sess.boost || 1,
+      boostPending:sess.boostPending === true,
       elapsed:Math.max(0, Date.now() - (sess.startedAt || Date.now())),
       timerLeft:Math.max(0, Number(meta.timerLeft) || 0),
       // 실행 중 타이머는 절대 종료 시각을 함께 저장한다. 탭이 숨겨진 뒤
@@ -595,6 +596,7 @@ const Store = (() => {
       tasksLive:x.tasksLive === true,
       doneTasks:(x.doneTasks || []).map(t => ({ ...t })),
       hints:{ ...(x.hints || {}) }, boost:x.boost || 1,
+      boostPending:x.boostPending === true,
       startedAt:Date.now() - Math.max(0, x.elapsed || 0),
       over:false, reason:null,
       resumeTimerLeft:Math.max(0, x.timerLeft || 0),

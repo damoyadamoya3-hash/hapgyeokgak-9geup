@@ -232,6 +232,84 @@ t('종료 정산 — 한 문제도 풀지 않은 종료는 연속 학습일로 �
      [false,0,0,null,null], '0문항 종료 학습일');
 });
 
+t('세션 정산 — 새 판을 시작해도 저장된 이전 판의 기본 보상을 잃지 않는다', () => {
+  fresh();
+  const s = Engine.build('quest', { unit:'kor-gram', subject:'kor' });
+  Engine.submit(s, s.queue[0].a);
+  const expectedXp = s.xp, expectedCoin = s.coin;
+  Store.saveSession(s, { awaitingNext:true });
+
+  const settled = Engine.settleSavedSession();
+  eq([settled.total, settled.fin.completed, Store.s.xp, Store.s.coin],
+     [1,false,expectedXp,expectedCoin], '이전 판 중도 정산');
+  eq(Store.s.activeSession, null, '정산한 세션이 이어 풀기에 남음');
+  eq(Engine.settleSavedSession(), null, '같은 세션을 두 번 정산함');
+  eq([Store.s.xp,Store.s.coin], [expectedXp,expectedCoin], '보상 중복');
+  const app = rd('js/app.js');
+  ok(/Engine\.settleSavedSession\(\)/.test(app) && /sess\.boostPending = Store\.has\('boost'\)/.test(app),
+     '새 판 시작 경로에 이전 판 정산이 연결되지 않음');
+});
+
+t('세션 정산 — 마지막 답안 직후 닫힌 판은 완주로 보존한다', () => {
+  fresh();
+  const s = Engine.build('quest', { unit:'kor-gram', subject:'kor' });
+  s.queue.forEach((q, i) => { s.i = i; Engine.submit(s, q.a); });
+  Store.saveSession(s, { awaitingNext:true });
+
+  const settled = Engine.settleSavedSession();
+  eq([settled.session.reason,settled.fin.completed,settled.fin.stars], ['end',true,3],
+     '결과 직전 완주 정산');
+  eq(Store.s.units['kor-gram'].stars, 3, '완주 단원 별 보존');
+});
+
+t('XP 부스터 — 한 문제도 풀지 않으면 소비하지 않는다', () => {
+  fresh();
+  Store.s.inv.boost = 1; Store.save();
+  const s = Engine.build('quest', { unit:'kor-gram', subject:'kor' });
+  eq([s.boost,s.boostPending], [1,true], '부스터 예약 상태');
+  s.reason = 'quit'; s.over = true;
+  Engine.finish(s);
+  eq([Store.s.inv.boost,s.boost,Store.s.xp], [1,1,0], '무활동 부스터 소비');
+});
+
+t('XP 부스터 — 예약을 이어 풀기에 보존하고 실제 풀이에 한 번 적용한다', () => {
+  fresh();
+  Store.s.inv.boost = 1; Store.save();
+  const s = Engine.build('quest', { unit:'kor-gram', subject:'kor' });
+  Store.saveSession(s, {});
+  const restored = Store.restoreSession();
+  eq([restored.boost,restored.boostPending,Store.s.inv.boost], [1,true,1], '예약 복구');
+
+  Engine.submit(restored, restored.queue[0].a);
+  const baseXp = restored.xp;
+  restored.reason = 'quit'; restored.over = true;
+  Engine.finish(restored);
+  const boosted = Math.round(baseXp * 1.5);
+  eq([Store.s.inv.boost,restored.boost,restored.boostPending,restored.xp,Store.s.xp],
+     [0,1.5,false,boosted,boosted], '실제 풀이 부스터 정산');
+});
+
+t('이론 훈련 — 빈칸 세트를 끝까지 마쳐야 훈련 횟수를 올린다', () => {
+  fresh();
+  const sample = QB.items.find(q => q.cloze && q.cardId);
+  ok(sample, '빈칸 훈련 문항 없음');
+  Store.markRead(sample.cardId);
+
+  const quit = Engine.build('cloze', { card:sample.cardId });
+  quit.reason = 'quit'; quit.over = true;
+  const stopped = Engine.finish(quit);
+  eq([stopped.completed,stopped.drillCount,Store.s.readCards[sample.cardId].drill],
+     [false,0,0], '중도 종료 훈련 기록');
+
+  const done = Engine.build('cloze', { card:sample.cardId });
+  done.queue.forEach((q, i) => { done.i = i; Engine.submit(done, q.a); });
+  done.reason = 'end'; done.over = true;
+  const finished = Engine.finish(done);
+  eq([finished.completed,finished.drillCount,Store.s.readCards[sample.cardId].drill],
+     [true,1,1], '완료 훈련 기록');
+  ok(!/Store\.markDrill/.test(rd('js/app.js')), '앱 종료 경로가 미완료 훈련까지 직접 기록함');
+});
+
 /* ── 최근 성과 흐름 ───────────────────────────────────────── */
 t('학습 분석 — 최근 50문항을 직전 50문항과 비교한다', () => {
   fresh();

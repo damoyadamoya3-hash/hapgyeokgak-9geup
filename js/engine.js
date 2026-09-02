@@ -543,6 +543,10 @@ const Engine = (() => {
       // 세션은 이 표식이 없어 종료 시 한꺼번에 정산한다.
       tasksLive: true,
       doneTasks: [],
+      // 보유 부스터는 판을 열 때가 아니라 실제 답안이 정산될 때 소비한다.
+      // 시작 직후 나가거나 시간제 모드에서 한 문제도 못 풀면 아이템이 남는다.
+      boost: 1,
+      boostPending: Store.has('boost'),
       bossHp: mode === 'boss' ? (QB.BOSSES[opt.subject] || {hp:10}).hp : 0,
       bossMax: mode === 'boss' ? (QB.BOSSES[opt.subject] || {hp:10}).hp : 0,
       startedAt: Date.now(),
@@ -782,6 +786,7 @@ const Engine = (() => {
     const total = S.correct + S.wrong;
     const acc = total ? Math.round(S.correct / total * 100) : 0;
     const completed = completedSession(S);
+    const activityCount = S.mode === 'exam' ? S.examAnsweredCount : total;
     const doneTasks = (S.doneTasks || []).map(t => ({ ...t }));
     const doneTaskIds = new Set(doneTasks.map(t => t.id));
     const task = (key, amount) => {
@@ -808,6 +813,13 @@ const Engine = (() => {
 
     S.xp += bonusXp; S.coin += bonusCoin;
 
+    // 새 세션의 예약 부스터는 실제로 답한 문항이 있을 때만 한 개 소비한다.
+    // 이미 소비한 구형 이어 풀기 세션(boost 1.5, pending 없음)은 그대로 호환한다.
+    if(S.boostPending){
+      S.boost = activityCount > 0 && Store.useItem('boost') ? 1.5 : 1;
+      S.boostPending = false;
+    }
+
     // XP 부스터(상점 아이템)를 마지막에 곱한다
     if(S.boost && S.boost > 1) S.xp = Math.round(S.xp * S.boost);
 
@@ -816,7 +828,6 @@ const Engine = (() => {
     // 일반 학습은 첫 답안에서 이미 출석을 저장한다. 모의고사는 제출 시점에
     // 처음 채점되므로 여기서 저장한다. 어제 마지막 답을 푼 세션을 오늘
     // 결과 화면만 열었다고 오늘까지 출석시키지는 않는다.
-    const activityCount = S.mode === 'exam' ? S.examAnsweredCount : total;
     const streakInfo = activityCount > 0 && S.streakDay === Store.today()
       ? Store.touchStreak()
       : { streak:Store.s.streak, reward:null };
@@ -845,6 +856,10 @@ const Engine = (() => {
     let stars = 0;
     if(completed && S.mode === 'quest' && S.opt.unit) stars = Store.unitResult(S.opt.unit, acc);
 
+    // 이론 세뇌 횟수는 빈칸 세트를 끝까지 마쳤을 때만 올린다.
+    const drillCount = completed && S.mode === 'cloze' && S.opt.card
+      ? Store.markDrill(S.opt.card) : 0;
+
     Store.save();
     const newAch = Store.checkAch();
 
@@ -868,14 +883,36 @@ const Engine = (() => {
       );
     }
 
-    return { acc, total, completed, bonusXp, bonusCoin, leveled, stars, newAch, bySub, doneTasks,
+    return { acc, total, completed, bonusXp, bonusCoin, leveled, stars, drillCount, newAch, bySub, doneTasks,
              studySummary:S.mode === 'daily' ? studySummary(S) : null,
              streak: streakInfo.streak, streakReward: streakInfo.reward, paperReview };
+  }
+
+  /* 홈에서 다른 학습을 시작할 때 저장된 이전 판을 조용히 버리지 않는다.
+     중도 종료로 정산해 이미 푼 문항의 XP·코인을 보존하되, 완주 보상·별은 주지 않는다. */
+  function settleSavedSession(){
+    const saved = Store.restoreSession();
+    if(!saved) return null;
+    // 마지막 답안 채점 직후 닫힌 세션은 재개 시 next() 한 번으로 완주된다.
+    // 새 판으로 넘어갈 때도 같은 결과를 내야 완주 보상·도감 훈련이 사라지지 않는다.
+    if(saved.resumeAwaitingNext && saved.mode === 'boss' && saved.bossHp <= 0)
+      saved.reason = 'kill';
+    else if(saved.resumeAwaitingNext && saved.cfg.hearts && saved.hearts <= 0)
+      saved.reason = 'heart';
+    else if(saved.resumeAwaitingNext && saved.mode !== 'exam' && saved.mode !== 'ox' &&
+            saved.i >= saved.queue.length - 1)
+      saved.reason = 'end';
+    else
+      saved.reason = 'quit';
+    saved.over = true;
+    Store.clearSession();
+    const fin = finish(saved);
+    return { session:saved, fin, total:fin.total, xp:saved.xp, coin:saved.coin };
   }
 
   return { build, current, submit, clearExamAnswer, examIndexes, examPlan, dailyBatch,
            practiceWeight, practicePick, practiceFocus, studySummary,
            timerRemaining, extendTimerDeadline,
            gradeExam, examReview, examPaper,
-           advance, finish, isCorrect, shuffle, MODE };
+           advance, finish, settleSavedSession, isCorrect, shuffle, MODE };
 })();

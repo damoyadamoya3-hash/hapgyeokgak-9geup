@@ -555,7 +555,7 @@ const UI = (() => {
       </div>
       <p class="st-note">힌트는 풀이 화면 오른쪽 위 🔍 버튼으로 씁니다.
       하트 충전은 하트를 모두 잃었을 때 자동으로 물어봅니다.
-      XP 부스터는 다음 한 판에 자동으로 적용됩니다.</p>`;
+      XP 부스터는 다음 판에서 한 문제 이상 풀면 자동으로 적용됩니다.</p>`;
 
     $$('#shop-body [data-buy]').forEach(b =>
       b.addEventListener('click', () => {
