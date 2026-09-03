@@ -67,6 +67,9 @@ const Store = (() => {
     // 같은 기준 진도에서 갈라진 기기별 보상 증감. 서버 없이 합칠 때도
     // XP·코인·소모품을 단순 최댓값으로 버리지 않기 위한 작은 PN 카운터다.
     rewardSync: null,
+    // 같은 기준 진도에서 갈라진 기기별 문항·날짜 증가분. 같은 문항을 양쪽
+    // 기기에서 각각 풀어도 한쪽 정답·오답과 그날 학습량을 버리지 않는다.
+    studySync: null,
     // 상점에서 산 소모품 보유량
     inv: { hint:0, heart:0, boost:0 },
     ach: {},
@@ -268,9 +271,190 @@ const Store = (() => {
     return sync;
   }
 
+  /* ── 기기별 학습 증가분 ───────────────────────────────
+     문항 기록 전체를 합산하면 같은 코드를 반복해서 넣을 때마다 풀이 수가
+     불어난다. 공통 기준점(base) 뒤의 기기별 증가분만 단조 카운터로 남기고,
+     병합할 때 같은 기기 값은 max, 서로 다른 기기 값은 합으로 계산한다.
+
+     c = 문항별 [정답, 오답], d = 날짜별 [정답, 오답]. 짧은 키는 진도 코드가
+     이미 큰 상황에서 비압축 구형 브라우저의 복사 부담까지 줄이기 위함이다. */
+  const STUDY_CARD_LIMIT = 5000;
+  const STUDY_DAY_LIMIT = 200;
+  const studyInt = (v, max = 1000000) =>
+    Math.min(Math.max(Math.floor(Number(v) || 0), 0), max);
+  const studyPair = v => Array.isArray(v) && v.length >= 2
+    ? [studyInt(v[0]), studyInt(v[1])] : null;
+  function studyDayCutoff(){
+    const cut = new Date(); cut.setDate(cut.getDate() - 180);
+    return dateKey(cut);
+  }
+  function recentStudyDay(key){ return dateLike(key) && key >= studyDayCutoff(); }
+  function studyEpoch(){
+    const random = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2) + Date.now().toString(36);
+    return 'study-' + random;
+  }
+  function studyCounterMap(raw, limit, validKey){
+    const out = {};
+    if(!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+    for(const key of Object.keys(raw).slice(0, limit)){
+      if(!safeKey(key) || !validKey(key)) continue;
+      const pair = studyPair(raw[key]);
+      if(pair && pair[0] + pair[1] > 0) out[key] = pair;
+    }
+    return out;
+  }
+  function studyCounts(state){
+    const c = {}, d = {};
+    for(const id of Object.keys((state && state.cards) || {}).slice(0, STUDY_CARD_LIMIT)){
+      if(!safeKey(id)) continue;
+      const row = state.cards[id];
+      const pair = row && [studyInt(row.ok), studyInt(row.ng)];
+      if(pair && pair[0] + pair[1] > 0) c[id] = pair;
+    }
+    for(const day of Object.keys((state && state.dayStats) || {})
+      .filter(recentStudyDay).sort().slice(-STUDY_DAY_LIMIT)){
+      const row = state.dayStats[day];
+      const n = studyInt(row && row.n), ok = Math.min(studyInt(row && row.ok), n);
+      if(n > 0) d[day] = [ok, n - ok];
+    }
+    return { c, d };
+  }
+  function studyBaseline(state){
+    return { v:1, epoch:studyEpoch(), base:studyCounts(state), devices:{} };
+  }
+  function normalizeStudySync(raw){
+    if(!raw || raw.v !== 1 || typeof raw.epoch !== 'string' ||
+       !/^[a-z0-9_-]{8,100}$/i.test(raw.epoch) || !raw.base || !raw.devices ||
+       typeof raw.base !== 'object' || Array.isArray(raw.base) ||
+       typeof raw.devices !== 'object' || Array.isArray(raw.devices)) return null;
+    const cleanMaps = value => ({
+      c:studyCounterMap(value && value.c, STUDY_CARD_LIMIT, () => true),
+      d:studyCounterMap(value && value.d, STUDY_DAY_LIMIT, recentStudyDay)
+    });
+    const out = { v:1, epoch:raw.epoch, base:cleanMaps(raw.base), devices:{} };
+    for(const id of Object.keys(raw.devices).slice(0, 32)){
+      if(!/^[a-z0-9_-]{8,80}$/i.test(id)) continue;
+      const row = raw.devices[id];
+      if(!row || typeof row !== 'object' || Array.isArray(row)) continue;
+      out.devices[id] = cleanMaps(row);
+    }
+    return out;
+  }
+  function addStudyMap(into, source){
+    for(const key of Object.keys(source || {})){
+      const own = into[key] || (into[key] = [0,0]);
+      own[0] = Math.min(own[0] + source[key][0], Number.MAX_SAFE_INTEGER);
+      own[1] = Math.min(own[1] + source[key][1], Number.MAX_SAFE_INTEGER);
+    }
+  }
+  function studyTotals(sync){
+    const out = { c:{}, d:{} };
+    addStudyMap(out.c, sync.base.c); addStudyMap(out.d, sync.base.d);
+    for(const row of Object.values(sync.devices)){
+      addStudyMap(out.c, row.c); addStudyMap(out.d, row.d);
+    }
+    return out;
+  }
+  function sameStudyMap(a, b){
+    const keys = new Set([...Object.keys(a || {}), ...Object.keys(b || {})]);
+    for(const key of keys){
+      const x = (a && a[key]) || [0,0], y = (b && b[key]) || [0,0];
+      if(x[0] !== y[0] || x[1] !== y[1]) return false;
+    }
+    return true;
+  }
+  function sameStudyCounts(a, b){
+    return sameStudyMap(a.c, b.c) && sameStudyMap(a.d, b.d);
+  }
+  function cleanStudySync(raw, state){
+    const sync = normalizeStudySync(raw);
+    return sync && sameStudyCounts(studyTotals(sync), studyCounts(state))
+      ? sync : studyBaseline(state);
+  }
+  function captureStudyMap(target, total, row){
+    const keys = new Set([...Object.keys(target), ...Object.keys(total)]);
+    for(const key of keys){
+      const want = target[key] || [0,0], have = total[key] || [0,0];
+      if(want[0] < have[0] || want[1] < have[1]) return false;
+    }
+    for(const key of Object.keys(target)){
+      const want = target[key], have = total[key] || [0,0];
+      const a = want[0] - have[0], b = want[1] - have[1];
+      if(a || b){
+        const own = row[key] || (row[key] = [0,0]);
+        own[0] += a; own[1] += b;
+      }
+    }
+    return true;
+  }
+  function captureStudyDrift(){
+    let sync = normalizeStudySync(S.studySync);
+    if(!sync){ S.studySync = studyBaseline(S); return S.studySync; }
+    const total = studyTotals(sync), target = studyCounts(S);
+    const existing = sync.devices[DEVICE_ID];
+    const row = existing || { c:{}, d:{} };
+    if(!captureStudyMap(target.c, total.c, row.c) ||
+       !captureStudyMap(target.d, total.d, row.d)){
+      S.studySync = studyBaseline(S);
+      return S.studySync;
+    }
+    if(!existing && (Object.keys(row.c).length || Object.keys(row.d).length))
+      sync.devices[DEVICE_ID] = row;
+    S.studySync = sync;
+    return sync;
+  }
+  function mergeStudyMap(into, source){
+    for(const key of Object.keys(source || {})){
+      const own = into[key] || (into[key] = [0,0]);
+      own[0] = Math.max(own[0], source[key][0]);
+      own[1] = Math.max(own[1], source[key][1]);
+    }
+  }
+  function sameStudyBaseline(a, b){
+    return !!a && !!b && a.epoch === b.epoch && sameStudyCounts(a.base, b.base);
+  }
+  function mergeStudySync(a, b){
+    const out = structuredClone(a);
+    for(const id of Object.keys(b.devices)){
+      if(!out.devices[id]){ out.devices[id] = structuredClone(b.devices[id]); continue; }
+      mergeStudyMap(out.devices[id].c, b.devices[id].c);
+      mergeStudyMap(out.devices[id].d, b.devices[id].d);
+    }
+    return out;
+  }
+  function applyStudySync(sync){
+    const total = studyTotals(sync);
+    for(const id of Object.keys(total.c)){
+      const pair = total.c[id];
+      const row = S.cards[id] || (S.cards[id] = {
+        n:0, ok:0, ng:0, box:0, due:today(), last:null
+      });
+      row.ok = pair[0]; row.ng = pair[1]; row.n = pair[0] + pair[1];
+    }
+    const days = {};
+    // 같은 코드를 다시 합칠 때 값뿐 아니라 기존 날짜 표시 순서도 그대로
+    // 두어, 의미 없는 상태 변경과 저장 이벤트를 만들지 않는다.
+    for(const day of Object.keys(S.dayStats || {})){
+      if(!total.d[day]) continue;
+      const pair = total.d[day];
+      days[day] = { ...S.dayStats[day], n:pair[0] + pair[1], ok:pair[0] };
+    }
+    for(const day of Object.keys(total.d)){
+      if(days[day]) continue;
+      const pair = total.d[day];
+      days[day] = { n:pair[0] + pair[1], ok:pair[0] };
+    }
+    S.dayStats = days;
+    S.studySync = sync;
+    recountCards(S);
+  }
+
   function save(){
-    captureRewardDrift();
     prune();
+    captureRewardDrift();
+    captureStudyDrift();
     try{
       localStorage.setItem(KEY, JSON.stringify(S));
       saveBroken = false;
@@ -282,6 +466,9 @@ const Store = (() => {
         if(keys.length > 30) for(const k of keys.slice(0, keys.length - 30)) delete S.dayStats[k];
         if(S.examLog.length > 20) S.examLog = S.examLog.slice(-20);
         if(S.answerLog.length > 200) S.answerLog = S.answerLog.slice(-200);
+        // 용량을 줄이며 날짜 기록을 버렸으므로 기기별 합산 기준도 즉시
+        // 다시 맞춘다. 불일치 상태를 저장하면 다음 가져오기에서 오해할 수 있다.
+        captureStudyDrift();
         localStorage.setItem(KEY, JSON.stringify(S));
         saveBroken = false;
         return true;
@@ -295,11 +482,12 @@ const Store = (() => {
     }
   }
 
-  /* 일자별 기록은 분석에 180일이면 충분하다. 그대로 두면 해마다 늘어난다. */
+  /* 일자별 기록은 분석에 180일이면 충분하다. 그대로 두면 해마다 늘어난다.
+     기기별 합산 기준도 같은 범위만 보므로 오래된 날짜가 정리돼도 공통 기준은
+     유지되고, 문항별 누적 정답·오답은 cards에 계속 남는다. */
   function prune(){
     if(S.answerLog.length > 500) S.answerLog = S.answerLog.slice(-500);
     const keys = Object.keys(S.dayStats);
-    if(keys.length <= 200) return;
     const cut = new Date(); cut.setDate(cut.getDate() - 180);
     const limit = dateKey(cut);
     for(const k of keys) if(k < limit) delete S.dayStats[k];
@@ -1157,6 +1345,10 @@ const Store = (() => {
   }
 
   function exportData(){
+    // 예전 저장본을 처음 내보낼 때도 이 코드가 이후 기기별 증가분의 공통
+    // 기준이 된다. 저장을 기다리지 않고 내보내는 순간 바로 기준을 세운다.
+    captureRewardDrift();
+    captureStudyDrift();
     const packed = { v:4, s:{ ...S } };
     delete packed.s.cards;
     delete packed.s.activeSession;
@@ -1186,9 +1378,9 @@ const Store = (() => {
   }
 
   /* ── 코드 압축 (v5) ─────────────────────────────────
-     진도를 전부 담으면 base64 로 66KB 가 된다. 폰과 PC 사이를
-     오가며 붙여 넣기에는 너무 길다. 브라우저에 들어 있는
-     CompressionStream 으로 눌러 담으면 9KB 로 줄어든다(87%).
+     전 범위 진도와 기기별 증가분을 base64 그대로 담으면 100KB 안팎이다.
+     폰과 PC 사이를 오가며 붙여 넣기에는 너무 길다. 브라우저에 들어 있는
+     CompressionStream 으로 누르면 보통 10~20KB대로 줄어든다.
      라이브러리를 들이지 않고 얻는 이득이라 마다할 이유가 없다.
      지원하지 않는 브라우저에서는 v3(비압축)로 물러선다. */
   const CAN_ZIP = typeof CompressionStream === 'function' &&
@@ -1368,6 +1560,7 @@ const Store = (() => {
     }
     out.activeSession = keepSession && isMap(p.activeSession) ? structuredClone(p.activeSession) : null;
     recountCards(out);
+    out.studySync = cleanStudySync(p.studySync, out);
     out.lv = levelInfo(out.xp).lv;
     return out;
   }
@@ -1512,12 +1705,23 @@ const Store = (() => {
      정적 페이지라 계정 서버를 둘 수 없다. 대신 진도 전체를 한 줄의
      코드로 뽑아 다른 기기에 붙여 넣는다. 이때 덮어쓰면 안 된다 —
      PC 코드를 폰에 넣는 순간 폰에서 푼 것이 사라지기 때문이다.
-     그래서 두 기록 중 더 많이 공부한 쪽을 남기는 병합으로 처리한다. */
+     공통 기준이 있는 새 코드는 기기별 증가분을 합치고, 서로 다른 예전
+     코드는 두 기록 중 더 많이 공부한 쪽을 남기는 안전 병합으로 처리한다. */
   function incomingCardWins(a, b){
     if(b.n !== a.n) return b.n > a.n;                // 더 많이 푼 기록
     if((b.last || '') !== (a.last || '')) return (b.last || '') > (a.last || '');
     const aa = a.n ? a.ok / a.n : 0, ba = b.n ? b.ok / b.n : 0;
     if(ba !== aa) return ba < aa;                    // 같다면 과대 숙달보다 안전하게
+    if(b.box !== a.box) return b.box < a.box;
+    if(b.due !== a.due) return b.due < a.due;
+    return false;
+  }
+
+  /* 공통 기준 뒤의 풀이 수는 별도 카운터로 합치므로, SRS 상태는 횟수가
+     아니라 마지막 학습일을 먼저 본다. 같은 날 서로 다른 기기에서 정답과
+     오답이 갈렸다면 낮은 박스·빠른 복습일을 택해 과대 숙달을 막는다. */
+  function incomingScheduleWins(a, b){
+    if((b.last || '') !== (a.last || '')) return (b.last || '') > (a.last || '');
     if(b.box !== a.box) return b.box < a.box;
     if(b.due !== a.due) return b.due < a.due;
     return false;
@@ -1551,16 +1755,25 @@ const Store = (() => {
   function inspectData(str){
     const inc = readSnapshot(str);
     if(!inc) return null;
-    let added = 0, updated = 0;
+    const ownStudySync = structuredClone(captureStudyDrift());
+    const studiesMergeable = sameStudyBaseline(ownStudySync, inc.studySync);
+    const mergedCounts = studiesMergeable
+      ? studyTotals(mergeStudySync(ownStudySync, inc.studySync)).c : null;
+    let added = 0, updated = 0, combined = 0;
     for(const id of Object.keys(inc.cards)){
       const a = cleanCard(S.cards[id]), b = inc.cards[id];
       if(!a) added++;
-      else if(incomingCardWins(a, b) && JSON.stringify(a) !== JSON.stringify(b)) updated++;
+      else{
+        if(studiesMergeable && mergedCounts[id] &&
+           mergedCounts[id][0] + mergedCounts[id][1] > a.n) combined++;
+        if((studiesMergeable ? incomingScheduleWins(a, b) : incomingCardWins(a, b)) &&
+           JSON.stringify(a) !== JSON.stringify(b)) updated++;
+      }
     }
     return {
       nick:inc.nick || '', level:levelInfo(inc.xp).lv,
       answered:inc.totalAnswered, correct:inc.totalCorrect,
-      cards:Object.keys(inc.cards).length, added, updated
+      cards:Object.keys(inc.cards).length, added, updated, combined
     };
   }
 
@@ -1570,6 +1783,15 @@ const Store = (() => {
 
     const ownRewardSync = structuredClone(captureRewardDrift());
     const rewardsMergeable = sameRewardBaseline(ownRewardSync, inc.rewardSync);
+    const ownStudySync = structuredClone(captureStudyDrift());
+    const studiesMergeable = sameStudyBaseline(ownStudySync, inc.studySync);
+    const mergedStudySync = studiesMergeable
+      ? mergeStudySync(ownStudySync, inc.studySync) : null;
+    const mergedStudyCounts = mergedStudySync ? studyTotals(mergedStudySync).c : null;
+    const combined = studiesMergeable ? Object.keys(inc.cards).filter(id => {
+      const own = cleanCard(S.cards[id]), total = mergedStudyCounts[id];
+      return !!own && !!total && total[0] + total[1] > own.n;
+    }).length : 0;
     const before = { n:S.totalAnswered, cards:Object.keys(S.cards).length };
     const ownTimeline = { streak:S.streak, lastPlay:S.lastPlay };
     const incomingTimeline = { streak:inc.streak, lastPlay:inc.lastPlay };
@@ -1594,12 +1816,21 @@ const Store = (() => {
     for(const id of Object.keys(inc.cards)){
       const a = S.cards[id], b = inc.cards[id];
       if(!a){ S.cards[id] = b; continue; }
-      if(incomingCardWins(a, b)){
+      if((studiesMergeable ? incomingScheduleWins(a, b) : incomingCardWins(a, b))){
         if(JSON.stringify(a) !== JSON.stringify(b)) updated++;
         S.cards[id] = b;
       }
     }
-    recountCards(S);                              // 누적값도 문항 기록과 다시 맞춘다
+    if(studiesMergeable){
+      // 같은 코드에서 갈라진 뒤의 기기별 정답·오답과 날짜별 학습량을 모두
+      // 합친다. 같은 코드를 다시 넣으면 각 기기 max가 같아 중복되지 않는다.
+      applyStudySync(mergedStudySync);
+    }else{
+      // 서로 다른 구형 기준은 공통 조상을 알 수 없다. 기존처럼 더 앞선
+      // 한쪽 문항을 택한 뒤, 그 결과를 이후 병합의 새 공통 기준으로 삼는다.
+      recountCards(S);
+      S.studySync = studyBaseline(S);
+    }
     S.lv = levelInfo(S.xp).lv;
 
     // 단원 성적은 별과 최고점이 높은 쪽
@@ -1608,7 +1839,8 @@ const Store = (() => {
       S.units[u] = a ? { stars:Math.max(a.stars, b.stars), best:Math.max(a.best, b.best) } : b;
     }
 
-    // 하루 학습량은 같은 날짜라면 많이 푼 쪽
+    // 새 코드는 이미 기기별 합산돼 있다. 예전 코드에서는 같은 날짜의
+    // 한쪽을 다시 더해 중복시키지 않고 많이 푼 쪽을 안전하게 남긴다.
     for(const d in (inc.dayStats || {})){
       const a = S.dayStats[d], b = inc.dayStats[d];
       S.dayStats[d] = (a && a.n >= b.n) ? a : b;
@@ -1697,6 +1929,7 @@ const Store = (() => {
       updated,
       repaired,
       answered: S.totalAnswered - before.n,
+      combined,
       total:   Object.keys(S.cards).length
     };
   }

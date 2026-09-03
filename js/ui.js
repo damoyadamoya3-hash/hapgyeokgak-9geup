@@ -415,9 +415,10 @@ const UI = (() => {
       <div class="sync-card">
         <h3 class="sync-h">2. 다른 기기의 코드 불러오기</h3>
         <p class="sync-note">
-          <b>합치기</b>는 현재 진도를 지우지 않고, 문항마다 더 많이 푼
-          한쪽 기록을 통째로 남겨 풀이·정답·오답 수가 어긋나지 않게 합니다.
-          같은 코드를 기준으로 나뉜 뒤 각 기기에서 얻거나 쓴 XP·코인·소모품도 함께 합칩니다.
+          <b>합치기</b>는 현재 진도를 지우지 않습니다. 같은 코드를 기준으로
+          나뉜 기기는 양쪽의 문항별 정답·오답과 날짜별 학습량을 중복 없이 합치고,
+          XP·코인·소모품 증감도 함께 보존합니다. 서로 다른 예전 코드는 문항마다
+          더 앞선 한쪽 기록을 안전하게 남긴 뒤 다음부터 합산할 공통 기준을 만듭니다.
         </p>
         <textarea id="sync-in" class="sync-box" rows="3" placeholder="여기에 코드를 붙여 넣으세요"></textarea>
         <button class="btn-primary" id="sync-merge">🔗 합치기</button>
@@ -483,13 +484,15 @@ const UI = (() => {
         const p = Store.inspectData(plain);
         if(!p) return Fx.toast('코드를 읽을 수 없어요. 전체를 복사했는지 확인해 주세요 😢');
         const who = p.nick ? `${p.nick} 님의 진도` : '가져올 진도';
+        const previewCombined = p.combined ? `, 양쪽 풀이 합산 ${p.combined}개` : '';
         const msg = `${who}\n\n푼 문제 ${p.answered.toLocaleString()}개 · 기록 문항 ${p.cards.toLocaleString()}개 · Lv.${p.level}` +
-          `\n\n이 기기에 새 문항 ${p.added}개, 더 앞선 문항 기록 ${p.updated}개를 합칩니다.` +
+          `\n\n이 기기에 새 문항 ${p.added}개, 더 앞선 문항 기록 ${p.updated}개${previewCombined}를 합칩니다.` +
           '\n현재 진도는 지워지지 않습니다. 계속할까요?';
         if(!confirm(msg)) return;
         const r = Store.mergeData(plain);
         if(!r) return Fx.toast('코드를 읽을 수 없어요. 전체를 복사했는지 확인해 주세요 😢');
-        Fx.toast(`합쳤어요! 새 문항 ${r.added}개 · 갱신 ${r.updated}개 (총 ${r.total}개)`, true, 3200);
+        const resultCombined = r.combined ? ` · 양쪽 풀이 합산 ${r.combined}개` : '';
+        Fx.toast(`합쳤어요! 새 문항 ${r.added}개 · 갱신 ${r.updated}개${resultCombined} (총 ${r.total}개)`, true, 3200);
         onChange && onChange();
         sync(onChange);
       }).catch(() => Fx.toast('코드를 읽을 수 없어요 😢'));

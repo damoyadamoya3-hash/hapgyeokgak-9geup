@@ -1619,8 +1619,73 @@ t('이어하기 — 두 기기에서 따로 얻고 쓴 보상과 소모품을 �
   eq([Store.s.xp,Store.s.coin,Store.s.inv.hint], [140,120,2], '독립 보상 합산');
   Store.mergeData(remote);
   eq([Store.s.xp,Store.s.coin,Store.s.inv.hint], [140,120,2], '같은 코드 보상 중복');
-  ok(/각 기기에서 얻거나 쓴 XP·코인·소모품도 함께 합칩니다/.test(rd('js/ui.js')),
+  ok(/XP·코인·소모품 증감도 함께 보존/.test(rd('js/ui.js')),
      '기기별 보상 병합 안내 없음');
+});
+
+t('이어하기 — 두 기기에서 같은 문항을 따로 푼 횟수와 그날 학습량을 합친다', () => {
+  Store.clearImportBackup();
+  fresh();
+  const q = QB.items[0], day = Store.today();
+  const common = Store.exportData();
+
+  // 공통 코드에서 갈라진 원격 기기: 같은 문항을 정답 1회·오답 1회 풀이.
+  Store.record(q.id, true);
+  Store.record(q.id, false);
+  const raw = JSON.parse(decodeURIComponent(escape(atob(Store.exportData()))));
+  const ownId = Object.keys(raw.s.studySync.devices)[0];
+  ok(ownId, '기기별 학습 기록 없음');
+  raw.s.studySync.devices['device-remote-study'] = raw.s.studySync.devices[ownId];
+  delete raw.s.studySync.devices[ownId];
+  const remote = btoa(unescape(encodeURIComponent(JSON.stringify(raw))));
+
+  // 로컬 기기는 같은 공통 코드에서 정답 1회를 따로 풀이한다.
+  ok(Store.importData(common), '공통 기준 복구 실패');
+  Store.clearImportBackup();
+  Store.record(q.id, true);
+  const preview = Store.inspectData(remote);
+  eq(preview.combined, 1, '양쪽 풀이 합산 미리보기');
+
+  const first = Store.mergeData(remote);
+  const card = Store.s.cards[q.id];
+  eq([card.n,card.ok,card.ng,card.box,card.due], [3,2,1,0,day], '문항별 합산·보수적 복습 일정');
+  eq([Store.s.totalAnswered,Store.s.totalCorrect], [3,2], '전체 풀이 합산');
+  eq(Store.s.dayStats[day], { n:3, ok:2 }, '날짜별 학습량 합산');
+  eq(first.combined, 1, '실제 합산 문항 수');
+
+  const before = JSON.stringify(Store.s);
+  const repeated = Store.mergeData(remote);
+  eq([repeated.combined,JSON.stringify(Store.s)], [0,before], '같은 코드 반복 병합');
+  ok(/문항별 정답·오답과 날짜별 학습량을 중복 없이 합치/.test(rd('js/ui.js')),
+     '기기별 학습량 병합 안내 없음');
+});
+
+t('이어하기 — 180일 지난 날짜를 정리해도 기기별 문항 합산 기준은 유지한다', () => {
+  fresh();
+  const oldDay = shift(-181);
+  const epoch = Store.s.studySync.epoch;
+  Store.s.dayStats[oldDay] = { n:1, ok:1 };
+  Store.s.studySync.base.d[oldDay] = [1,0];
+  Store.save();
+  ok(!Store.s.dayStats[oldDay], '오래된 날짜별 기록이 남음');
+  eq(Store.s.studySync.epoch, epoch, '날짜 정리가 공통 문항 기준을 바꿈');
+});
+
+t('이어하기 — 문항 합계와 맞지 않는 기기별 카운터는 풀이 수를 부풀리지 않는다', () => {
+  fresh();
+  const q = QB.items[0];
+  Store.record(q.id, true);
+  const raw = JSON.parse(decodeURIComponent(escape(atob(Store.exportData()))));
+  raw.s.studySync.devices['device-forged-study'] = {
+    c:{ [q.id]:[999,999] }, d:{ [Store.today()]:[999,999] }
+  };
+  const forged = btoa(unescape(encodeURIComponent(JSON.stringify(raw))));
+
+  fresh();
+  const preview = Store.inspectData(forged);
+  eq([preview.answered,preview.combined], [1,0], '손상 카운터 미리보기');
+  Store.mergeData(forged);
+  eq([Store.s.totalAnswered,Store.s.totalCorrect], [1,1], '손상 카운터가 풀이 수를 부풀림');
 });
 
 t('이어하기 — 풀이 수가 같으면 마지막 풀이일이 최신인 기록을 남긴다', () => {
@@ -1646,6 +1711,7 @@ t('이어하기 — 기존 v3 진도 코드도 계속 불러온다', () => {
   const raw = JSON.parse(decodeURIComponent(escape(atob(Store.exportData()))));
   raw.v = 3;
   delete raw.s.rewardSync;
+  delete raw.s.studySync;
   for(const id of Object.keys(raw.c)) raw.c[id] = raw.c[id].slice(0, 5);
   const legacy = btoa(unescape(encodeURIComponent(JSON.stringify(raw))));
   fresh();
@@ -1786,6 +1852,30 @@ t('저장 — 실패하면 알리고, 앱은 계속 돈다', () => {
   eq(told, 1, '알림 횟수');           // 한 세션에 한 번만
   ok(Store.save() === true, '복구 후에도 저장 실패');
   Store.onSaveError(null);
+});
+
+t('저장 — 용량 절약 재시도 뒤에도 기기별 학습 합산 기준이 일치한다', () => {
+  fresh();
+  for(let i = 0; i < 31; i++){
+    const day = Store.dateKey(new Date(Date.now() - i * 86400000));
+    Store.s.dayStats[day] = { n:2, ok:1 };
+  }
+  Store.save();
+
+  const real = global.localStorage.setItem;
+  let writes = 0;
+  global.localStorage.setItem = (key, value) => {
+    if(key === Store.DATA_KEY && ++writes === 1) throw new Error('QuotaExceededError');
+    return real(key, value);
+  };
+  const saved = Store.save();
+  global.localStorage.setItem = real;
+  ok(saved, '용량 절약 재시도 실패');
+  eq(Object.keys(Store.s.dayStats).length, 30, '날짜 기록 절약 범위');
+
+  const before = JSON.stringify(Store.s);
+  Store.mergeData(Store.exportData());
+  eq(JSON.stringify(Store.s), before, '재시도 저장본의 합산 기준 불일치');
 });
 
 /* ── OX 편향 ─────────────────────────────────────────────── */
