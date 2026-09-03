@@ -10,7 +10,7 @@ const SOURCE = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
 function makeEnv(failAssets = [], failPuts = false){
   const handlers = {};
   const buckets = new Map([
-    ['hg9-v19', new Map([
+    ['hg9-v20', new Map([
       ['./', new Response('duplicate old shell')],
       ['./index.html', new Response('old shell')]
     ])],
@@ -97,7 +97,7 @@ async function main(){
   const good = makeEnv(['./icons/icon-512.png']);
   await good.waitEvent('install');
   assert.strictEqual(good.skipped, 1, '완성된 오프라인 셸이 활성화되지 않음');
-  const current = [...good.buckets.keys()].find(k => k.startsWith('hg9-') && k !== 'hg9-v19');
+  const current = [...good.buckets.keys()].find(k => k.startsWith('hg9-') && k !== 'hg9-v20');
   assert(current, '새 합격각 캐시 없음');
   assert(await good.buckets.get(current).get('./index.html').text(), '핵심 HTML 없음');
   assert.strictEqual(good.buckets.get(current).has('./'), false, '같은 앱 셸을 루트 키로 중복 캐시함');
@@ -105,7 +105,7 @@ async function main(){
   assert.strictEqual(good.requestCount('./'), 0, '동일한 루트 앱 셸을 다시 받음');
 
   await good.waitEvent('activate');
-  assert.strictEqual(good.buckets.has('hg9-v19'), false, '중복 셸이 든 예전 합격각 캐시가 남음');
+  assert.strictEqual(good.buckets.has('hg9-v20'), false, '중복 셸이 든 예전 합격각 캐시가 남음');
   assert.strictEqual(good.buckets.has('another-pages-app-v8'), true, '다른 Pages 앱 캐시를 지움');
   assert.strictEqual(good.claimed, 1, '새 서비스 워커가 현재 탭을 제어하지 않음');
 
@@ -113,7 +113,7 @@ async function main(){
   const broken = makeEnv(['./index.html']);
   await assert.rejects(() => broken.waitEvent('install'));
   assert.strictEqual(broken.skipped, 0, '핵심 HTML 없이 활성화를 요청함');
-  assert.strictEqual(broken.buckets.has('hg9-v19'), true, '설치 실패가 기존 캐시를 지움');
+  assert.strictEqual(broken.buckets.has('hg9-v20'), true, '설치 실패가 기존 캐시를 지움');
 
   // 온라인 방문에서 받은 문서를 canonical index로 저장하고, 다음 오프라인
   // 탐색에서는 그 사본을 그대로 돌려준다.

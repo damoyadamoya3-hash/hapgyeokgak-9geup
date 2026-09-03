@@ -917,22 +917,24 @@ const UI = (() => {
       </div>
 
       <div class="st-sec">
-        <h3>약한 단원 <small>정답률이 낮은 순 · 눌러서 바로 풀기</small></h3>
+        <h3>보강 우선 단원 <small>보강 점수가 낮은 순 · 눌러서 바로 풀기</small></h3>
         <div class="st-list">
           ${us.length ? us.slice(0, 8).map(u => {
             const unit = QB.unit(u.unit) || { name:u.unit, emoji:'📘' };
             const sub  = QB.subject(u.subject) || { name:'' };
+            const recentText = u.recentN >= 5 ? ` · 최근 ${u.recentN}회 ${u.recentAcc}%` : '';
             return `<button class="st-row" data-weak="${u.unit}" data-weak-subject="${u.subject}">
               <span style="font-size:19px">${unit.emoji}</span>
               <span class="sr-body">
-                <h4>${esc(unit.name)} <em>${esc(sub.name)} · ${u.n}회 풀이</em></h4>
-                <span class="sr-bar"><i style="width:${u.acc}%;background:${accColor(u.acc)}"></i></span>
+                <h4>${esc(unit.name)} <em>${esc(sub.name)} · 누적 ${u.acc}% · ${u.n}회${recentText}</em></h4>
+                <span class="sr-bar"><i style="width:${u.score}%;background:${accColor(u.score)}"></i></span>
               </span>
-              <span class="sr-acc" style="color:${accColor(u.acc)}">${u.acc}%</span>
+              <span class="sr-acc" style="color:${accColor(u.score)}">${u.score}점</span>
             </button>`;
           }).join('')
           : '<div class="st-empty">아직 데이터가 없어요.<br>문제를 풀면 약한 단원을 찾아 드립니다.</div>'}
         </div>
+        ${us.length ? '<p class="st-note">보강 점수는 누적 정답률을 5회까지 중립값 쪽으로 완화하고, 최근 50문항 안에서 같은 단원을 5회 이상 풀었다면 최근 흐름을 반영합니다.</p>' : ''}
       </div>
 
       <div class="st-sec">

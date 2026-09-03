@@ -970,6 +970,31 @@ t('이론 추천 — 같은 과목에서도 실제 약한 단원의 카드를 �
   eq(Store.nextCard().id, weakCard.id, '약한 단원 카드 추천');
 });
 
+t('학습 분석 — 한 번의 실수보다 반복해서 확인된 약점을 먼저 보여 준다', () => {
+  fresh();
+  const thinUnit = 'eng-vocab';
+  const provenUnit = 'eng-conv';
+  const thinQ = QB.byUnit(thinUnit)[0];
+  const provenQ = QB.byUnit(provenUnit)[0];
+  ok(thinQ && provenQ, '비교할 단원 문항 없음');
+
+  Store.record(thinQ.id, false);                  // 1회 0% → 표본 보정 56점
+  for(let i = 0; i < 10; i++) Store.record(provenQ.id, i < 5); // 10회 50%
+
+  const rows = Store.unitStats();
+  const thin = rows.find(x => x.unit === thinUnit);
+  const proven = rows.find(x => x.unit === provenUnit);
+  eq([thin.n, thin.acc, thin.stableAcc, thin.recentN, thin.score],
+    [1,0,56,1,56], '작은 표본 단원 보정');
+  eq([proven.n, proven.acc, proven.stableAcc, proven.recentN, proven.recentAcc, proven.score],
+    [10,50,50,10,50,50], '반복 약점 단원 집계');
+  ok(rows.indexOf(proven) < rows.indexOf(thin), '우연한 1회 오답이 반복 약점보다 먼저 표시됨');
+
+  const ui = rd('js/ui.js');
+  ok(/보강 우선 단원/.test(ui) && /u\.score/.test(ui) && /최근 50문항/.test(ui),
+    '분석 화면에 보강 점수 근거가 없음');
+});
+
 t('이론 추천 — 오래된 누적 평균보다 최근 5문항 급락을 먼저 보강한다', () => {
   fresh();
   const steadyCard = QB.theory.find(c => c.subject === 'eng' && c.unit === 'eng-vocab' && c.tier === 'S');

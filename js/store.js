@@ -1033,7 +1033,9 @@ const Store = (() => {
     return out;
   }
 
-  /* 단원별 성적 — 푼 적 있는 단원만, 정답률 오름차순(약한 순) */
+  /* 단원별 성적 — 푼 적 있는 단원만 돌려준다. 약점 순서는 한 번의 실수를
+     0%로 확정하지 않고, 이론 추천·맞춤 보강과 같은 표본/최근 흐름 점수로
+     정한다. 분석 화면과 실제 출제 엔진이 서로 다른 단원을 가리키지 않는다. */
   function unitStats(){
     const map = {};
     for(const q of QB.items){
@@ -1043,8 +1045,13 @@ const Store = (() => {
       m.n += c.n; m.ok += c.ok; m.seen++;
     }
     return Object.values(map)
-      .map(m => ({ ...m, acc: Math.round(m.ok / m.n * 100), total: QB.byUnit(m.unit).length }))
-      .sort((a, b) => a.acc - b.acc);
+      .map(m => {
+        const need = needStats(QB.byUnit(m.unit));
+        return { ...m, acc:Math.round(m.ok / m.n * 100), total:QB.byUnit(m.unit).length,
+                 stableAcc:need.stableAcc, recentN:need.recentN,
+                 recentAcc:need.recentAcc, score:need.score };
+      })
+      .sort((a, b) => (a.score - b.score) || (a.acc - b.acc) || (b.n - a.n));
   }
 
   /* 가장 최근 n문항과 그 직전 n문항을 비교한다. 전체 누적 정답률은
