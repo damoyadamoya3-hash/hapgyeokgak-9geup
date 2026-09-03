@@ -1603,6 +1603,26 @@ t('이어하기 — 이론 카드는 더 최근 열람일과 더 많은 훈련 �
   eq(Store.s.readCards[card.id], { read:Store.today(), drill:4 }, '이론 카드 병합');
 });
 
+t('이어하기 — 두 기기에서 따로 얻고 쓴 보상과 소모품을 중복 없이 합친다', () => {
+  fresh();
+  Store.addXp(100); Store.addCoin(100); Store.buy('hint');
+  const raw = JSON.parse(decodeURIComponent(escape(atob(Store.exportData()))));
+  const ownId = Object.keys(raw.s.rewardSync.devices)[0];
+  ok(ownId, '기기별 보상 기록 없음');
+  raw.s.rewardSync.devices['device-remote-test'] = raw.s.rewardSync.devices[ownId];
+  delete raw.s.rewardSync.devices[ownId];
+  const remote = btoa(unescape(encodeURIComponent(JSON.stringify(raw))));
+
+  fresh();
+  Store.addXp(40); Store.addCoin(100); Store.buy('hint');
+  Store.mergeData(remote);
+  eq([Store.s.xp,Store.s.coin,Store.s.inv.hint], [140,120,2], '독립 보상 합산');
+  Store.mergeData(remote);
+  eq([Store.s.xp,Store.s.coin,Store.s.inv.hint], [140,120,2], '같은 코드 보상 중복');
+  ok(/각 기기에서 얻거나 쓴 XP·코인·소모품도 함께 합칩니다/.test(rd('js/ui.js')),
+     '기기별 보상 병합 안내 없음');
+});
+
 t('이어하기 — 풀이 수가 같으면 마지막 풀이일이 최신인 기록을 남긴다', () => {
   fresh();
   const q = QB.items[0];
@@ -1625,6 +1645,7 @@ t('이어하기 — 기존 v3 진도 코드도 계속 불러온다', () => {
   Store.record(QB.items[0].id, true);
   const raw = JSON.parse(decodeURIComponent(escape(atob(Store.exportData()))));
   raw.v = 3;
+  delete raw.s.rewardSync;
   for(const id of Object.keys(raw.c)) raw.c[id] = raw.c[id].slice(0, 5);
   const legacy = btoa(unescape(encodeURIComponent(JSON.stringify(raw))));
   fresh();

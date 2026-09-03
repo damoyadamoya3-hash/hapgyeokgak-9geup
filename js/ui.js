@@ -417,6 +417,7 @@ const UI = (() => {
         <p class="sync-note">
           <b>합치기</b>는 현재 진도를 지우지 않고, 문항마다 더 많이 푼
           한쪽 기록을 통째로 남겨 풀이·정답·오답 수가 어긋나지 않게 합니다.
+          같은 코드를 기준으로 나뉜 뒤 각 기기에서 얻거나 쓴 XP·코인·소모품도 함께 합칩니다.
         </p>
         <textarea id="sync-in" class="sync-box" rows="3" placeholder="여기에 코드를 붙여 넣으세요"></textarea>
         <button class="btn-primary" id="sync-merge">🔗 합치기</button>

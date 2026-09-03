@@ -5,7 +5,22 @@ const Store = (() => {
   const KEY = 'hapgyeokgak9_v1';
   const BACKUP_KEY = 'hapgyeokgak9_import_backup_v1';
   const LEASE_KEY = 'hapgyeokgak9_learning_lease_v1';
+  const DEVICE_KEY = 'hapgyeokgak9_device_v1';
   const LEASE_TTL = 45000;
+
+  function localDeviceId(){
+    try{
+      const saved = localStorage.getItem(DEVICE_KEY);
+      if(saved && /^[a-z0-9_-]{8,80}$/i.test(saved)) return saved;
+      const random = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : Math.random().toString(36).slice(2) + Date.now().toString(36);
+      const id = 'device-' + random;
+      localStorage.setItem(DEVICE_KEY, id);
+      return id;
+    }catch(e){ return 'session-' + Math.random().toString(36).slice(2); }
+  }
+  const DEVICE_ID = localDeviceId();
 
   const DEFAULT = {
     xp: 0, lv: 1, coin: 0,
@@ -49,6 +64,9 @@ const Store = (() => {
     // 진행 중인 한 판. 새로고침·앱 종료 뒤에도 마지막 문제부터 이어 간다.
     // 기기 간 진도 코드에는 넣지 않는다(두 기기에서 같은 판을 이어 풀면 중복 기록됨).
     activeSession: null,
+    // 같은 기준 진도에서 갈라진 기기별 보상 증감. 서버 없이 합칠 때도
+    // XP·코인·소모품을 단순 최댓값으로 버리지 않기 위한 작은 PN 카운터다.
+    rewardSync: null,
     // 상점에서 산 소모품 보유량
     inv: { hint:0, heart:0, boost:0 },
     ach: {},
@@ -135,7 +153,123 @@ const Store = (() => {
   let onSaveFail = null;
   function onSaveError(fn){ onSaveFail = fn; }
 
+  const REWARD_ITEMS = ['hint','heart','boost'];
+  const rewardInt = (v, max = 1000000000) =>
+    Math.min(Math.max(Math.floor(Number(v) || 0), 0), max);
+  const rewardItems = value => {
+    const out = {};
+    for(const id of REWARD_ITEMS) out[id] = rewardInt(value && value[id]);
+    return out;
+  };
+  const emptyRewardDevice = () => ({
+    xp:0, coinIn:0, coinOut:0, bought:rewardItems(), used:rewardItems()
+  });
+  function rewardBaseline(state){
+    return {
+      v:1,
+      base:{ xp:rewardInt(state.xp), coin:rewardInt(state.coin), inv:rewardItems(state.inv) },
+      devices:{}
+    };
+  }
+  function normalizeRewardSync(raw){
+    if(!raw || raw.v !== 1 || !raw.base || !raw.devices ||
+       typeof raw.base !== 'object' || typeof raw.devices !== 'object' ||
+       Array.isArray(raw.devices)) return null;
+    const out = {
+      v:1,
+      base:{ xp:rewardInt(raw.base.xp), coin:rewardInt(raw.base.coin), inv:rewardItems(raw.base.inv) },
+      devices:{}
+    };
+    for(const id of Object.keys(raw.devices).slice(0, 64)){
+      if(!/^[a-z0-9_-]{8,80}$/i.test(id)) continue;
+      const source = raw.devices[id];
+      if(!source || typeof source !== 'object' || Array.isArray(source)) continue;
+      out.devices[id] = {
+        xp:rewardInt(source.xp),
+        coinIn:rewardInt(source.coinIn),
+        coinOut:rewardInt(source.coinOut),
+        bought:rewardItems(source.bought),
+        used:rewardItems(source.used)
+      };
+    }
+    return out;
+  }
+  function rewardTotals(sync){
+    let xp = sync.base.xp, coin = sync.base.coin;
+    const inv = { ...sync.base.inv };
+    for(const row of Object.values(sync.devices)){
+      xp += row.xp;
+      coin += row.coinIn - row.coinOut;
+      for(const id of REWARD_ITEMS) inv[id] += row.bought[id] - row.used[id];
+    }
+    for(const id of REWARD_ITEMS) inv[id] = Math.max(0, inv[id]);
+    return { xp:Math.max(0, xp), coin:Math.max(0, coin), inv };
+  }
+  function rewardRow(sync, id = DEVICE_ID){
+    return sync.devices[id] || (sync.devices[id] = emptyRewardDevice());
+  }
+  function rewardBalancesMatch(sync, state){
+    const total = rewardTotals(sync);
+    return total.xp === rewardInt(state.xp) && total.coin === rewardInt(state.coin) &&
+      REWARD_ITEMS.every(id => total.inv[id] === rewardInt(state.inv && state.inv[id]));
+  }
+  function cleanRewardSync(raw, state){
+    const sync = normalizeRewardSync(raw);
+    return sync && rewardBalancesMatch(sync, state) ? sync : rewardBaseline(state);
+  }
+  function sameRewardBaseline(a, b){
+    return !!a && !!b && JSON.stringify(a.base) === JSON.stringify(b.base);
+  }
+  function mergeRewardSync(a, b){
+    const out = structuredClone(a);
+    for(const id of Object.keys(b.devices)){
+      const incoming = b.devices[id];
+      if(!out.devices[id]){ out.devices[id] = structuredClone(incoming); continue; }
+      const own = out.devices[id];
+      own.xp = Math.max(own.xp, incoming.xp);
+      own.coinIn = Math.max(own.coinIn, incoming.coinIn);
+      own.coinOut = Math.max(own.coinOut, incoming.coinOut);
+      for(const item of REWARD_ITEMS){
+        own.bought[item] = Math.max(own.bought[item], incoming.bought[item]);
+        own.used[item] = Math.max(own.used[item], incoming.used[item]);
+      }
+    }
+    return out;
+  }
+  function applyRewardSync(sync){
+    const total = rewardTotals(sync);
+    S.rewardSync = sync;
+    S.xp = total.xp;
+    S.coin = total.coin;
+    S.inv = total.inv;
+    S.lv = levelInfo(S.xp).lv;
+  }
+  function captureRewardDrift(){
+    let sync = normalizeRewardSync(S.rewardSync);
+    if(!sync){ S.rewardSync = rewardBaseline(S); return S.rewardSync; }
+    const total = rewardTotals(sync);
+    const target = {
+      xp:rewardInt(S.xp), coin:rewardInt(S.coin), inv:rewardItems(S.inv)
+    };
+    // XP는 앱에서 줄어들지 않는다. 외부·구형 코드가 더 작은 XP를 직접
+    // 넣었다면 서로 다른 기준이므로 현재 잔액을 새 기준점으로 삼는다.
+    if(target.xp < total.xp){ S.rewardSync = rewardBaseline(S); return S.rewardSync; }
+    const row = rewardRow(sync);
+    row.xp += target.xp - total.xp;
+    const coinDiff = target.coin - total.coin;
+    if(coinDiff >= 0) row.coinIn += coinDiff;
+    else row.coinOut += -coinDiff;
+    for(const id of REWARD_ITEMS){
+      const diff = target.inv[id] - total.inv[id];
+      if(diff >= 0) row.bought[id] += diff;
+      else row.used[id] += -diff;
+    }
+    S.rewardSync = sync;
+    return sync;
+  }
+
   function save(){
+    captureRewardDrift();
     prune();
     try{
       localStorage.setItem(KEY, JSON.stringify(S));
@@ -203,15 +337,26 @@ const Store = (() => {
   }
 
   /* ── XP / 코인 ──────────────────────────────────────── */
+  function creditRewards(xp = 0, coin = 0){
+    const sync = captureRewardDrift();
+    const row = rewardRow(sync);
+    const addXp = Math.max(0, Math.floor(Number(xp) || 0));
+    const addCoin = Math.floor(Number(coin) || 0);
+    row.xp += addXp;
+    if(addCoin >= 0) row.coinIn += addCoin;
+    else row.coinOut += -addCoin;
+    S.xp += addXp;
+    S.coin = Math.max(0, S.coin + addCoin);
+    S.lv = levelInfo(S.xp).lv;
+  }
   function addXp(n){
     const before = levelInfo().lv;
-    S.xp += n;
+    creditRewards(n, 0);
     const after = levelInfo().lv;
-    S.lv = after;                        // 파생값이므로 XP 와 함께 맞춰 둔다
     save();
     return after > before ? after : 0;   // 레벨업 시 새 레벨 반환
   }
-  function addCoin(n){ S.coin += n; save(); }
+  function addCoin(n){ creditRewards(0, n); save(); }
 
   /* ── 라이트너 박스 기반 SRS ─────────────────────────── */
   const INTERVAL = [0, 1, 2, 4, 7, 15, 30];  // box index → 며칠 뒤
@@ -415,14 +560,19 @@ const Store = (() => {
   function buy(id){
     const it = SHOP.find(x => x.id === id);
     if(!it || S.coin < it.price) return false;
+    const row = rewardRow(captureRewardDrift());
     S.coin -= it.price;
     S.inv[id] = (S.inv[id] || 0) + 1;
+    row.coinOut += it.price;
+    row.bought[id]++;
     save();
     return true;
   }
   function useItem(id){
     if(!S.inv[id]) return false;
+    const row = rewardRow(captureRewardDrift());
     S.inv[id]--;
+    row.used[id]++;
     save();
     return true;
   }
@@ -818,7 +968,7 @@ const Store = (() => {
     for(const r of STREAK_REWARDS){
       if(S.streak >= r.days && !S.streakClaimed[r.days]){
         S.streakClaimed[r.days] = t;
-        S.xp += r.xp; S.coin += r.coin;
+        creditRewards(r.xp, r.coin);
         reward = r;
       }
     }
@@ -1188,6 +1338,7 @@ const Store = (() => {
     out.streakClaimed = copyMap(p.streakClaimed);
     out.inv = { ...DEFAULT.inv };
     for(const k of Object.keys(out.inv)) out.inv[k] = count((p.inv || {})[k]);
+    out.rewardSync = cleanRewardSync(p.rewardSync, out);
 
     out.settings = { ...DEFAULT.settings };
     for(const k of Object.keys(out.settings))
@@ -1417,13 +1568,15 @@ const Store = (() => {
     const inc = readSnapshot(str);
     if(!inc) return null;
 
+    const ownRewardSync = structuredClone(captureRewardDrift());
+    const rewardsMergeable = sameRewardBaseline(ownRewardSync, inc.rewardSync);
     const before = { n:S.totalAnswered, cards:Object.keys(S.cards).length };
     const ownTimeline = { streak:S.streak, lastPlay:S.lastPlay };
     const incomingTimeline = { streak:inc.streak, lastPlay:inc.lastPlay };
     let updated = 0, repaired = 0;
 
     // 누적값은 큰 쪽을 남긴다
-    ['xp','coin','maxCombo','bestOx','bossKills','examCount'].forEach(k => {
+    ['maxCombo','bestOx','bossKills','examCount'].forEach(k => {
       S[k] = Math.max(S[k] || 0, inc[k] || 0);
     });
     S.hadPerfect = S.hadPerfect === true || inc.hadPerfect === true;
@@ -1487,7 +1640,6 @@ const Store = (() => {
     for(const k of Object.keys(inc.ach || {})) if(safeKey(k)) S.ach[k] = inc.ach[k];
     for(const k of Object.keys(inc.streakClaimed || {}))
       if(safeKey(k)) S.streakClaimed[k] = inc.streakClaimed[k];
-    for(const k in (inc.inv || {})) S.inv[k] = Math.max(S.inv[k] || 0, inc.inv[k]);
 
     // 모의고사 기록은 두 기기의 회차를 시각 기준으로 합쳐 시간순으로 세운다
     if(inc.examLog && inc.examLog.length){
@@ -1526,6 +1678,18 @@ const Store = (() => {
     if(inc.examDate && !S.examDate) S.examDate = inc.examDate;
     if(inc.lastPlay && (!S.lastPlay || inc.lastPlay > S.lastPlay)) S.lastPlay = inc.lastPlay;
     S.streak = mergedStreak(ownTimeline, incomingTimeline, S.lastPlay, S.dayStats);
+
+    if(rewardsMergeable){
+      applyRewardSync(mergeRewardSync(ownRewardSync, inc.rewardSync));
+    }else{
+      // 서로 다른 구형 기준점은 공통 조상을 알 수 없어 합산하면 중복될 수 있다.
+      // 이 한 번은 안전하게 큰 잔액을 택하고, 병합본을 새 공통 기준으로 삼는다.
+      S.xp = Math.max(S.xp || 0, inc.xp || 0);
+      S.coin = Math.max(S.coin || 0, inc.coin || 0);
+      for(const id of REWARD_ITEMS) S.inv[id] = Math.max(S.inv[id] || 0, inc.inv[id] || 0);
+      S.rewardSync = rewardBaseline(S);
+      S.lv = levelInfo(S.xp).lv;
+    }
 
     save();
     return {
