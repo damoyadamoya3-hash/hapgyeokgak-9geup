@@ -178,7 +178,7 @@ tools/validate.js     데이터 검사
 - **키보드만으로 전부 조작된다** — Tab 으로 이동, Enter/Space 로 선택. OX는 `O`/`X` 또는 좌우 화살표, 객관식은 `1`~`5`, 해설 창은 Enter 로 넘긴다
 - `:focus-visible` 로 키보드 이동 시에만 3px 포커스 링을 표시한다(마우스 클릭에는 나타나지 않는다)
 - 아이콘만 있는 버튼에 `aria-label` 을 붙였고, 토스트 알림은 `role="status"` 로 읽힌다
-- `prefers-reduced-motion` 을 존중해 FEVER 연출과 잭팟 애니메이션을 끈다
+- `prefers-reduced-motion` 을 존중해 부팅·화면 전환·FEVER·잭팟·파티클 애니메이션을 정적으로 바꾸고 AI 테트리스를 자동 중지한다. 점수와 XP·잭팟 보상은 그대로 유지한다
 
 ---
 

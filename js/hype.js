@@ -105,6 +105,11 @@ const Hype = (() => {
     el.querySelector('.jp-mult').textContent = '';
 
     const reels = Array.from(el.querySelectorAll('.jp-reel'));
+    if(Motion.reduced()){
+      reels.forEach(r => { r.textContent = prize.sym; });
+      settle(el, prize, onWin);
+      return true;
+    }
     let done = 0;
 
     reels.forEach((r, i) => {
@@ -144,7 +149,7 @@ const Hype = (() => {
   }
 
   /* ══════════ FEVER 모드 ══════════ */
-  const fever = { on:false, until:0, raf:null, t:0 };
+  const fever = { on:false, until:0, raf:null, timer:null };
   const FEVER_MS = 15000;
   const FEVER_COMBO = 8;
 
@@ -161,31 +166,59 @@ const Hype = (() => {
     Sfx.win();
     Fx.toast('🔥 FEVER TIME! 15초간 XP 2배', true, 2600);
     Fx.confetti(50);
-    if(!fever.raf) feverLoop();
+    if(Motion.reduced()) scheduleReducedFever();
+    else if(!fever.raf) feverLoop();
   }
   function extendFever(ms = 3000){
-    if(fever.on) fever.until = Math.min(fever.until + ms, performance.now() + FEVER_MS * 1.6);
+    if(!fever.on) return;
+    fever.until = Math.min(fever.until + ms, performance.now() + FEVER_MS * 1.6);
+    if(Motion.reduced()) scheduleReducedFever();
+  }
+  function scheduleReducedFever(){
+    if(fever.raf){ cancelAnimationFrame(fever.raf); fever.raf = null; }
+    if(fever.timer) clearTimeout(fever.timer);
+    const bar = document.getElementById('fever-bar');
+    if(bar) bar.style.width = '100%';
+    fever.timer = setTimeout(() => {
+      fever.timer = null;
+      stopFever();
+    }, Math.max(0, fever.until - performance.now()));
   }
   function feverLoop(){
-    fever.raf = requestAnimationFrame(feverLoop);
+    if(!fever.on) return;
+    if(Motion.reduced()){ scheduleReducedFever(); return; }
     const left = fever.until - performance.now();
     const bar = document.getElementById('fever-bar');
     if(bar) bar.style.width = Math.max(0, left / FEVER_MS * 100) + '%';
-    if(left <= 0) stopFever();
+    if(left <= 0){ stopFever(); return; }
+    fever.raf = requestAnimationFrame(feverLoop);
   }
   function stopFever(){
     fever.on = false;
     document.body.classList.remove('fever');
     Bgm.setTempo(104);
     if(fever.raf){ cancelAnimationFrame(fever.raf); fever.raf = null; }
+    if(fever.timer){ clearTimeout(fever.timer); fever.timer = null; }
     const bar = document.getElementById('fever-bar');
     if(bar) bar.style.width = '0%';
   }
   /* 해설을 읽는 동안에는 FEVER 시간이 흐르지 않게 */
-  function holdFever(ms){ if(fever.on) fever.until += ms; }
+  function holdFever(ms){
+    if(!fever.on) return;
+    fever.until += ms;
+    if(Motion.reduced()) scheduleReducedFever();
+  }
+  function syncMotion(){
+    if(!fever.on) return;
+    if(Motion.reduced()) scheduleReducedFever();
+    else{
+      if(fever.timer){ clearTimeout(fever.timer); fever.timer = null; }
+      if(!fever.raf) feverLoop();
+    }
+  }
 
   return {
-    Bgm, jackpot, maybeFever, stopFever, extendFever, holdFever,
+    Bgm, jackpot, maybeFever, stopFever, extendFever, holdFever, syncMotion,
     get feverOn(){ return fever.on; },
     get multiplier(){ return fever.on ? 2 : 1; }
   };

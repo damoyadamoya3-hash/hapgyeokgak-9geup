@@ -1,3 +1,19 @@
+/* 운영체제의 동작 줄이기 설정을 모든 연출 모듈이 같은 기준으로 쓴다. */
+const Motion = (() => {
+  let query = null;
+  try{
+    if(typeof matchMedia === 'function') query = matchMedia('(prefers-reduced-motion: reduce)');
+  }catch(e){}
+  function reduced(){ return !!(query && query.matches); }
+  function onChange(handler){
+    if(!query || typeof handler !== 'function') return;
+    const listener = event => handler(!!event.matches);
+    if(typeof query.addEventListener === 'function') query.addEventListener('change', listener);
+    else if(typeof query.addListener === 'function') query.addListener(listener);
+  }
+  return { reduced, onChange };
+})();
+
 /* ══════════════════════════════════════════════════════════
    Fx — 파티클 / 토스트 / 플래시
    ══════════════════════════════════════════════════════════ */
@@ -6,6 +22,7 @@ const Fx = (() => {
   const toasts = () => document.getElementById('toast-layer');
 
   function burst(x, y, emojis = ['⭐','✨','🎉','💫'], n = 14){
+    if(Motion.reduced()) return;
     const L = layer(); if(!L) return;
     for(let i = 0; i < n; i++){
       const p = document.createElement('div');
@@ -30,6 +47,7 @@ const Fx = (() => {
     burst(r.left + r.width / 2, r.top + r.height / 2, emojis, n);
   }
   function floatText(x, y, text, color){
+    if(Motion.reduced()) return;
     const L = layer(); if(!L) return;
     const d = document.createElement('div');
     d.className = 'float-xp';
@@ -40,6 +58,7 @@ const Fx = (() => {
     setTimeout(() => d.remove(), 1100);
   }
   function flash(color = 'rgba(46,158,107,.5)'){
+    if(Motion.reduced()) return;
     const d = document.createElement('div');
     d.className = 'screen-flash';
     d.style.background = color;
@@ -53,6 +72,7 @@ const Fx = (() => {
     d.textContent = msg;
     T.appendChild(d);
     setTimeout(() => {
+      if(Motion.reduced()){ d.remove(); return; }
       d.style.transition = 'opacity .35s, transform .35s';
       d.style.opacity = 0; d.style.transform = 'translateY(-12px)';
       setTimeout(() => d.remove(), 400);

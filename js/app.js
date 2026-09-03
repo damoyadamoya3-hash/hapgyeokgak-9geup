@@ -37,6 +37,7 @@
   ];
   function boot(){
     applyTheme();
+    applyMotionPreference();
     Store.onSaveError(warnSaveFailed);
     QB.buildClozeQuestions();     // 이론 카드의 빈칸 → 실제 문항으로 편입
 
@@ -46,6 +47,12 @@
     // 같은 부팅이 어떤 때는 몇 초씩 걸린다.
     const DURATION = 420;
     const fill = $('#boot-fill'), msg = $('#boot-msg');
+    if(Motion.reduced()){
+      fill.style.width = '100%';
+      msg.textContent = '준비 완료';
+      UI.home(); refreshResumeCard(); UI.show('scr-home');
+      return;
+    }
     const t0 = performance.now();
 
     const step = () => {
@@ -694,7 +701,21 @@
 
   /* ── 테트리스 사이드패널 ───────────────────────────── */
   const LINE_SHOUT = [null, 'NICE!', 'DOUBLE!', 'TRIPLE!', '★ TETRIS ★'];
-  function tetrisOn(){ return Store.s.settings.tetris !== false; }
+  function tetrisOn(){ return Store.s.settings.tetris !== false && !Motion.reduced(); }
+
+  function applyMotionPreference(){
+    const reduced = Motion.reduced();
+    const note = $('#motion-pref-note');
+    if(note) note.classList.toggle('hidden', !reduced);
+    Hype.syncMotion();
+    if(!S) return;
+    if(reduced){
+      Tetris.stop();
+      $('#tetris-panel').classList.add('hidden');
+    }else if(Store.s.settings.tetris !== false){
+      tetrisStart();
+    }
+  }
 
   function tetrisStart(){
     const panel = $('#tetris-panel');
@@ -705,6 +726,11 @@
     $('#tp-lines').textContent = '0 LINES';
     $('#tp-shout').textContent = '';
     requestAnimationFrame(() => {
+      // 프레임을 기다리는 사이 판을 나가거나 동작 줄이기가 켜졌다면
+      // 화면 밖에서 캔버스를 뒤늦게 시작하지 않는다.
+      if(!S || !tetrisOn() || S.mode === 'exam'){
+        panel.classList.add('hidden'); Tetris.stop(); return;
+      }
       Tetris.init($('#tetris-cvs'), {
         dropMs: Hype.feverOn ? 950 : 1500,
         onLine: onTetrisLine,
@@ -994,6 +1020,7 @@
       if(!tetrisOn()){ Tetris.stop(); $('#tetris-panel').classList.add('hidden'); }
       else if(S) tetrisStart();
     });
+    Motion.onChange(applyMotionPreference);
     window.addEventListener('resize', () => { if(Tetris.running) Tetris.resize(); });
 
     // 아바타 → 계정 화면

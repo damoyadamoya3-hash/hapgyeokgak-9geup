@@ -129,6 +129,68 @@ t('접근성 — 화면 이동과 설정창에 초점 안내가 있다', () => {
   ok(/\.inert\s*=/.test(ui) && /aria-hidden/.test(ui), '숨은 화면의 초점 차단 없음');
 });
 
+t('접근성 — 시스템 동작 줄이기가 장식 효과와 캔버스 움직임을 함께 멈춘다', () => {
+  const sandbox = {
+    matchMedia:() => ({ matches:true }), innerWidth:400, innerHeight:800,
+    document:{
+      getElementById(){ throw new Error('동작 줄이기에서 장식 DOM에 접근함'); },
+      createElement(){ throw new Error('동작 줄이기에서 장식 DOM을 만듦'); },
+      body:{ appendChild(){ throw new Error('동작 줄이기에서 화면을 번쩍임'); } }
+    },
+    setTimeout(){ throw new Error('동작 줄이기에서 장식 타이머를 만듦'); }
+  };
+  sandbox.window = sandbox;
+  vm.runInNewContext(rd('js/fx.js') + ';globalThis.Motion=Motion;globalThis.Fx=Fx;', sandbox);
+  ok(sandbox.Motion.reduced(), '운영체제 설정 감지 실패');
+  sandbox.Fx.burst(0, 0); sandbox.Fx.floatText(0, 0, '+1');
+  sandbox.Fx.flash(); sandbox.Fx.confetti();
+
+  const reels = Array.from({ length:3 }, () => ({
+    textContent:'', classList:{ add(){}, remove(){} }, offsetWidth:10
+  }));
+  const parts = {
+    '.jp-label':{ textContent:'' }, '.jp-mult':{ textContent:'' }
+  };
+  const jackpot = {
+    classList:{ add(){}, remove(){} },
+    querySelector:key => parts[key], querySelectorAll:() => reels
+  };
+  const feverBar = { style:{} };
+  let reward = 0, timeoutCount = 0, frameCount = 0;
+  const fixedMath = Object.create(Math); fixedMath.random = () => 0;
+  const hypeBox = {
+    Motion:{ reduced:() => true }, Store:{ s:{ settings:{ bgm:false } } },
+    Sfx:{ coin(){}, levelup(){}, win(){} },
+    Fx:{ burstAt(){}, flash(){}, confetti(){}, toast(){} },
+    document:{
+      getElementById:id => id === 'jackpot' ? jackpot : id === 'fever-bar' ? feverBar : null,
+      body:{ classList:{ add(){}, remove(){} } }
+    },
+    window:{}, performance:{ now:() => 0 }, Math:fixedMath,
+    setInterval(){ throw new Error('동작 줄이기에서 잭팟 릴 타이머를 만듦'); },
+    clearInterval(){},
+    setTimeout(){ timeoutCount++; return timeoutCount; }, clearTimeout(){},
+    requestAnimationFrame(){ frameCount++; return frameCount; }, cancelAnimationFrame(){}
+  };
+  vm.runInNewContext(rd('js/hype.js') + ';globalThis.Hype=Hype;', hypeBox);
+  ok(hypeBox.Hype.jackpot(0, mult => { reward = mult; }), '정적 잭팟 실행 실패');
+  eq([reward, reels.map(r => r.textContent)], [2,['📘','📘','📘']], '잭팟 보상·정적 결과');
+  ok(hypeBox.Hype.maybeFever(8), '정적 FEVER 진입 실패');
+  eq([hypeBox.Hype.multiplier, frameCount, feverBar.style.width], [2,0,'100%'],
+    'FEVER 보상·정적 타이머');
+
+  const css = rd('css/style.css'), app = rd('js/app.js'), hype = rd('js/hype.js');
+  ok(/\*,\*::before,\*::after/.test(css) && /animation-duration:\.01ms/.test(css),
+    '전체 CSS 애니메이션 축소 없음');
+  ok(/!Motion\.reduced\(\)/.test(app) && /Motion\.onChange\(applyMotionPreference\)/.test(app) &&
+     /if\(!S \|\| !tetrisOn\(\) \|\| S\.mode === 'exam'\)/.test(app),
+    '테트리스 자동 중지·설정 변경 감지 없음');
+  ok(/scheduleReducedFever/.test(hype) && /if\(Motion\.reduced\(\)\)/.test(hype),
+    'FEVER·잭팟의 정적 대체 경로 없음');
+  ok(/id="motion-pref-note"[^>]+role="status"/.test(rd('index.html')),
+    '동작 줄이기 적용 안내 없음');
+});
+
 t('접근성 — 해설의 Enter·Space가 포커스된 버튼을 가로채지 않는다', () => {
   const sandbox = {
     UI:{ $(){}, $$(){} },
