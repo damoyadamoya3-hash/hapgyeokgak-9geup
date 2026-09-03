@@ -118,6 +118,7 @@
   /* ── 세션 시작 ─────────────────────────────────────── */
   function start(mode, opt = {}){
     if(!acquireLearningLease()) return;
+    const savedInfo = Store.sessionInfo({ includeExpired:true });
     const sess = Engine.build(mode, opt);
     if(!sess){
       releaseLearningLease();
@@ -126,12 +127,13 @@
              : '아직 이 범위의 문항이 준비 중이에요');
       return;
     }
-    const settled = Engine.settleSavedSession();
+    const settled = Engine.settleSavedSession({ recovery:!!(savedInfo && savedInfo.expired) });
     // 이전 판 정산으로 부스터가 소비됐을 수 있으므로 새 판의 예약 상태를
     // 현재 보유량 기준으로 다시 맞춘다.
     sess.boost = 1;
     sess.boostPending = Store.has('boost');
     sess.settledPrevious = settled && settled.total > 0 ? settled.total : 0;
+    sess.settledExpired = !!(settled && savedInfo && savedInfo.expired);
     S = sess; lastPlay = { mode, opt }; locked = false; paused = false;
     enterSession(false);
   }
@@ -196,10 +198,12 @@
     // 이전 판의 실제 풀이 보상과 이번 판의 예약 부스터를 함께 안내한다.
     if(!resumed){
       const notes = [];
-      if(S.settledPrevious) notes.push(`이전 판 ${S.settledPrevious}문항 보상 정산`);
+      if(S.settledPrevious)
+        notes.push(`${S.settledExpired ? '지난 기록' : '이전 판'} ${S.settledPrevious}문항 보상 정산`);
       if(S.boostPending) notes.push('XP 부스터 준비 — 한 문제 이상 풀면 1.5배');
       if(notes.length) Fx.toast(`⚡ ${notes.join(' · ')}`, true, 2600);
       delete S.settledPrevious;
+      delete S.settledExpired;
     }
 
     UI.show('scr-play');
@@ -392,11 +396,18 @@
 
   function refreshResumeCard(){
     const card = $('#resume-card');
-    const info = Store.sessionInfo();
+    const info = Store.sessionInfo({ includeExpired:true });
     card.classList.toggle('hidden', !info);
     if(!info) return;
+    if(info.expired){
+      $('#rc-title').textContent = `${info.label} · 지난 기록 정산`;
+      $('#rc-detail').textContent = `${info.answered}문항의 획득 보상을 안전하게 정산합니다`;
+      $('.rc-go').textContent = '정산 →';
+      return;
+    }
     $('#rc-title').textContent = info.awaitingNext ? `${info.label} · 채점 마무리` : `${info.label} 이어 풀기`;
     $('#rc-detail').textContent = `${info.current} / ${info.total}문항 지점에서 자동 저장됨`;
+    $('.rc-go').textContent = '계속 →';
   }
 
   function isStandalone(){
@@ -432,6 +443,16 @@
 
   function resumeSession(){
     if(!acquireLearningLease()) return;
+    const info = Store.sessionInfo({ includeExpired:true });
+    if(info && info.expired){
+      const settled = Engine.settleSavedSession({ recovery:true });
+      releaseLearningLease();
+      UI.home();
+      refreshResumeCard();
+      return Fx.toast(settled && settled.total
+        ? `지난 학습 ${settled.total}문항의 보상을 정산했어요`
+        : '지난 학습 기록을 안전하게 정리했어요', true, 3200);
+    }
     const sess = Store.restoreSession();
     if(!sess){
       releaseLearningLease();

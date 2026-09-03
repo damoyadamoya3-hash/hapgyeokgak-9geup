@@ -180,6 +180,27 @@ t('세션 복구 — 맞춤 학습의 복습·새 문제 분류를 보존한다'
   eq(got.cfg.dailyPlan, s.cfg.dailyPlan, '세트 배분');
 });
 
+t('세션 복구 — 7일 지난 기록은 지우지 않고 정산 대기로 남긴다', () => {
+  fresh();
+  const s = Engine.build('quest', { unit:'kor-gram', subject:'kor' });
+  Engine.submit(s, s.queue[0].a);
+  Store.saveSession(s, { awaitingNext:true });
+  const savedAt = Date.now() - 8 * 86400000;
+  Store.s.activeSession.savedAt = savedAt;
+  Store.save();
+
+  eq(Store.sessionInfo(), null, '만료 세션이 일반 이어 풀기에 노출됨');
+  ok(Store.s.activeSession, '만료 세션의 획득 보상을 삭제함');
+  const info = Store.sessionInfo({ includeExpired:true });
+  eq([info.expired,info.answered,info.savedAt], [true,1,savedAt], '만료 정산 정보');
+  eq(Store.restoreSession(), null, '만료 세션을 그대로 이어 풀게 함');
+  const restored = Store.restoreSession({ allowExpired:true });
+  eq([restored.correct,restored.savedAt], [1,savedAt], '만료 세션 정산 복원');
+  const app = rd('js/app.js');
+  ok(/지난 기록 정산/.test(app) && /Engine\.settleSavedSession\(\{ recovery:true \}\)/.test(app),
+     '홈의 만료 기록 정산 경로가 없음');
+});
+
 t('세션 복구 — 진도 이동 코드에는 진행 중인 판을 넣지 않는다', () => {
   fresh();
   const s = Engine.build('quest', { unit:'kor-gram', subject:'kor' });
@@ -280,7 +301,7 @@ t('세션 정산 — 새 판을 시작해도 저장된 이전 판의 기본 보�
   eq(Engine.settleSavedSession(), null, '같은 세션을 두 번 정산함');
   eq([Store.s.xp,Store.s.coin], [expectedXp,expectedCoin], '보상 중복');
   const app = rd('js/app.js');
-  ok(/Engine\.settleSavedSession\(\)/.test(app) && /sess\.boostPending = Store\.has\('boost'\)/.test(app),
+  ok(/Engine\.settleSavedSession\(\{ recovery:/.test(app) && /sess\.boostPending = Store\.has\('boost'\)/.test(app),
      '새 판 시작 경로에 이전 판 정산이 연결되지 않음');
 });
 
@@ -294,6 +315,43 @@ t('세션 정산 — 마지막 답안 직후 닫힌 판은 완주로 보존한�
   eq([settled.session.reason,settled.fin.completed,settled.fin.stars], ['end',true,3],
      '결과 직전 완주 정산');
   eq(Store.s.units['kor-gram'].stars, 3, '완주 단원 별 보존');
+});
+
+t('세션 정산 — 만료된 판의 풀이 보상과 예약 부스터를 한 번만 복구한다', () => {
+  fresh();
+  Store.s.inv.boost = 1; Store.save();
+  const s = Engine.build('quest', { unit:'kor-gram', subject:'kor' });
+  Engine.submit(s, s.queue[0].a);
+  const baseXp = s.xp, coin = s.coin;
+  const accountBefore = [Store.s.xp,Store.s.coin];
+  Store.saveSession(s, { awaitingNext:true });
+  Store.s.activeSession.savedAt = Date.now() - 8 * 86400000;
+  Store.save();
+
+  const settled = Engine.settleSavedSession({ recovery:true });
+  const boosted = Math.round(baseXp * 1.5);
+  eq([settled.total,settled.fin.completed,settled.xp,settled.coin],
+     [1,false,boosted,coin], '만료 판 정산 결과');
+  eq([Store.s.xp,Store.s.coin,Store.s.inv.boost],
+     [accountBefore[0] + boosted,accountBefore[1] + coin,0], '만료 판 보상 복구');
+  eq(Engine.settleSavedSession({ recovery:true }), null, '만료 판 보상 중복 지급');
+});
+
+t('세션 정산 — 만료 모의고사는 실제 저장일에 채점하고 현재 출석을 건드리지 않는다', () => {
+  fresh();
+  const s = Engine.build('exam', { subject:'his' });
+  Engine.submit(s, s.queue[0].a);
+  Store.saveSession(s, {});
+  const savedAt = Date.now() - 8 * 86400000;
+  const savedDay = Store.dateKey(new Date(savedAt));
+  Store.s.activeSession.savedAt = savedAt;
+  Store.save();
+
+  const settled = Engine.settleSavedSession({ recovery:true });
+  eq([settled.total,settled.fin.completed,Store.s.totalAnswered,Store.s.lastPlay],
+     [1,false,1,null], '만료 모의고사 채점·출석');
+  eq(Store.s.dayStats[savedDay].n, 1, '만료 모의고사 학습일');
+  eq(Store.examLog()[0].t, savedAt, '만료 모의고사 기록 시각');
 });
 
 t('XP 부스터 — 한 문제도 풀지 않으면 소비하지 않는다', () => {
@@ -481,6 +539,20 @@ t('일일 임무 — 구형 이어 풀기는 종료 때 한 번만 호환 정산
   eq([Store.s.daily.tasks[0].prog, Store.s.daily.tasks[0].done], [2,true], '구형 세션 종료 정산');
 });
 
+t('일일 임무 — 지난 세션 완주는 오늘의 임무에 소급하지 않는다', () => {
+  oneTask('acc80', 1);
+  const s = Engine.build('quest', { unit:'kor-gram', subject:'kor' });
+  s.queue.forEach((q, i) => { s.i = i; Engine.submit(s, q.a); });
+  Store.saveSession(s, { awaitingNext:true });
+  Store.s.activeSession.savedAt = Date.now() - 8 * 86400000;
+  Store.save();
+
+  const settled = Engine.settleSavedSession({ recovery:true });
+  eq([settled.fin.completed,settled.fin.stars], [true,3], '지난 완주 자체의 결과');
+  eq([Store.s.daily.tasks[0].prog,Store.s.daily.tasks[0].done], [0,false],
+     '지난 완주를 오늘의 정확도 임무로 계산함');
+});
+
 t('일일 임무 — 보스와 모의고사 완료도 결과 알림에 포함된다', () => {
   const cases = [
     ['boss','boss','kill',{ subject:'kor' }],
@@ -662,6 +734,20 @@ t('복습 — 같은 날 오답 뒤 바로잡으면 다음 날부터 다시 확�
   eq([Store.s.cards[q.id].box, Store.s.cards[q.id].due], [0,Store.today()], '당일 오답 초기화');
   Store.record(q.id, true);
   eq([Store.s.cards[q.id].box, Store.s.cards[q.id].due], [1,shift(1)], '오답 회복 재예약');
+});
+
+t('복습 — 늦게 복구한 과거 답안이 최신 복습 일정을 되돌리지 않는다', () => {
+  fresh();
+  const q = QB.items[0];
+  Store.record(q.id, true);
+  const current = { ...Store.s.cards[q.id] };
+  const oldAt = Date.now() - 8 * 86400000;
+  Store.record(q.id, false, oldAt);
+  const c = Store.s.cards[q.id];
+  eq([c.n,c.ok,c.ng,c.box,c.due,c.last],
+     [2,1,1,current.box,current.due,current.last], '최신 복습 일정 보존');
+  eq(Store.s.dayStats[Store.dateKey(new Date(oldAt))].n, 1, '과거 답안 날짜 기록');
+  ok(Store.s.answerLog[0].t <= Store.s.answerLog[1].t, '과거 답안 로그 시간순 정렬');
 });
 
 t('복습 — 30일 박스도 만기에는 다시 나오고 맞히면 30일 뒤로 간다', () => {

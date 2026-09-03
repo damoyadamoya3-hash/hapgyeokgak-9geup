@@ -666,7 +666,7 @@ const Engine = (() => {
      빈칸은 시험 점수에서는 오답이지만, 실제로 풀지 않은 문항을 SRS 오답으로
      만들지는 않는다. 여러 경로(제출·시간 종료·그만두기)가 이 함수를 불러도
      첫 한 번만 기록되도록 멱등성을 보장한다. */
-  function gradeExam(S){
+  function gradeExam(S, options = {}){
     if(!S || S.mode !== 'exam' || S.examGraded) return S;
 
     S.correct = 0; S.wrong = 0; S.combo = 0; S.maxCombo = 0;
@@ -680,7 +680,7 @@ const Engine = (() => {
 
       if(has){
         S.examAnsweredCount++;
-        Store.record(q.id, ok);
+        Store.record(q.id, ok, options.recordedAt);
       }else{
         S.examBlank++;
       }
@@ -704,7 +704,9 @@ const Engine = (() => {
     });
 
     S.examGraded = true;
-    if(S.examAnsweredCount) S.streakDay = Store.today();
+    if(S.examAnsweredCount) S.streakDay = options.recordedAt
+      ? Store.dateKey(new Date(options.recordedAt))
+      : Store.today();
     if(S.maxCombo > Store.s.maxCombo){ Store.s.maxCombo = S.maxCombo; Store.save(); }
     return S;
   }
@@ -781,8 +783,8 @@ const Engine = (() => {
     return S.reason === 'end';
   }
 
-  function finish(S){
-    if(S.mode === 'exam') gradeExam(S);
+  function finish(S, options = {}){
+    if(S.mode === 'exam') gradeExam(S, options);
     const total = S.correct + S.wrong;
     const acc = total ? Math.round(S.correct / total * 100) : 0;
     const completed = completedSession(S);
@@ -790,6 +792,9 @@ const Engine = (() => {
     const doneTasks = (S.doneTasks || []).map(t => ({ ...t }));
     const doneTaskIds = new Set(doneTasks.map(t => t.id));
     const task = (key, amount) => {
+      // 7일이 지난 저장본은 원래 풀이 날짜를 확정할 수 없다. 획득 보상은
+      // 복구하되 오늘의 임무에 뒤늦게 합산해서 당일 진도를 왜곡하지 않는다.
+      if(options.recovery === true) return;
       const rows = Store.progressTask(key, amount);
       for(const t of rows || []) if(!doneTaskIds.has(t.id)){
         doneTasks.push(t);
@@ -872,7 +877,7 @@ const Engine = (() => {
 
     let paperReview = null;
     if(S.mode === 'exam'){
-      Store.logExam(S.opt.subject || 'all', bySub, examPaper(S));
+      Store.logExam(S.opt.subject || 'all', bySub, examPaper(S), options.recordedAt);
       Store.save();
     }else if(S.mode === 'paper'){
       // 복기 퀴즈에서 실제로 답한 문항만 최근 답안지에 반영한다. 중간에
@@ -890,8 +895,9 @@ const Engine = (() => {
 
   /* 홈에서 다른 학습을 시작할 때 저장된 이전 판을 조용히 버리지 않는다.
      중도 종료로 정산해 이미 푼 문항의 XP·코인을 보존하되, 완주 보상·별은 주지 않는다. */
-  function settleSavedSession(){
-    const saved = Store.restoreSession();
+  function settleSavedSession(options = {}){
+    const recovery = options.recovery === true;
+    const saved = Store.restoreSession({ allowExpired:recovery });
     if(!saved) return null;
     // 마지막 답안 채점 직후 닫힌 세션은 재개 시 next() 한 번으로 완주된다.
     // 새 판으로 넘어갈 때도 같은 결과를 내야 완주 보상·도감 훈련이 사라지지 않는다.
@@ -906,8 +912,12 @@ const Engine = (() => {
       saved.reason = 'quit';
     saved.over = true;
     Store.clearSession();
-    const fin = finish(saved);
-    return { session:saved, fin, total:fin.total, xp:saved.xp, coin:saved.coin };
+    const fin = finish(saved, { recovery, recordedAt:recovery ? saved.savedAt : undefined });
+    return {
+      session:saved, fin,
+      total:saved.mode === 'exam' ? saved.examAnsweredCount : fin.total,
+      xp:saved.xp, coin:saved.coin
+    };
   }
 
   return { build, current, submit, clearExamAnswer, examIndexes, examPlan, dailyBatch,

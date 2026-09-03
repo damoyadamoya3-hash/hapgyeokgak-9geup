@@ -236,8 +236,10 @@ const Store = (() => {
     return Date.UTC(y, m - 1, d) / 86400000;
   }
 
-  function record(qid, ok){
-    const stamp = today();
+  function record(qid, ok, recordedAt = Date.now()){
+    const at = new Date(Number(recordedAt));
+    const when = Number.isFinite(at.getTime()) ? at : new Date();
+    const stamp = dateKey(when);
     const c = S.cards[qid] || { n:0, ok:0, ng:0, box:0, due:stamp, last:null };
     /* 라이트너 상자는 시간 간격을 두고 기억을 다시 꺼냈다는 증거다. 같은 날
        이미 정답으로 다음 복습일을 잡은 문항을 또 맞혔다고 1→2→4→7일로
@@ -245,20 +247,26 @@ const Store = (() => {
        정답률은 모두 남기되, 그날의 간격 승급은 한 번만 인정한다. */
     const advancedToday = !!ok && c.last === stamp && c.due > stamp;
     c.n++; ok ? c.ok++ : c.ng++;
-    if(!ok){
-      c.box = 0;
-      c.due = stamp;
-    }else if(!advancedToday){
-      c.box = Math.min(c.box + 1, INTERVAL.length - 1);
-      c.due = daysFromNow(INTERVAL[c.box]);
+    // 늦게 복구한 모의고사보다 최신 학습 기록이 이미 있다면 횟수·정답률만
+    // 합치고, 최신 라이트너 상자와 복습 예정일을 과거 상태로 되돌리지 않는다.
+    if(!c.last || c.last <= stamp){
+      if(!ok){
+        c.box = 0;
+        c.due = stamp;
+      }else if(!advancedToday){
+        c.box = Math.min(c.box + 1, INTERVAL.length - 1);
+        const due = new Date(when); due.setDate(due.getDate() + INTERVAL[c.box]);
+        c.due = dateKey(due);
+      }
+      c.last = stamp;
     }
-    c.last = stamp;
     S.cards[qid] = c;
     S.totalAnswered++; if(ok) S.totalCorrect++;
     const d = S.dayStats[stamp] || { n:0, ok:0 };
     d.n++; if(ok) d.ok++;
     S.dayStats[stamp] = d;
-    S.answerLog.push({ t:Date.now(), id:qid, ok:!!ok });
+    S.answerLog.push({ t:when.getTime(), id:qid, ok:!!ok });
+    S.answerLog.sort((a, b) => a.t - b.t);
     save();
     return c;
   }
@@ -589,31 +597,39 @@ const Store = (() => {
     return true;
   }
 
-  function sessionInfo(){
+  function sessionInfo(options = {}){
     const x = S.activeSession;
     if(!x) return null;
     /* v1 모의고사는 선택 답안을 저장하지 않고 즉시 채점하던 형식이라
        어느 칸에 무엇을 마킹했는지 복원할 수 없다. 일반 학습 v1은 호환한다. */
     const badVersion = x.v !== 1 && x.v !== 2 && x.v !== 3;
     const unsafeOldExam = x.v === 1 && x.mode === 'exam';
-    if(badVersion || unsafeOldExam || !x.savedAt ||
-       Date.now() - x.savedAt > SESSION_TTL || !Array.isArray(x.queue)){
+    if(badVersion || unsafeOldExam || !x.savedAt || !Array.isArray(x.queue)){
       clearSession();
       return null;
     }
+    // 오래된 기록도 이미 푼 문항의 XP·코인을 담고 있다. 평소 이어 풀기에서는
+    // 숨기되 삭제하지 않아, 사용자가 다음 행동에서 안전하게 정산할 수 있게 한다.
+    const expired = Date.now() - x.savedAt > SESSION_TTL;
+    if(expired && options.includeExpired !== true) return null;
     return {
       mode:x.mode,
       label:(x.cfg || {}).label || '학습',
       current:Math.min((x.i || 0) + (x.awaitingNext ? 1 : 0) + 1, x.queue.length),
       total:x.queue.length,
+      answered:x.mode === 'exam'
+        ? Object.keys(x.examAnswers || {}).length
+        : Math.max(0, (x.correct || 0) + (x.wrong || 0)),
       awaitingNext:!!x.awaitingNext,
-      savedAt:x.savedAt
+      savedAt:x.savedAt,
+      expired
     };
   }
 
-  function restoreSession(){
+  function restoreSession(options = {}){
     const x = S.activeSession;
-    if(!sessionInfo() || !x || (x.v !== 1 && x.v !== 2 && x.v !== 3)) return null;
+    if(!sessionInfo({ includeExpired:options.allowExpired === true }) || !x ||
+       (x.v !== 1 && x.v !== 2 && x.v !== 3)) return null;
     const queue = x.queue.map(row => {
       const base = QB.byId(row[0]);
       if(!base) return null;
@@ -649,6 +665,7 @@ const Store = (() => {
       hints:{ ...(x.hints || {}) }, boost:x.boost || 1,
       boostPending:x.boostPending === true,
       startedAt:Date.now() - Math.max(0, x.elapsed || 0),
+      savedAt:x.savedAt,
       over:false, reason:null,
       resumeTimerLeft:Math.max(0, x.timerLeft || 0),
       resumeTimerDeadline:x.v >= 3 && Number.isFinite(Number(x.timerDeadline))
@@ -1285,15 +1302,18 @@ const Store = (() => {
     return false;
   }
   /* 모의고사 한 회차를 기록한다. 오래된 것부터 60회까지만 남긴다. */
-  function logExam(scope, bySub, paper = null){
+  function logExam(scope, bySub, paper = null, recordedAt = Date.now()){
     let n = 0, ok = 0;
     const sub = {};
     for(const sid in bySub){ sub[sid] = [bySub[sid].ok, bySub[sid].n]; n += bySub[sid].n; ok += bySub[sid].ok; }
     if(!n) return;
-    const t = Date.now(), s = scope || 'all';
+    const t = Number.isFinite(Number(recordedAt)) ? Number(recordedAt) : Date.now();
+    const s = scope || 'all';
     S.examLog.push({ t, s, n, ok, sub });
+    S.examLog.sort((a, b) => a.t - b.t);
     if(S.examLog.length > 60) S.examLog = S.examLog.slice(-60);
-    if(paper) S.lastExamPaper = { ...paper, t, s };
+    if(paper && (!S.lastExamPaper || t >= S.lastExamPaper.t))
+      S.lastExamPaper = { ...paper, t, s };
   }
   /* 최근 회차부터 */
   function examLog(){ return S.examLog.slice().reverse(); }
