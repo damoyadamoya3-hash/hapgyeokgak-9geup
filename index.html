@@ -32,7 +32,7 @@
 <a class="skip-link" href="#main-home">본문으로 건너뛰기</a>
 
 <div id="fx-layer"></div>
-<div id="fever-wrap" class="fever-wrap"><i id="fever-bar"></i></div>
+<div id="fever-wrap" class="fever-wrap" aria-hidden="true"><i id="fever-bar"></i></div>
 <div id="jackpot" class="jackpot hidden">
   <div class="jp-box">
     <div class="jp-reels"><span class="jp-reel">📘</span><span class="jp-reel">📘</span><span class="jp-reel">📘</span></div>
@@ -48,7 +48,7 @@
     <div class="boot-logo">🎓</div>
     <h1 class="boot-title">합격각 9급</h1>
     <p class="boot-sub">교육행정직 공략 RPG</p>
-    <div class="boot-bar"><i id="boot-fill"></i></div>
+    <div class="boot-bar" role="progressbar" aria-label="앱 준비" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="boot-fill"></i></div>
     <p id="boot-msg" class="boot-msg">문제 은행 여는 중…</p>
   </div>
 </section>
@@ -60,7 +60,7 @@
       <button class="avatar" id="hud-avatar" title="내 계정 · 다른 기기에서 이어하기" aria-label="내 계정">🐣</button>
       <div class="tb-meta">
         <div class="tb-name"><span id="hud-title">9급 지망생</span> <b id="hud-lv">Lv.1</b></div>
-        <div class="xpbar"><i id="hud-xpfill"></i><span id="hud-xptext">0 / 100</span></div>
+        <div class="xpbar" role="progressbar" aria-label="현재 레벨 경험치" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="hud-xpfill"></i><span id="hud-xptext">0 / 100</span></div>
       </div>
     </div>
     <div class="tb-right">
@@ -190,7 +190,7 @@
   <header class="playbar">
     <button class="back-btn" id="btn-quit" aria-label="그만두기">✕</button>
     <div class="pb-center">
-      <div class="pb-progress"><i id="pb-fill"></i></div>
+      <div class="pb-progress" role="progressbar" aria-label="문제 풀이 진도" aria-valuemin="0" aria-valuemax="10" aria-valuenow="0"><i id="pb-fill"></i></div>
       <div class="pb-info"><span id="pb-count">1 / 10</span><span id="pb-mode">퀘스트</span></div>
     </div>
     <div class="pb-right">
@@ -201,7 +201,7 @@
   </header>
 
   <div id="boss-stage" class="boss-stage hidden">
-    <div class="boss-hp-wrap"><span id="boss-name">보스</span><div class="boss-hp"><i id="boss-hp-fill"></i></div></div>
+    <div class="boss-hp-wrap"><span id="boss-name">보스</span><div class="boss-hp" role="progressbar" aria-label="보스 남은 체력" aria-valuemin="0" aria-valuemax="10" aria-valuenow="10"><i id="boss-hp-fill"></i></div></div>
     <div id="boss-sprite" class="boss-sprite">👹</div>
   </div>
 

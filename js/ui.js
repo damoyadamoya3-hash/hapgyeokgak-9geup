@@ -6,6 +6,30 @@ const UI = (() => {
   const $$ = s => Array.from(document.querySelectorAll(s));
   const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
+  /* 시각 막대와 접근성 트리의 수치가 어긋나지 않게 한 경로에서 갱신한다. */
+  function progressState(value, max = 100){
+    const parsedMax = Number(max);
+    const upper = Math.max(1, Math.round(Number.isFinite(parsedMax) ? parsedMax : 100));
+    return { max:upper, now:Math.max(0, Math.min(upper, Math.round(Number(value) || 0))) };
+  }
+  function progressAttrs(label, value, max = 100, valueText = ''){
+    const state = progressState(value, max);
+    return `role="progressbar" aria-label="${esc(label)}" aria-valuemin="0" ` +
+      `aria-valuemax="${state.max}" aria-valuenow="${state.now}"` +
+      (valueText ? ` aria-valuetext="${esc(valueText)}"` : '');
+  }
+  function setProgress(el, label, value, max = 100, valueText = ''){
+    if(!el) return;
+    const state = progressState(value, max);
+    el.setAttribute('role', 'progressbar');
+    el.setAttribute('aria-label', label);
+    el.setAttribute('aria-valuemin', '0');
+    el.setAttribute('aria-valuemax', String(state.max));
+    el.setAttribute('aria-valuenow', String(state.now));
+    if(valueText) el.setAttribute('aria-valuetext', valueText);
+    else el.removeAttribute('aria-valuetext');
+  }
+
   /* ── 화면 이동 ──────────────────────────────────────────
      내부 스택과 브라우저 히스토리를 함께 관리한다.
      그래야 폰의 뒤로가기 버튼·제스처가 앱을 나가지 않고
@@ -88,6 +112,8 @@ const UI = (() => {
     $('#hud-lv').textContent     = 'Lv.' + li.lv;
     $('#hud-xpfill').style.width = li.pct + '%';
     $('#hud-xptext').textContent = li.cur + ' / ' + li.need;
+    setProgress($('#hud-xpfill').parentElement, '현재 레벨 경험치', li.cur, li.need,
+      `${li.cur}/${li.need} 경험치`);
     $('#hud-streak').textContent = Store.s.streak;
     $('#hud-coin').textContent   = Store.s.coin;
   }
@@ -781,7 +807,8 @@ const UI = (() => {
               const bad = n >= 5 && a < 40;
               return `<div class="exam-row${bad ? ' cutoff' : ''}">
                 <span>${sub.emoji} ${esc(sub.name)}${bad ? ' <em class="cut-tag">과락</em>' : ''}</span>
-                <span class="ex-bar"><i style="width:${a}%;background:${a>=80?'var(--good)':a>=60?'var(--gold)':'var(--bad)'}"></i></span>
+                <span class="ex-bar" ${progressAttrs(`${sub.name} 정답률`, a, 100,
+                  `${ok}/${n}문항 정답 · ${a}점`)}><i style="width:${a}%;background:${a>=80?'var(--good)':a>=60?'var(--gold)':'var(--bad)'}"></i></span>
                 <b>${ok}/${n}</b>
               </div>`;
             }).join('')}</div>
@@ -854,7 +881,8 @@ const UI = (() => {
 
       <div class="st-sec">
         <h3>최근 ${span === 7 ? '1주' : '2주'} 학습량 <small>막대 = 하루에 푼 문제 수</small></h3>
-        <div class="st-chart">
+        <div class="st-chart" role="img" aria-label="최근 학습량: ${days.map(d =>
+          `${d.label} ${d.n}문항 중 ${d.ok}문항 정답`).join(', ')}">
           ${days.map((d, i) => {
             const h = Math.round(d.n / peak * 92);
             const okH = d.n ? Math.round(d.ok / d.n * h) : 0;
@@ -909,7 +937,8 @@ const UI = (() => {
 
       <div class="st-sec">
         <h3>기억 정착도 <small>라이트너 박스 분포</small></h3>
-        <div class="st-boxes">
+        <div class="st-boxes" role="img" aria-label="기억 정착도: ${s.boxes.map((n, i) =>
+          `${i === 0 ? '새 문항과 오답' : Store.INTERVAL[i] + '일 간격'} ${n}문항`).join(', ')}">
           ${s.boxes.map((n, i) => `
             <div class="st-box" title="${i === 0 ? '새 문항·오답' : Store.INTERVAL[i] + '일 뒤 복습'} — ${n}문항">
               <span class="bx" style="height:${Math.max(Math.round(n / maxBox * 56), n ? 4 : 3)}px"></span>
@@ -965,7 +994,8 @@ const UI = (() => {
     const units = (QB.UNITS[sid] || []).filter(u => QB.theoryByUnit(u.id).length);
     $('#sel-body').innerHTML = `
       <div class="codex-stat">
-        <span>📖 수집률</span><span class="cs-bar"><i style="width:${pct}%"></i></span>
+        <span>📖 수집률</span><span class="cs-bar" ${progressAttrs(`${sub.name} 이론 카드 수집률`, read,
+          cards.length, `${read}/${cards.length}장`)}><i style="width:${pct}%"></i></span>
         <b style="font-family:var(--f-round);color:var(--brand-ink)">${read}/${cards.length}</b>
       </div>
       ${cards.length ? '' : '<div class="sel-note">이 과목의 이론 카드는 준비 중입니다.</div>'}
@@ -1055,6 +1085,18 @@ const UI = (() => {
       : S.mode === 'boss' ? (1 - S.bossHp / S.bossMax) * 100
       : (S.i / S.queue.length) * 100;
     $('#pb-fill').style.width = pct + '%';
+    const playBar = $('#pb-fill').parentElement;
+    if(S.mode === 'ox'){
+      playBar.setAttribute('role', 'progressbar');
+      playBar.setAttribute('aria-label', 'OX 스피드런 진행');
+      playBar.setAttribute('aria-valuetext', `${S.correct}문제 정답 · 계속 진행 중`);
+      ['aria-valuemin','aria-valuemax','aria-valuenow'].forEach(name => playBar.removeAttribute(name));
+    }else{
+      const complete = S.mode === 'boss' ? S.bossMax - S.bossHp : Math.min(S.i, S.queue.length);
+      const total = S.mode === 'boss' ? S.bossMax : S.queue.length;
+      setProgress(playBar, S.mode === 'boss' ? '보스 공략 진도' : '문제 풀이 진도', complete, total,
+        `${complete}/${total} 완료`);
+    }
 
     // 하트
     $('#pb-hearts').innerHTML = cfg.hearts
@@ -1259,7 +1301,8 @@ const UI = (() => {
         <span><b>${recovery.recovered}</b> / ${recovery.total}</span>
         <div><strong>${recovery.remaining ? `아직 ${recovery.remaining}문항 남음` : '모두 바로잡았습니다'}</strong>
           <small>복기 퀴즈에서 다시 맞힌 문항 기준</small></div>
-        <i><em style="width:${recovery.total ? Math.round(recovery.recovered / recovery.total * 100) : 0}%"></em></i>
+        <i ${progressAttrs('시험 복기 진도', recovery.recovered, recovery.total,
+          `${recovery.recovered}/${recovery.total}문항 바로잡음`)}><em style="width:${recovery.total ? Math.round(recovery.recovered / recovery.total * 100) : 0}%"></em></i>
       </div>` : '';
     return `<div class="exam-review-head">
         <h3>🧾 시험 복기 ${rows.length}문항</h3>
@@ -1377,7 +1420,8 @@ const UI = (() => {
             const under = a < CUT && b.n >= 5;
             return `<div class="exam-row${under ? ' cutoff' : ''}">
               <span>${sub.emoji} ${esc(sub.name)}${under ? ' <em class="cut-tag">과락</em>' : ''}</span>
-              <span class="ex-bar"><i style="width:${a}%;background:${a>=80?'var(--good)':a>=60?'var(--gold)':'var(--bad)'}"></i></span>
+              <span class="ex-bar" ${progressAttrs(`${sub.name} 정답률`, a, 100,
+                `${b.ok}/${b.n}문항 정답 · ${a}점`)}><i style="width:${a}%;background:${a>=80?'var(--good)':a>=60?'var(--gold)':'var(--bad)'}"></i></span>
               <b>${b.ok}/${b.n}</b>
             </div>`;
          }).join('')}</div>
@@ -1421,7 +1465,8 @@ const UI = (() => {
         <span><b>${recovery.recovered}</b> / ${recovery.total}</span>
         <div><strong>${recovery.remaining ? `남은 복기 ${recovery.remaining}문항` : '이번 시험 약점 복기 완료'}</strong>
           <small>${recovery.remaining ? '남은 문제만 이어서 다시 풀 수 있어요' : '시간을 두고 망각곡선 복습으로 굳혀 보세요'}</small></div>
-        <i><em style="width:${recovery.total ? Math.round(recovery.recovered / recovery.total * 100) : 0}%"></em></i>
+        <i ${progressAttrs('시험 복기 진도', recovery.recovered, recovery.total,
+          `${recovery.recovered}/${recovery.total}문항 바로잡음`)}><em style="width:${recovery.total ? Math.round(recovery.recovered / recovery.total * 100) : 0}%"></em></i>
       </div>` : '';
     const review = $('#res-review');
     review.innerHTML = subTable + dailyInsight +
@@ -1479,7 +1524,7 @@ const UI = (() => {
     show('scr-result');
   }
 
-  return { $, $$, esc, show, back, popScreen, setPopHandler, currentScreen,
+  return { $, $$, esc, setProgress, show, back, popScreen, setPopHandler, currentScreen,
            hud, home, daily, planCard, startGuide, setGuideHandler, subjects, achievements,
            modeTags, selectSubject, selectUnit, question, reveal, result, sync, setPlanGo,
            codexList, cardDetail, bumpXp, stats, notes, setNoteTab, markSilent, examSheet, shop };

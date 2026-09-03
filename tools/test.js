@@ -191,6 +191,23 @@ t('접근성 — 시스템 동작 줄이기가 장식 효과와 캔버스 움직
     '동작 줄이기 적용 안내 없음');
 });
 
+t('접근성 — 핵심 진도 막대와 막대형 통계를 수치와 설명으로 읽는다', () => {
+  const html = rd('index.html'), ui = rd('js/ui.js'), app = rd('js/app.js');
+  for(const cls of ['boot-bar','xpbar','pb-progress','boss-hp'])
+    ok(new RegExp(`class="${cls}"[^>]+role="progressbar"[^>]+aria-valuenow`).test(html),
+      `${cls} 진행률 의미 없음`);
+  ok(/function progressAttrs/.test(ui) && /function setProgress/.test(ui),
+    '동적 진행률 값 갱신 경로 없음');
+  ok((ui.match(/progressAttrs\(/g) || []).length >= 6,
+    '성적·복기·도감 진행률 설명이 부족함');
+  ok(/st-chart" role="img" aria-label=/.test(ui) &&
+     /st-boxes" role="img" aria-label=/.test(ui), '막대형 통계의 텍스트 대안 없음');
+  ok((app.match(/UI\.setProgress\(/g) || []).length >= 4,
+    '부팅·보스 체력의 실제 값이 접근성 정보와 동기화되지 않음');
+  ok(/aria-hidden="true"/.test(html.match(/<div id="fever-wrap"[^>]*>/)[0]),
+    '장식용 FEVER 막대가 읽힘');
+});
+
 t('접근성 — 해설의 Enter·Space가 포커스된 버튼을 가로채지 않는다', () => {
   const sandbox = {
     UI:{ $(){}, $$(){} },

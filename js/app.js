@@ -50,6 +50,7 @@
     if(Motion.reduced()){
       fill.style.width = '100%';
       msg.textContent = '준비 완료';
+      UI.setProgress(fill.parentElement, '앱 준비', 100, 100, '준비 완료');
       UI.home(); refreshResumeCard(); UI.show('scr-home');
       return;
     }
@@ -59,8 +60,12 @@
       const k = Math.min((performance.now() - t0) / DURATION, 1);
       fill.style.width = (k * 100) + '%';
       msg.textContent = BOOT_MSGS[Math.min((k * BOOT_MSGS.length) | 0, BOOT_MSGS.length - 1)];
+      UI.setProgress(fill.parentElement, '앱 준비', k * 100, 100,
+        `${Math.round(k * 100)}% · ${msg.textContent}`);
       if(k < 1) requestAnimationFrame(step);
-      else setTimeout(() => { UI.home(); refreshResumeCard(); UI.show('scr-home'); }, 90);
+      else{
+        setTimeout(() => { UI.home(); refreshResumeCard(); UI.show('scr-home'); }, 90);
+      }
     };
     requestAnimationFrame(step);
   }
@@ -182,6 +187,8 @@
       $('#boss-name').textContent = b.name;
       $('#boss-sprite').textContent = b.sprite;
       $('#boss-hp-fill').style.width = (S.bossHp / S.bossMax * 100) + '%';
+      UI.setProgress($('#boss-hp-fill').parentElement, `${b.name} 남은 체력`, S.bossHp, S.bossMax,
+        `${S.bossHp}/${S.bossMax}`);
       if(!resumed){
         Sfx.boss();
         Fx.toast(`${b.sprite} ${b.name}: "${b.taunt}"`, true, 3000);
@@ -573,6 +580,9 @@
 
     if(S.mode === 'boss'){
       $('#boss-hp-fill').style.width = (S.bossHp / S.bossMax * 100) + '%';
+      const boss = QB.BOSSES[S.opt.subject];
+      UI.setProgress($('#boss-hp-fill').parentElement, `${boss.name} 남은 체력`, S.bossHp, S.bossMax,
+        `${S.bossHp}/${S.bossMax}`);
       if(res.ok){
         const sp = $('#boss-sprite');
         sp.classList.remove('hit'); void sp.offsetWidth; sp.classList.add('hit');
