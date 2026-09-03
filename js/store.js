@@ -1372,6 +1372,31 @@ const Store = (() => {
     return false;
   }
 
+  /* 연속일 숫자는 반드시 그 숫자가 계산된 마지막 학습일과 한 묶음이다.
+     병합 뒤의 최신일까지 실제 학습일이 모두 이어질 때만 과거 연속일에
+     날짜 차이를 더한다. 오래전에 높았던 숫자를 오늘 기록에 붙이지 않는다. */
+  function mergedStreak(own, incoming, latest, stats){
+    const fallback = Math.max(count(own.streak), count(incoming.streak));
+    if(!dateLike(latest)) return fallback;
+    const end = dayNumber(latest);
+    let best = 0, found = false;
+    for(const source of [own, incoming]){
+      if(!dateLike(source.lastPlay)) continue;
+      const start = dayNumber(source.lastPlay);
+      const gap = end - start;
+      if(gap < 0 || gap > 36600) continue;
+      let continuous = true;
+      for(let n = start + 1; n <= end; n++){
+        const key = new Date(n * 86400000).toISOString().slice(0, 10);
+        if(!(stats[key] && stats[key].n > 0)){ continuous = false; break; }
+      }
+      if(!continuous) continue;
+      found = true;
+      best = Math.max(best, Math.max(1, count(source.streak)) + gap);
+    }
+    return found ? best : fallback;
+  }
+
   function inspectData(str){
     const inc = readSnapshot(str);
     if(!inc) return null;
@@ -1393,10 +1418,12 @@ const Store = (() => {
     if(!inc) return null;
 
     const before = { n:S.totalAnswered, cards:Object.keys(S.cards).length };
+    const ownTimeline = { streak:S.streak, lastPlay:S.lastPlay };
+    const incomingTimeline = { streak:inc.streak, lastPlay:inc.lastPlay };
     let updated = 0, repaired = 0;
 
     // 누적값은 큰 쪽을 남긴다
-    ['xp','coin','maxCombo','bestOx','bossKills','examCount','streak'].forEach(k => {
+    ['xp','coin','maxCombo','bestOx','bossKills','examCount'].forEach(k => {
       S[k] = Math.max(S[k] || 0, inc[k] || 0);
     });
     S.hadPerfect = S.hadPerfect === true || inc.hadPerfect === true;
@@ -1448,9 +1475,13 @@ const Store = (() => {
     // 열람·북마크·업적·출석 보상은 합집합
     for(const c in (inc.readCards || {})){
       const a = S.readCards[c], b = inc.readCards[c];
-      S.readCards[c] = a
-        ? { read: a.read || b.read, drill: Math.max(a.drill || 0, b.drill || 0) }
-        : b;
+      if(!a){ S.readCards[c] = b; continue; }
+      const ownRead = dateLike(a.read) ? a.read : null;
+      const incomingRead = dateLike(b.read) ? b.read : null;
+      S.readCards[c] = {
+        read:ownRead && incomingRead ? (ownRead > incomingRead ? ownRead : incomingRead) : ownRead || incomingRead,
+        drill:Math.max(count(a.drill), count(b.drill))
+      };
     }
     for(const k of Object.keys(inc.marks || {})) if(safeKey(k)) S.marks[k] = inc.marks[k];
     for(const k of Object.keys(inc.ach || {})) if(safeKey(k)) S.ach[k] = inc.ach[k];
@@ -1494,6 +1525,7 @@ const Store = (() => {
     S.playedDays = [...new Set([...(S.playedDays||[]), ...(inc.playedDays||[])])].sort();
     if(inc.examDate && !S.examDate) S.examDate = inc.examDate;
     if(inc.lastPlay && (!S.lastPlay || inc.lastPlay > S.lastPlay)) S.lastPlay = inc.lastPlay;
+    S.streak = mergedStreak(ownTimeline, incomingTimeline, S.lastPlay, S.dayStats);
 
     save();
     return {

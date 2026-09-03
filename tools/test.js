@@ -1557,6 +1557,52 @@ t('이어하기 — 합쳐도 더 많이 공부한 쪽이 남는다', () => {
     '겹치는 문항의 한쪽 기록을 통째로 남기지 않음');
 });
 
+t('이어하기 — 오래전의 높은 연속일을 최신 학습일에 잘못 붙이지 않는다', () => {
+  fresh();
+  const oldDay = shift(-10);
+  Store.s.streak = 12; Store.s.lastPlay = oldDay;
+  Store.s.playedDays = [oldDay];
+  Store.s.dayStats[oldDay] = { n:10, ok:8 };
+  const staleHigh = Store.exportData();
+
+  fresh();
+  const yesterday = shift(-1), today = Store.today();
+  Store.s.streak = 2; Store.s.lastPlay = today;
+  Store.s.playedDays = [yesterday,today];
+  Store.s.dayStats[yesterday] = { n:5, ok:4 };
+  Store.s.dayStats[today] = { n:5, ok:4 };
+  Store.mergeData(staleHigh);
+  eq([Store.s.streak,Store.s.lastPlay], [2,today], '끊긴 과거 연속일 병합');
+});
+
+t('이어하기 — 두 기기의 연속된 학습일은 하나의 연속 기록으로 잇는다', () => {
+  fresh();
+  const yesterday = shift(-1), today = Store.today();
+  Store.s.streak = 6; Store.s.lastPlay = yesterday;
+  Store.s.playedDays = [yesterday];
+  Store.s.dayStats[yesterday] = { n:7, ok:6 };
+  const previousDevice = Store.exportData();
+
+  fresh();
+  Store.s.streak = 1; Store.s.lastPlay = today;
+  Store.s.playedDays = [today];
+  Store.s.dayStats[today] = { n:4, ok:3 };
+  Store.mergeData(previousDevice);
+  eq([Store.s.streak,Store.s.lastPlay], [7,today], '기기 사이 연속일 연결');
+});
+
+t('이어하기 — 이론 카드는 더 최근 열람일과 더 많은 훈련 횟수를 함께 남긴다', () => {
+  fresh();
+  const card = QB.theory[0];
+  Store.s.readCards[card.id] = { read:Store.today(), drill:1 };
+  const newerRead = Store.exportData();
+
+  fresh();
+  Store.s.readCards[card.id] = { read:shift(-7), drill:4 };
+  Store.mergeData(newerRead);
+  eq(Store.s.readCards[card.id], { read:Store.today(), drill:4 }, '이론 카드 병합');
+});
+
 t('이어하기 — 풀이 수가 같으면 마지막 풀이일이 최신인 기록을 남긴다', () => {
   fresh();
   const q = QB.items[0];
