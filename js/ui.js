@@ -712,12 +712,25 @@ const UI = (() => {
       total: QB.count(x.id)
     })).filter(x => x.total);
 
-    /* 모의고사 성적 추이 — 수험 준비에서 가장 알고 싶은 것은
-       '내가 나아지고 있는가'다. 회차 수만으로는 알 수 없다. */
-    const log = Store.examLog().slice(0, 12).reverse();   // 오래된 것부터 최대 12회
+    /* 모의고사 성적 추이 — 가장 최근과 범위·과목별 문항 구성이 같은
+       회차끼리만 비교한다. 20문항 국어와 100문항 통합 회차, 또는 제도
+       개편 전후 통합 회차를 한 선상에 놓으면 증감 안내가 왜곡된다. */
+    const trend = Store.examTrend(12);
+    const log = trend.rows;                              // 오래된 것부터 최대 12회
+    const latestExam = log[log.length - 1];
+    const trendScope = latestExam ? (() => {
+      const subs = Object.keys(latestExam.sub || {});
+      const counts = subs.map(sid => Number(latestExam.sub[sid][1]) || 0);
+      const even = counts.length > 1 && counts.every(n => n === counts[0]);
+      const name = latestExam.s === 'all'
+        ? '전 과목 통합'
+        : (QB.subject(latestExam.s) || { name:latestExam.s }).name;
+      const size = even ? `${subs.length}과목 × ${counts[0]}문항` : `${latestExam.n}문항`;
+      return `${name} · ${size}`;
+    })() : '';
     const examSection = log.length ? `
       <div class="st-sec">
-        <h3>모의고사 성적 추이 <small>100점 만점 환산</small></h3>
+        <h3>모의고사 성적 추이 <small>${esc(trendScope)} · 100점 만점 환산</small></h3>
         ${lastPaper ? (() => {
           const score = lastPaper.n ? Math.round(lastPaper.ok / lastPaper.n * 100) : 0;
           const d = new Date(lastPaper.t);
@@ -733,7 +746,12 @@ const UI = (() => {
             <em>열기 →</em>
           </button>`;
         })() : ''}
-        <div class="ex-chart">
+        <p class="ex-scope-note">같은 범위·문항 구성 ${trend.total}회만 비교합니다.${trend.excluded
+          ? ` 다른 구성 ${trend.excluded}회는 제외했어요.` : ''}</p>
+        <div class="ex-chart" role="img" aria-label="${esc(trendScope)} 성적 추이: ${log.map(e => {
+          const d = new Date(e.t);
+          return `${d.getMonth() + 1}월 ${d.getDate()}일 ${Math.round(e.ok / e.n * 100)}점`;
+        }).join(', ')}">
           ${log.map((e, i) => {
             const sc = Math.round(e.ok / e.n * 100);
             const c  = sc >= 80 ? 'var(--good)' : sc >= 60 ? 'var(--gold)' : 'var(--bad)';
@@ -777,10 +795,10 @@ const UI = (() => {
           const last  = Math.round(log[log.length-1].ok / log[log.length-1].n * 100);
           const diff  = last - first;
           return `<p class="ex-note">${diff > 0
-            ? `첫 회차보다 <b style="color:var(--good-ink)">${diff}점</b> 올랐어요.`
+            ? `같은 구성 첫 회차보다 <b style="color:var(--good-ink)">${diff}점</b> 올랐어요.`
             : diff < 0
-              ? `첫 회차보다 <b style="color:var(--bad-ink)">${-diff}점</b> 내려갔어요. 오답노트부터 훑어 보세요.`
-              : '첫 회차와 같은 점수예요. 약한 단원을 좁혀 보세요.'}</p>`;
+              ? `같은 구성 첫 회차보다 <b style="color:var(--bad-ink)">${-diff}점</b> 내려갔어요. 오답노트부터 훑어 보세요.`
+              : '같은 구성 첫 회차와 같은 점수예요. 약한 단원을 좁혀 보세요.'}</p>`;
         })() : ''}
       </div>` : '';
 

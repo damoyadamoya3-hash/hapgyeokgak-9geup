@@ -1661,6 +1661,29 @@ const Store = (() => {
   }
   /* 최근 회차부터 */
   function examLog(){ return S.examLog.slice().reverse(); }
+  /* 점수 추이는 범위 이름만 같다고 비교할 수 없다. 2027년 개편 전후의
+     통합 회차처럼 과목 수·과목별 문항 수가 달라질 수 있고, 단일 과목도
+     20문항과 25문항 회차가 섞일 수 있다. 가장 최근 회차와 시험 구성이
+     정확히 같은 기록만 골라 오래된 순서로 돌려준다. */
+  function examTrend(limit = 12){
+    const rows = examLog();
+    if(!rows.length) return { rows:[], total:0, excluded:0 };
+    const signature = row => {
+      const parts = Object.keys(row.sub || {}).sort().map(sid => {
+        const item = row.sub[sid] || [];
+        return `${sid}:${Math.max(0, Number(item[1]) || 0)}`;
+      });
+      return `${row.s || 'all'}|${Math.max(0, Number(row.n) || 0)}|${parts.join(',')}`;
+    };
+    const key = signature(rows[0]);
+    const same = rows.filter(row => signature(row) === key);
+    const take = Math.max(1, Math.min(60, Math.floor(Number(limit) || 12)));
+    return {
+      rows:same.slice(0, take).reverse(),
+      total:same.length,
+      excluded:rows.length - same.length
+    };
+  }
   function lastExam(){ return S.examLog.length ? S.examLog[S.examLog.length - 1] : null; }
   function lastExamPaper(){ return S.lastExamPaper ? structuredClone(S.lastExamPaper) : null; }
 
@@ -1963,7 +1986,7 @@ const Store = (() => {
     markRead, markDrill, readCount, recentDays, unitStats, recentPerformance, summary, INTERVAL, nextCard,
     isMarked, toggleMark, markedIds, wrongNotes,
     weekAttendance, nextStreakGoal, STREAK_REWARDS, setExamDate, plan,
-    SHOP, buy, useItem, has, logExam, examLog, lastExam, lastExamPaper,
+    SHOP, buy, useItem, has, logExam, examLog, examTrend, lastExam, lastExamPaper,
     updateExamPaperReview, paperReviewSummary,
     subjectAccuracy, subjectSeen, unitNeed, theoryNeed, theoryReadToday, touchStreak, daily, progressTask, progressTasks,
     checkAch, ACHS, exportData, inspectData, importData, mergeData,

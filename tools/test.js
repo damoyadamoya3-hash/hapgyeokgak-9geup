@@ -1368,6 +1368,26 @@ t('모의고사 보관 — 진도 코드를 합치면 더 최근 답안지도 �
   ok(/btn-last-exam-paper/.test(ui) && /scr-exam-history/.test(html), '학습 분석 재열람 경로 없음');
 });
 
+t('모의고사 분석 — 같은 범위와 문항 구성끼리만 점수 추이를 비교한다', () => {
+  fresh();
+  const base = Date.now() - 4000;
+  Store.logExam('kor', { kor:{ ok:12, n:20 } }, null, base);
+  Store.logExam('all', {
+    kor:{ ok:12, n:20 }, eng:{ ok:13, n:20 }, his:{ ok:14, n:20 },
+    edu:{ ok:15, n:20 }, law:{ ok:16, n:20 }
+  }, null, base + 1000);
+  Store.logExam('kor', { kor:{ ok:18, n:25 } }, null, base + 2000);
+  Store.logExam('kor', { kor:{ ok:16, n:20 } }, null, base + 3000);
+
+  const trend = Store.examTrend(12);
+  eq(trend.rows.map(x => [x.t, x.ok, x.n]),
+     [[base,12,20],[base + 3000,16,20]], '동일 구성 회차와 시간 순서');
+  eq([trend.total, trend.excluded], [2,2], '비교·제외 회차 수');
+  const ui = rd('js/ui.js');
+  ok(/Store\.examTrend\(12\)/.test(ui) && /같은 범위·문항 구성/.test(ui) &&
+     /role="img" aria-label=/.test(ui), '범위 안내·접근 가능한 추이 차트 없음');
+});
+
 t('시험 복기 퀴즈 — 최근 복기 대상만 원래 순서로 다시 푼다', () => {
   fresh();
   const source = Engine.build('exam', { subject:'eng' });
