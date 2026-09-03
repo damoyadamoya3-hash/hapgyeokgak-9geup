@@ -96,6 +96,11 @@ t('타이머 — 해설을 읽은 시간만큼 종료 시각을 뒤로 민다', 
   eq(Engine.timerRemaining(extended, 0, now + 23500), 50, '재개 후 남은 시간');
 });
 
+t('성능 — AI 테트리스 종료가 예약된 투하·렌더 작업을 모두 멈춘다', () => {
+  childProcess.execFileSync(process.execPath, [path.join(ROOT, 'tools', 'test-tetris.js')],
+    { stdio:'pipe' });
+});
+
 /* ── 설치·공유 셸 ────────────────────────────────────────── */
 t('PWA — 설치 정보와 1200×630 공유 카드를 함께 배포한다', () => {
   const webmanifest = JSON.parse(rd('manifest.webmanifest'));

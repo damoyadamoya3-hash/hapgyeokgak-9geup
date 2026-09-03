@@ -35,6 +35,7 @@ const Tetris = (() => {
   let onDanger = null;         // 위험(가득 참) 콜백
   let running = false;
   let autoT = null;            // AI 자동 낙하 타이머
+  const delayed = new Set();   // 보너스 투하·소거처럼 잠시 뒤 실행할 작업
   let dropMs = 1500;           // 자동 낙하 간격
   let pulse = 0;               // 대기 줄 반짝임 위상
   let lastPending = 0;
@@ -45,6 +46,7 @@ const Tetris = (() => {
 
   /* ── 초기화 ─────────────────────────────────────────── */
   function init(canvas, opts = {}){
+    clearDelayed();
     cvs = canvas; ctx = cvs.getContext('2d');
     onLine    = opts.onLine    || null;
     onPending = opts.onPending || null;
@@ -62,8 +64,21 @@ const Tetris = (() => {
     autoT = setInterval(() => { if(running && !piece) spawn(); }, dropMs);
   }
   function stopAuto(){ if(autoT){ clearInterval(autoT); autoT = null; } }
+  function later(fn, ms){
+    const timer = setTimeout(() => {
+      delayed.delete(timer);
+      // 종료한 판의 콜백이 다음 판의 격자나 블록을 건드리지 않는다.
+      if(running) fn();
+    }, ms);
+    delayed.add(timer);
+    return timer;
+  }
+  function clearDelayed(){
+    delayed.forEach(timer => clearTimeout(timer));
+    delayed.clear();
+  }
   function stop(){
-    running = false; stopAuto();
+    running = false; stopAuto(); clearDelayed();
     if(raf){ cancelAnimationFrame(raf); raf = null; }
   }
   function setSpeed(ms){ dropMs = ms; if(running) startAuto(); }
@@ -144,10 +159,11 @@ const Tetris = (() => {
   /* ── 블록 투하 (보너스로 즉시 몇 개 더 떨어뜨릴 때) ── */
   function drop(count = 1){
     if(!running) return;
-    for(let i = 0; i < count; i++) setTimeout(() => spawn(), i * 300);
+    for(let i = 0; i < count; i++) later(spawn, i * 300);
   }
   function spawn(){
-    if(!running || piece) { setTimeout(spawn, 120); return; }
+    if(!running) return;
+    if(piece){ later(spawn, 120); return; }
     const type = KEYS[(Math.random() * KEYS.length) | 0];
     const plan = bestPlacement(type);
     if(!plan){ topOut(); return; }
@@ -203,7 +219,7 @@ const Tetris = (() => {
         });
       }
     }
-    setTimeout(() => {
+    later(() => {
       for(const y of full){ grid.splice(y, 1); grid.unshift(Array(COLS).fill(null)); }
       flashRows = [];
       notifyPending();
