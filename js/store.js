@@ -1356,7 +1356,9 @@ const Store = (() => {
     // 기준이 된다. 저장을 기다리지 않고 내보내는 순간 바로 기준을 세운다.
     captureRewardDrift();
     captureStudyDrift();
-    const packed = { v:4, s:{ ...S } };
+    // 이전 버전에서 가져온 손상된 답안지가 다시 다른 기기로 퍼지지 않게
+    // 내보내기 경계에서도 한 번 정규화하되, 현재 메모리 상태는 바꾸지 않는다.
+    const packed = { v:4, s:{ ...S, lastExamPaper:cleanExamPaper(S.lastExamPaper) } };
     delete packed.s.cards;
     delete packed.s.activeSession;
     delete packed.s.lastProgressCopyAt;
@@ -1461,6 +1463,71 @@ const Store = (() => {
     };
   }
 
+  const cleanText = (v, max) => typeof v === 'string' ? v.slice(0, max) : '';
+  const cleanTime = v => {
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 && !Number.isNaN(new Date(n).getTime())
+      ? Math.floor(n) : null;
+  };
+
+  /* 마지막 모의고사 답안지는 문제·해설 문자열까지 담겨 있어 가장 큰 외부
+     입력 표면이다. 통째로 복사하지 않고 화면과 복기 로직이 쓰는 필드만
+     제한해, 손상된 진도 코드가 분석 화면을 깨거나 실행 가능한 마크업을
+     상태 문구로 밀어 넣지 못하게 한다. 정상 스냅샷 내용은 그대로 남긴다. */
+  function cleanExamPaper(v){
+    if(!isMap(v) || !Array.isArray(v.rows)) return null;
+    const n = count(v.n, 100);
+    const t = cleanTime(v.t);
+    if(!n || !t) return null;
+
+    const seen = new Set(), rows = [];
+    for(const raw of v.rows.slice(0, 100)){
+      if(!isMap(raw)) continue;
+      const id = cleanText(raw.id, 160);
+      if(!id || !safeKey(id) || seen.has(id)) continue;
+      seen.add(id);
+      const current = QB.byId(id);
+      const rawSubject = cleanText(raw.subject, 40);
+      const subject = QB.subject(rawSubject) ? rawSubject : (current ? current.subject : '');
+      const fallbackNumber = Math.min(rows.length + 1, n);
+      const number = Math.min(Math.max(count(raw.number, n) || fallbackNumber, 1), n);
+      // 빈 문자열도 당시 스냅샷의 유효한 값이다. `||`로 현재 문제 값을
+      // 덮으면 이후 문제은행 수정이 과거 답안지까지 바꾸게 된다.
+      const snapshotText = (value, fallback, max) => typeof value === 'string'
+        ? value.slice(0, max) : cleanText(fallback, max);
+      rows.push({
+        id, number, subject,
+        question:snapshotText(raw.question, current && current.q, 10000),
+        passage:snapshotText(raw.passage, current && current.passage, 20000),
+        explanation:snapshotText(raw.explanation, current && current.exp, 10000),
+        tip:snapshotText(raw.tip, current && current.tip, 5000),
+        answered:raw.answered === true,
+        answer:cleanText(raw.answer, 1000) || (raw.answered === true ? '' : '미응답'),
+        correctAnswer:cleanText(raw.correctAnswer, 1000),
+        correct:raw.answered === true && raw.correct === true,
+        flagged:raw.flagged === true,
+        recovered:raw.recovered === true,
+        reviewCount:count(raw.reviewCount, 1000000),
+        reviewedAt:cleanTime(raw.reviewedAt)
+      });
+    }
+    const rawYear = Number(v.examYear);
+    const year = Number.isInteger(rawYear) && rawYear >= 2000 && rawYear <= 2200
+      ? rawYear : null;
+    const rawScope = cleanText(v.s, 40);
+    return {
+      v:Math.max(count(v.v, 100), 1), t,
+      s:rawScope === 'all' || QB.subject(rawScope) ? rawScope : 'all',
+      n, ok:Math.min(count(v.ok, n), n), blank:Math.min(count(v.blank, n), n),
+      flagged:Math.min(count(v.flagged, n), n),
+      elapsed:count(v.elapsed, 86400000),
+      examYear:year,
+      reformed:v.reformed === true,
+      timeLimit:count(v.timeLimit, 86400),
+      reviewedAt:cleanTime(v.reviewedAt), rows
+    };
+  }
+
   function recountCards(state){
     let n = 0, ok = 0;
     for(const id of Object.keys(state.cards || {})){
@@ -1561,10 +1628,7 @@ const Store = (() => {
         capped:p.studyPlan.capped === true
       };
     }
-    if(isMap(p.lastExamPaper) && Array.isArray(p.lastExamPaper.rows)){
-      out.lastExamPaper = structuredClone(p.lastExamPaper);
-      out.lastExamPaper.rows = out.lastExamPaper.rows.filter(isMap).slice(0, 100);
-    }
+    out.lastExamPaper = cleanExamPaper(p.lastExamPaper);
     out.activeSession = keepSession && isMap(p.activeSession) ? structuredClone(p.activeSession) : null;
     recountCards(out);
     out.studySync = cleanStudySync(p.studySync, out);
@@ -1692,15 +1756,19 @@ const Store = (() => {
     };
   }
   function lastExam(){ return S.examLog.length ? S.examLog[S.examLog.length - 1] : null; }
-  function lastExamPaper(){ return S.lastExamPaper ? structuredClone(S.lastExamPaper) : null; }
+  function lastExamPaper(){
+    const paper = cleanExamPaper(S.lastExamPaper);
+    return paper ? structuredClone(paper) : null;
+  }
 
   /* 최근 답안지의 복기 퀴즈 결과를 문항별로 남긴다. paperT 를 함께
      확인하므로, 오래된 탭에서 끝낸 복기 퀴즈가 그 뒤에 치른 새 시험의
      답안지를 덮어쓰지 않는다. 정답을 맞혀야 '바로잡음'이 되고, 다시
      틀리면 미완료로 돌아가 최근 회상 상태를 정직하게 보여 준다. */
   function updateExamPaperReview(paperT, results){
-    const paper = S.lastExamPaper;
+    const paper = cleanExamPaper(S.lastExamPaper);
     if(!paper || !paperT || paper.t !== paperT || !Array.isArray(results)) return null;
+    S.lastExamPaper = paper;
     const byId = new Map();
     results.forEach(r => {
       if(r && r.id) byId.set(r.id, !!r.ok);
@@ -1725,7 +1793,7 @@ const Store = (() => {
   }
 
   function paperReviewSummary(paper = S.lastExamPaper){
-    const rows = paper && Array.isArray(paper.rows) ? paper.rows : [];
+    const rows = paper && Array.isArray(paper.rows) ? paper.rows.filter(isMap) : [];
     const recovered = rows.filter(r => r.recovered === true).length;
     const attempted = rows.filter(r => (Number(r.reviewCount) || 0) > 0).length;
     return { total:rows.length, recovered, remaining:rows.length - recovered, attempted };
@@ -1910,6 +1978,7 @@ const Store = (() => {
       S.examLog.sort((a, b) => a.t - b.t);
       if(S.examLog.length > 60) S.examLog = S.examLog.slice(-60);
     }
+    S.lastExamPaper = cleanExamPaper(S.lastExamPaper);
     if(inc.lastExamPaper){
       if(!S.lastExamPaper || (inc.lastExamPaper.t || 0) > (S.lastExamPaper.t || 0)){
         S.lastExamPaper = inc.lastExamPaper;

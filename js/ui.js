@@ -1265,13 +1265,14 @@ const UI = (() => {
   /* 저장된 답안지와 방금 끝난 답안지가 같은 렌더러를 쓴다. 처음 8개만
      보이고 나머지는 요청할 때 펼쳐 100문항 회차도 감당한다. */
   function examPaperHtml(paper){
-    const rows = (paper && paper.rows) || [];
+    const rows = paper && Array.isArray(paper.rows) ? paper.rows.filter(r => r && typeof r === 'object') : [];
     if(!rows.length)
       return '<div class="sel-note" style="text-align:center">틀린 문제 없음! 완벽합니다 ✨</div>';
 
     const cards = rows.map((r, i) => {
       const sub = QB.subject(r.subject) || { name:r.subject, emoji:'📘' };
-      const shortQ = r.question.length > 105 ? r.question.slice(0, 105) + '…' : r.question;
+      const question = typeof r.question === 'string' ? r.question : '';
+      const shortQ = question.length > 105 ? question.slice(0, 105) + '…' : question;
       const recovered = r.recovered === true;
       const state = recovered ? '✅ 바로잡음'
         : r.correct ? '검토 · 정답'
@@ -1280,9 +1281,9 @@ const UI = (() => {
         : `내 답 ${String(r.answer).split(' ')[0]}`;
       return `<details class="exam-review-card${!r.answered ? ' blank' : ''}${r.flagged ? ' flagged' : ''}${r.correct ? ' correct' : ''}${recovered ? ' recovered' : ''}${i >= 8 ? ' exam-review-extra hidden' : ''}"${i < 2 ? ' open' : ''}>
         <summary>
-          <span class="erc-no">${r.number}</span>
+          <span class="erc-no">${esc(r.number)}</span>
           <span class="erc-main"><b>${sub.emoji} ${esc(sub.name)}</b><span>${md(shortQ)}</span></span>
-          <em class="erc-state">${state}</em>
+          <em class="erc-state">${esc(state)}</em>
         </summary>
         <div class="erc-body">
           ${r.passage ? `<div class="erc-passage">${esc(r.passage)}</div>` : ''}

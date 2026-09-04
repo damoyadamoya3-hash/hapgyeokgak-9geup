@@ -1882,6 +1882,44 @@ t('이어하기 — 정상처럼 보이는 잘못된 코드도 가져오기 전�
   eq(JSON.stringify(Store.s), before, '거부한 코드가 진도를 바꿈');
 });
 
+t('이어하기 — 손상된 시험 답안지를 허용 필드로 정규화한다', () => {
+  Store.clearImportBackup();
+  fresh();
+  const q = QB.items.find(x => x.type === 'mcq');
+  Store.record(q.id, true);
+  const raw = JSON.parse(decodeURIComponent(escape(atob(Store.exportData()))));
+  const stamp = Date.now();
+  raw.s.lastExamPaper = {
+    v:999, t:stamp, s:'<img src=x>', n:999, ok:999, blank:999, flagged:999,
+    elapsed:-1, examYear:9999, reformed:'yes', timeLimit:999999,
+    rows:[
+      { id:q.id, number:'<img src=x>', subject:'<svg>', question:{ bad:true },
+        passage:[], explanation:null, tip:42, answered:true,
+        answer:'<img src=x onerror=alert(1)>', correctAnswer:'① 안전한 정답',
+        correct:true, flagged:'yes', recovered:true, reviewCount:-3, reviewedAt:'bad' },
+      { id:q.id, number:2, question:'중복 행' },
+      { id:'__proto__', number:3, question:'위험 키' }, null
+    ]
+  };
+  const forged = btoa(unescape(encodeURIComponent(JSON.stringify(raw))));
+
+  ok(Store.importData(forged), '정규화 가능한 진도 코드를 거부함');
+  const paper = Store.lastExamPaper();
+  eq([paper.v,paper.t,paper.s,paper.n,paper.ok,paper.blank,paper.flagged,
+      paper.elapsed,paper.examYear,paper.reformed,paper.timeLimit,paper.rows.length],
+    [100,stamp,'all',100,100,100,100,0,null,false,86400,1], '답안지 상위 필드');
+  const row = paper.rows[0];
+  eq([row.id,row.number,row.subject,row.question,row.answered,row.correct,row.flagged,
+      row.recovered,row.reviewCount,row.reviewedAt],
+    [q.id,1,q.subject,q.q,true,true,false,true,0,null], '답안지 행 허용 필드');
+  eq(row.answer, '<img src=x onerror=alert(1)>', '사용자 답안 텍스트 보존');
+
+  const ui = rd('js/ui.js');
+  ok(/\$\{esc\(r\.number\)\}/.test(ui) && /\$\{esc\(state\)\}/.test(ui),
+    '답안지 상태 문구 HTML 이스케이프 없음');
+  Store.clearImportBackup();
+});
+
 t('이어하기 — 덮어쓰기 전 상태를 자동 백업하고 한 번 되돌린다', () => {
   Store.clearImportBackup();
   fresh();
