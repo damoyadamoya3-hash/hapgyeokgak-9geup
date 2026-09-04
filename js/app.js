@@ -11,6 +11,8 @@
   let pauseStart = 0;        // 해설을 열어둔 시각(FEVER 시간 보정용)
   let timerLeft = 0;         // 자동 저장·복구에 포함할 남은 시간
   let timerDeadline = 0;     // 백그라운드 지연에도 흔들리지 않는 절대 종료 시각
+  const TIMER_ALERTS = [1800, 600, 300, 60, 10];
+  let announcedTimerMarks = new Set();
   let installPrompt = null;  // Chromium 계열 PWA 설치 요청
   let modalReturnFocus = null;
   let examModalReturnFocus = null;
@@ -200,6 +202,7 @@
     const tEl = $('#pb-timer');
     if(S.cfg.timer){
       timerLeft = resumed ? S.resumeTimerLeft : S.cfg.timer;
+      resetTimerAnnouncements(timerLeft);
       timerDeadline = resumed && S.resumeTimerDeadline > 0
         ? S.resumeTimerDeadline
         : Date.now() + timerLeft * 1000;
@@ -207,7 +210,10 @@
       tEl.classList.remove('hidden');
       tEl.querySelector('b').textContent = fmt(timerLeft);
       if(timerLeft > 0) timerId = setInterval(() => syncTimer(true), 500);
-    } else { timerLeft = 0; timerDeadline = 0; tEl.classList.add('hidden'); }
+    } else {
+      timerLeft = 0; timerDeadline = 0; resetTimerAnnouncements(0);
+      tEl.classList.add('hidden');
+    }
 
     // 이전 판의 실제 풀이 보상과 이번 판의 예약 부스터를 함께 안내한다.
     if(!resumed){
@@ -236,6 +242,31 @@
     }
   }
   function fmt(s){ return s >= 60 ? `${(s/60)|0}:${String(s%60).padStart(2,'0')}` : s; }
+  function timerSpoken(seconds){
+    const total = Math.max(0, Math.ceil(Number(seconds) || 0));
+    const minutes = Math.floor(total / 60), rest = total % 60;
+    if(minutes && rest) return `${minutes}분 ${rest}초`;
+    return minutes ? `${minutes}분` : `${rest}초`;
+  }
+  function crossedTimerMilestones(before, after){
+    const from = Math.max(0, Math.ceil(Number(before) || 0));
+    const to = Math.max(0, Math.ceil(Number(after) || 0));
+    if(to >= from) return [];
+    return TIMER_ALERTS.filter(mark => from > mark && to <= mark);
+  }
+  function resetTimerAnnouncements(start){
+    const first = Math.max(0, Math.ceil(Number(start) || 0));
+    announcedTimerMarks = new Set(TIMER_ALERTS.filter(mark => mark >= first));
+    $('#timer-alert').textContent = '';
+  }
+  function updateTimerAccessibility(timerEl, before){
+    timerEl.setAttribute('aria-label', `남은 시간 ${timerSpoken(timerLeft)}`);
+    const crossed = crossedTimerMilestones(before, timerLeft)
+      .filter(mark => !announcedTimerMarks.has(mark));
+    crossed.forEach(mark => announcedTimerMarks.add(mark));
+    if(crossed.length && timerLeft > 0)
+      $('#timer-alert').textContent = `남은 시간 ${timerSpoken(timerLeft)}`;
+  }
   function stopTimer(){
     if(timerId){ clearInterval(timerId); timerId = null; }
     timerDeadline = 0;
@@ -262,6 +293,7 @@
     const tEl = $('#pb-timer');
     tEl.querySelector('b').textContent = fmt(timerLeft);
     tEl.classList.toggle('warn', timerLeft <= 10);
+    updateTimerAccessibility(tEl, before);
     if(timerLeft <= 0 && finishExpired){
       stopTimer(); S.reason = 'time'; end(); return true;
     }
@@ -1131,5 +1163,6 @@
     UI.setGuideHandler(guideStep);
     wire(); boot();
   });
-  window.__app = { start, feedbackShortcutAllowed, get session(){ return S; } };
+  window.__app = { start, feedbackShortcutAllowed, timerSpoken, crossedTimerMilestones,
+    get session(){ return S; } };
 })();

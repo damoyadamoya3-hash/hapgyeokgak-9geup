@@ -96,6 +96,23 @@ t('타이머 — 해설을 읽은 시간만큼 종료 시각을 뒤로 민다', 
   eq(Engine.timerRemaining(extended, 0, now + 23500), 50, '재개 후 남은 시간');
 });
 
+t('접근성 — 타이머를 자연어로 읽고 건너뛴 경고 시점도 놓치지 않는다', () => {
+  const sandbox = {
+    UI:{ $(){}, $$(){} },
+    document:{ addEventListener(){} }
+  };
+  sandbox.window = sandbox;
+  vm.runInNewContext(rd('js/app.js'), sandbox);
+  eq([
+    sandbox.__app.timerSpoken(600),
+    sandbox.__app.timerSpoken(65),
+    sandbox.__app.timerSpoken(9)
+  ], ['10분', '1분 5초', '9초'], '남은 시간 읽기');
+  eq(sandbox.__app.crossedTimerMilestones(1900, 250), [1800, 600, 300],
+    '백그라운드 복귀 경고');
+  eq(sandbox.__app.crossedTimerMilestones(600, 599), [], '이미 지난 경계 중복 경고');
+});
+
 t('성능 — AI 테트리스 종료가 예약된 투하·렌더 작업을 모두 멈춘다', () => {
   childProcess.execFileSync(process.execPath, [path.join(ROOT, 'tools', 'test-tetris.js')],
     { stdio:'pipe' });
@@ -206,6 +223,21 @@ t('접근성 — 핵심 진도 막대와 막대형 통계를 수치와 설명으
     '부팅·보스 체력의 실제 값이 접근성 정보와 동기화되지 않음');
   ok(/aria-hidden="true"/.test(html.match(/<div id="fever-wrap"[^>]*>/)[0]),
     '장식용 FEVER 막대가 읽힘');
+});
+
+t('접근성 — 제한시간과 남은 기회를 화면을 보지 않고도 파악한다', () => {
+  const html = rd('index.html'), ui = rd('js/ui.js'), app = rd('js/app.js');
+  ok(/id="pb-timer"[^>]+role="timer"[^>]+aria-label="남은 시간/.test(html),
+    '타이머 이름·역할 없음');
+  ok(/id="timer-alert"[^>]+role="status"[^>]+aria-live="polite"/.test(html),
+    '타이머 경고 라이브 영역 없음');
+  ok(/id="pb-hearts"[^>]+role="status"[^>]+aria-live="polite"/.test(html),
+    '남은 기회 라이브 영역 없음');
+  ok(/heartEl\.dataset\.state !== heartText/.test(ui) &&
+     /<span aria-hidden="true">\$\{visual\}<\/span><span class="sr-only">\$\{heartText\}<\/span>/.test(ui),
+    '하트 이모지의 텍스트 대안 또는 중복 알림 방지 없음');
+  ok(/updateTimerAccessibility\(tEl, before\)/.test(app),
+    '표시 타이머와 접근성 값이 동기화되지 않음');
 });
 
 t('접근성 — 해설의 Enter·Space가 포커스된 버튼을 가로채지 않는다', () => {

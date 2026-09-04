@@ -1101,8 +1101,18 @@ const UI = (() => {
     }
 
     // 하트
-    $('#pb-hearts').innerHTML = cfg.hearts
-      ? '❤️'.repeat(Math.max(S.hearts,0)) + '🖤'.repeat(Math.max(cfg.hearts - S.hearts, 0)) : '';
+    const heartEl = $('#pb-hearts');
+    const totalHearts = Math.max(0, Math.floor(Number(cfg.hearts) || 0));
+    const hearts = Math.min(totalHearts, Math.max(0, Math.floor(Number(S.hearts) || 0)));
+    const heartText = totalHearts ? `남은 기회 ${hearts}/${totalHearts}` : '';
+    // 같은 상태로 다음 문제를 그릴 때마다 라이브 영역을 다시 읽지 않는다.
+    if(heartEl.dataset.state !== heartText){
+      heartEl.dataset.state = heartText;
+      if(heartText){
+        const visual = '❤️'.repeat(hearts) + '🖤'.repeat(totalHearts - hearts);
+        heartEl.innerHTML = `<span aria-hidden="true">${visual}</span><span class="sr-only">${heartText}</span>`;
+      }else heartEl.textContent = '';
+    }
 
     // 콤보
     const cb = $('#combo-badge');
