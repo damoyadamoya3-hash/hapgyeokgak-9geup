@@ -4,6 +4,7 @@
 const Store = (() => {
   const KEY = 'hapgyeokgak9_v1';
   const BACKUP_KEY = 'hapgyeokgak9_import_backup_v1';
+  const CORRUPT_KEY = 'hapgyeokgak9_corrupt_backup_v1';
   const LEASE_KEY = 'hapgyeokgak9_learning_lease_v1';
   const DEVICE_KEY = 'hapgyeokgak9_device_v1';
   const LEASE_TTL = 45000;
@@ -83,13 +84,46 @@ const Store = (() => {
     }
   };
 
+  let saveBroken = false;
+  let lastSaveError = null;
+  let onSaveFail = null;
+  let protectUnreadable = false;
+  let loadIssue = readCorruptBackup();
   let S = load();
 
-  function load(){
+  function readCorruptBackup(){
     try{
-      const raw = localStorage.getItem(KEY);
-      if(!raw) return structuredClone(DEFAULT);
+      const saved = JSON.parse(localStorage.getItem(CORRUPT_KEY));
+      if(!saved || saved.v !== 1 || typeof saved.raw !== 'string' || !saved.raw) return null;
+      return {
+        savedAt:Number.isFinite(Number(saved.savedAt)) ? Number(saved.savedAt) : 0,
+        bytes:saved.raw.length, backedUp:true, protected:false
+      };
+    }catch(e){ return null; }
+  }
+
+  function preserveCorrupt(raw){
+    try{
+      const savedAt = Date.now();
+      localStorage.setItem(CORRUPT_KEY, JSON.stringify({ v:1, savedAt, raw }));
+      const check = JSON.parse(localStorage.getItem(CORRUPT_KEY));
+      return check && check.v === 1 && check.raw === raw ? savedAt : 0;
+    }catch(e){ return 0; }
+  }
+
+  function load(){
+    let raw = null;
+    try{
+      raw = localStorage.getItem(KEY);
+      if(!raw){
+        if(protectUnreadable){
+          protectUnreadable = false; saveBroken = false; lastSaveError = null;
+          loadIssue = readCorruptBackup();
+        }
+        return structuredClone(DEFAULT);
+      }
       const p = JSON.parse(raw);
+      if(!p || typeof p !== 'object' || Array.isArray(p)) throw new Error('Invalid progress root');
       const merged = Object.assign(structuredClone(DEFAULT), p);
 
       // settings 는 얕은 병합이면 통째로 덮여 새로 추가된 항목의 기본값이
@@ -97,8 +131,54 @@ const Store = (() => {
       // 못 쓰게 되므로 한 겹 더 병합한다.
       merged.settings = Object.assign(structuredClone(DEFAULT.settings), p.settings || {});
       merged.daily    = Object.assign(structuredClone(DEFAULT.daily),    p.daily    || {});
+      if(protectUnreadable){
+        protectUnreadable = false; saveBroken = false; lastSaveError = null;
+        loadIssue = readCorruptBackup();
+      }
       return merged;
-    }catch(e){ return structuredClone(DEFAULT); }
+    }catch(e){
+      // 파싱할 수 없는 원본을 빈 진도로 조용히 덮어쓰지 않는다. 별도 키에
+      // 복제하지 못한 경우에는 현재 키 쓰기 자체를 막아 원본을 지킨다.
+      if(typeof raw === 'string' && raw){
+        const savedAt = preserveCorrupt(raw);
+        protectUnreadable = !savedAt;
+        loadIssue = {
+          savedAt:savedAt || Date.now(), bytes:raw.length,
+          backedUp:!!savedAt, protected:protectUnreadable
+        };
+        if(protectUnreadable){ saveBroken = true; lastSaveError = e; }
+      }
+      return structuredClone(DEFAULT);
+    }
+  }
+
+  function corruptInfo(){ return loadIssue ? { ...loadIssue } : null; }
+  function corruptRaw(){
+    try{
+      if(protectUnreadable) return localStorage.getItem(KEY) || '';
+      const saved = JSON.parse(localStorage.getItem(CORRUPT_KEY));
+      return saved && saved.v === 1 && typeof saved.raw === 'string' ? saved.raw : '';
+    }catch(e){ return ''; }
+  }
+  function clearCorruptBackup(){
+    if(protectUnreadable) return false;
+    try{
+      localStorage.removeItem(CORRUPT_KEY);
+      loadIssue = null;
+      return true;
+    }catch(e){ return false; }
+  }
+  function startFreshAfterCorruption(){
+    if(!protectUnreadable) return false;
+    const issue = loadIssue;
+    protectUnreadable = false;
+    if(save()){
+      loadIssue = readCorruptBackup();
+      return true;
+    }
+    protectUnreadable = true;
+    loadIssue = issue;
+    return false;
   }
 
   /* storage 이벤트를 받은 대기 탭은 메모리에 남은 오래된 상태를 버리고
@@ -152,9 +232,19 @@ const Store = (() => {
   /* 저장 실패를 조용히 삼키면 하루 종일 공부한 것이 사라졌다는 사실을
      아무도 모른 채 창을 닫게 된다. 눈에 보이는 오류보다 나쁘다.
      저장 공간이 꽉 찼거나 시크릿 모드일 때 실제로 일어난다. */
-  let saveBroken = false;
-  let onSaveFail = null;
-  function onSaveError(fn){ onSaveFail = fn; }
+  function onSaveError(fn){
+    onSaveFail = fn;
+    if(onSaveFail && saveBroken) try{ onSaveFail(lastSaveError); }catch(e){}
+  }
+
+  function failSave(error){
+    lastSaveError = error;
+    if(!saveBroken){
+      saveBroken = true;
+      if(onSaveFail) try{ onSaveFail(error); }catch(e){}
+    }
+    return false;
+  }
 
   const REWARD_ITEMS = ['hint','heart','boost'];
   const rewardInt = (v, max = 1000000000) =>
@@ -452,12 +542,14 @@ const Store = (() => {
   }
 
   function save(){
+    if(protectUnreadable) return failSave(lastSaveError || new Error('Unreadable progress is protected'));
     prune();
     captureRewardDrift();
     captureStudyDrift();
     try{
       localStorage.setItem(KEY, JSON.stringify(S));
       saveBroken = false;
+      lastSaveError = null;
       return true;
     }catch(e){
       // 오래된 기록을 버리고 한 번 더 시도한다
@@ -471,13 +563,10 @@ const Store = (() => {
         captureStudyDrift();
         localStorage.setItem(KEY, JSON.stringify(S));
         saveBroken = false;
+        lastSaveError = null;
         return true;
       }catch(e2){
-        if(!saveBroken){            // 한 세션에 한 번만 알린다
-          saveBroken = true;
-          if(onSaveFail) try{ onSaveFail(e2); }catch(e3){}
-        }
-        return false;
+        return failSave(e2);        // 한 세션에 한 번만 알린다
       }
     }
   }
@@ -2056,7 +2145,7 @@ const Store = (() => {
   function reset(){ S = structuredClone(DEFAULT); save(); }
 
   return {
-    DATA_KEY:KEY, LEASE_KEY, LEASE_TTL,
+    DATA_KEY:KEY, CORRUPT_KEY, LEASE_KEY, LEASE_TTL,
     get s(){ return S; }, save, levelInfo, title, addXp, addCoin,
     record, dueCards, wrongCards, unitResult, subjectProgress,
     markRead, markDrill, readCount, recentDays, unitStats, recentPerformance, summary, INTERVAL, nextCard,
@@ -2070,6 +2159,7 @@ const Store = (() => {
     hasImportBackup, backupInfo, restoreImportBackup, clearImportBackup,
     reset, resetWithBackup, reload, claimLease, touchLease, ownsLease, releaseLease, today, dateKey,
     saveSession, restoreSession, sessionInfo, clearSession,
+    corruptInfo, corruptRaw, clearCorruptBackup, startFreshAfterCorruption,
     onSaveError, get saveBroken(){ return saveBroken; },
     exportPacked, unpack, CAN_ZIP
   };

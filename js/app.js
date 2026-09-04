@@ -21,6 +21,7 @@
     ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   let leaseTimer = null;
   let leaseLost = false;
+  let corruptWarned = false;
 
   /* 해설이 열린 동안 Enter/Space는 빠른 '다음' 키로 쓴다. 다만 사용자가
      Tab으로 북마크·이론·다음 버튼에 도착했다면 그 버튼의 기본 동작을
@@ -37,6 +38,10 @@
     '문제 은행 여는 중…', '기출문제 정렬 중…', '한능검 연표 펼치는 중…',
     '판례 골렘 깨우는 중…', '합격 기운 충전 중…'
   ];
+  function finishBoot(){
+    UI.home(); refreshResumeCard(); UI.show('scr-home');
+    warnCorruptProgress();
+  }
   function boot(){
     applyTheme();
     applyMotionPreference();
@@ -53,7 +58,7 @@
       fill.style.width = '100%';
       msg.textContent = '준비 완료';
       UI.setProgress(fill.parentElement, '앱 준비', 100, 100, '준비 완료');
-      UI.home(); refreshResumeCard(); UI.show('scr-home');
+      finishBoot();
       return;
     }
     const t0 = performance.now();
@@ -66,7 +71,7 @@
         `${Math.round(k * 100)}% · ${msg.textContent}`);
       if(k < 1) requestAnimationFrame(step);
       else{
-        setTimeout(() => { UI.home(); refreshResumeCard(); UI.show('scr-home'); }, 90);
+        setTimeout(finishBoot, 90);
       }
     };
     requestAnimationFrame(step);
@@ -80,7 +85,29 @@
 
   /* 저장이 안 되면 반드시 알려야 한다. 모르고 계속 풀면 그 시간이 통째로
      날아간다. 진도를 옮겨 둘 방법(계정 화면의 코드)까지 함께 안내한다. */
+  function warnCorruptProgress(){
+    const issue = Store.corruptInfo();
+    if(!issue || corruptWarned) return;
+    corruptWarned = true;
+    Fx.toast(issue.protected
+      ? '⚠️ 이전 진도를 읽지 못해 원본을 덮어쓰지 않고 보호 중입니다'
+      : '⚠️ 읽지 못한 이전 진도 원본을 별도 보관했습니다', false, 7000);
+    setTimeout(() => {
+      if(confirm('브라우저에 저장된 이전 진도를 읽지 못했습니다.\n\n'
+               + (issue.protected
+                 ? '원본을 덮어쓰지 않도록 새 진도 저장을 멈췄습니다.\n'
+                 : '손상 원본은 별도 보관되어 새 진도에 덮이지 않습니다.\n')
+               + '지금 계정 화면에서 원본을 복사해 보관할까요?')){
+        UI.sync(() => { applyTheme(); UI.home(); refreshResumeCard(); });
+      }
+    }, 600);
+  }
+
   function warnSaveFailed(){
+    if(Store.corruptInfo() && Store.corruptInfo().protected){
+      warnCorruptProgress();
+      return;
+    }
     Fx.toast('⚠️ 진도가 저장되지 않고 있어요 — 저장 공간이 찼거나 시크릿 모드입니다', false, 6000);
     setTimeout(() => {
       if(confirm('브라우저에 진도를 저장할 수 없습니다.\n\n'

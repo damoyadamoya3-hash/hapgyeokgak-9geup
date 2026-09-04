@@ -67,6 +67,21 @@ function eq(actual, expected, what){
 function ok(cond, what){ if(!cond) throw new Error(what || '거짓'); }
 const shift = d => new Date(Date.now() + d * 864e5).toISOString().slice(0, 10);
 function fresh(){ Store.reset(); Store.s.xp = 0; Store.s.coin = 0; Store.save(); }
+function isolatedStore(raw, failCorruptBackup = false){
+  const rows = { hapgyeokgak9_v1:raw };
+  const local = {
+    getItem:key => (key in rows ? rows[key] : null),
+    setItem(key, value){
+      if(failCorruptBackup && key === 'hapgyeokgak9_corrupt_backup_v1')
+        throw new Error('QuotaExceededError');
+      rows[key] = String(value);
+    },
+    removeItem:key => { delete rows[key]; }
+  };
+  const sandbox = { localStorage:local, matchMedia:() => ({ matches:false }), structuredClone };
+  vm.runInNewContext(rd('js/store.js') + ';globalThis.IsolatedStore = Store;', sandbox);
+  return { rows, api:sandbox.IsolatedStore };
+}
 
 /* ── 현지 날짜 ───────────────────────────────────────────── */
 t('날짜 — 한국 자정 직후를 전날로 기록하지 않는다', () => {
@@ -2039,6 +2054,39 @@ t('이어하기 — 이전 버전의 포장 없는 백업도 복구한다', () =
 });
 
 /* ── 저장 ────────────────────────────────────────────────── */
+t('저장 복구 — 읽지 못한 진도 원본을 별도 보관한 뒤 새 저장을 시작한다', () => {
+  const damaged = '{"xp":420,"cards":{"kor-001":';
+  const { rows, api } = isolatedStore(damaged);
+  const info = api.corruptInfo();
+  eq([api.s.totalAnswered, info.backedUp, info.protected, info.bytes],
+    [0,true,false,damaged.length], '손상 원본 보관 상태');
+  eq(api.corruptRaw(), damaged, '보관한 원본');
+  ok(api.save(), '별도 보관 뒤 새 진도 저장 실패');
+  eq(JSON.parse(rows[api.DATA_KEY]).totalAnswered, 0, '새 진도 저장본');
+  ok(api.clearCorruptBackup(), '사용자가 확인한 보관본 정리 실패');
+  eq(api.corruptInfo(), null, '정리한 보관본이 계속 표시됨');
+
+  const ui = rd('js/ui.js'), app = rd('js/app.js');
+  ok(/sync-corrupt-copy/.test(ui) && /Store\.startFreshAfterCorruption/.test(ui),
+    '손상 원본 복사·새 진도 전환 UI 없음');
+  ok(/warnCorruptProgress/.test(app) && /Store\.corruptInfo/.test(app),
+    '부팅 시 손상 진도 안내 없음');
+});
+
+t('저장 복구 — 손상 원본을 복제하지 못하면 명시적 전환 전까지 덮어쓰지 않는다', () => {
+  const damaged = '{"totalAnswered":77';
+  const { rows, api } = isolatedStore(damaged, true);
+  let told = 0;
+  api.onSaveError(() => told++);
+  const before = rows[api.DATA_KEY];
+  eq([api.corruptInfo().backedUp, api.corruptInfo().protected, api.save()],
+    [false,true,false], '원본 보호 상태');
+  eq(rows[api.DATA_KEY], before, '보호 중인 원본을 덮어씀');
+  eq(told, 1, '보호 경고 횟수');
+  ok(api.startFreshAfterCorruption(), '명시적 새 진도 전환 실패');
+  ok(JSON.parse(rows[api.DATA_KEY]).cards, '전환 뒤 정상 진도 저장 없음');
+});
+
 t('저장 — 실패하면 알리고, 앱은 계속 돈다', () => {
   fresh();
   let told = 0;

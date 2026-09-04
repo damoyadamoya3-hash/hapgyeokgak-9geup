@@ -401,6 +401,8 @@ const UI = (() => {
     const cards = Object.keys(Store.s.cards).length;
     const lv = Store.levelInfo(Store.s.xp);
     const backup = Store.backupInfo();
+    const corrupt = Store.corruptInfo();
+    const corruptRaw = corrupt ? Store.corruptRaw() : '';
     const code = Store.exportData();   // 압축본이 준비될 때까지 보여 줄 임시본
     const copyStatusText = info => {
       if(!Store.s.totalAnswered) return '아직 복사할 학습 진도가 없습니다.';
@@ -412,6 +414,20 @@ const UI = (() => {
     const copyInfo = Store.progressCopyInfo();
 
     $('#sync-body').innerHTML = `
+      ${corrupt ? `<div class="sync-card">
+        <h3 class="sync-h">⚠️ 읽지 못한 이전 진도 원본</h3>
+        <p class="sync-note">${corrupt.protected
+          ? '저장 공간에 별도 복사하지 못해 원래 저장 키를 덮어쓰지 않고 보호 중입니다. 원본을 밖에 보관하기 전에는 새 진도가 저장되지 않습니다.'
+          : '읽기 오류가 난 원본을 별도 저장소에 보관했습니다. 아래 내용을 복사해 두면 점검이나 수동 복구에 사용할 수 있습니다.'}
+          (${Math.max(1, Math.ceil(corrupt.bytes / 1024)).toLocaleString()}KB)</p>
+        <textarea id="sync-corrupt-out" class="sync-box" readonly rows="3"
+                  aria-label="읽지 못한 이전 진도 원본">${esc(corruptRaw)}</textarea>
+        <button class="btn-primary" id="sync-corrupt-copy">📋 손상 원본 복사</button>
+        ${corrupt.protected
+          ? '<button class="btn-ghost" id="sync-corrupt-fresh">복사 후 새 진도 저장 시작</button>'
+          : '<button class="btn-ghost" id="sync-corrupt-clear">보관본 지우기</button>'}
+      </div>` : ''}
+
       <div class="sync-card">
         <label class="sync-lab" for="sync-nick">이름표</label>
         <input id="sync-nick" class="sync-nick" maxlength="12" placeholder="예: 지훈"
@@ -458,7 +474,41 @@ const UI = (() => {
       <p class="sync-foot">
         이 사이트는 서버 없이 기기 안에서만 돌아갑니다. 그래서 진도도 기기에 남습니다.
         코드는 그 진도를 통째로 옮기는 열쇠이니, 시험 전까지 한 번쯤 따로 보관해 두세요.
-      </p>`;
+        </p>`;
+
+    const corruptCopy = $('#sync-corrupt-copy');
+    if(corruptCopy) corruptCopy.addEventListener('click', () => {
+      const ta = $('#sync-corrupt-out');
+      ta.select(); ta.setSelectionRange(0, ta.value.length);
+      const done = () => Fx.toast('손상 원본을 복사했어요. 메모 등에 붙여 넣어 보관하세요', true, 3200);
+      const manual = () => Fx.toast('자동 복사에 실패했어요. 원본을 길게 눌러 직접 복사해 주세요', false, 3600);
+      const fallback = () => {
+        try{ if(document.execCommand('copy')) done(); else manual(); }
+        catch(e){ manual(); }
+      };
+      if(navigator.clipboard && typeof navigator.clipboard.writeText === 'function')
+        navigator.clipboard.writeText(ta.value).then(done, fallback);
+      else fallback();
+    });
+
+    const corruptClear = $('#sync-corrupt-clear');
+    if(corruptClear) corruptClear.addEventListener('click', () => {
+      if(!confirm('별도 보관된 손상 원본을 지울까요?\n\n필요하다면 먼저 위 내용을 복사해 두세요.')) return;
+      if(!Store.clearCorruptBackup()) return Fx.toast('보관본을 지우지 못했어요 😢');
+      Fx.toast('손상 원본 보관본을 지웠어요', true, 2200);
+      sync(onChange);
+    });
+
+    const corruptFresh = $('#sync-corrupt-fresh');
+    if(corruptFresh) corruptFresh.addEventListener('click', () => {
+      if(!confirm('손상 원본을 다른 곳에 붙여 넣어 보관했나요?\n\n'
+                + '현재 브라우저의 읽지 못한 원본을 새 진도로 바꿉니다. 이 작업은 되돌릴 수 없습니다.')) return;
+      if(!Store.startFreshAfterCorruption())
+        return Fx.toast('새 진도를 안전하게 저장하지 못했어요. 원본은 그대로 보호 중입니다 😢', false, 3800);
+      Fx.toast('새 진도 저장을 시작했어요', true, 2400);
+      onChange && onChange();
+      sync(onChange);
+    });
 
     $('#sync-nick').addEventListener('change', e => {
       Store.s.nick = e.target.value.trim().slice(0, 12);
