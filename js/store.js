@@ -89,7 +89,7 @@ const Store = (() => {
   let onSaveFail = null;
   let protectUnreadable = false;
   let loadIssue = readCorruptBackup();
-  let S = load();
+  let S = null;
 
   function readCorruptBackup(){
     try{
@@ -123,14 +123,11 @@ const Store = (() => {
         return structuredClone(DEFAULT);
       }
       const p = JSON.parse(raw);
-      if(!p || typeof p !== 'object' || Array.isArray(p)) throw new Error('Invalid progress root');
-      const merged = Object.assign(structuredClone(DEFAULT), p);
-
-      // settings 는 얕은 병합이면 통째로 덮여 새로 추가된 항목의 기본값이
-      // 사라진다. 예전에 저장한 사용자가 새 기능(BGM·테트리스 등)을
-      // 못 쓰게 되므로 한 겹 더 병합한다.
-      merged.settings = Object.assign(structuredClone(DEFAULT.settings), p.settings || {});
-      merged.daily    = Object.assign(structuredClone(DEFAULT.daily),    p.daily    || {});
+      // JSON 문법만 맞는다고 신뢰하지 않는다. 앱이 쓰는 필드와 자료형만
+      // 새 객체에 옮겨, null 지도·문자열 배열·위험한 키가 화면과 통계를
+      // 깨뜨리지 않게 한다. 기기 로컬 정보와 진행 중 세션은 따로 보존한다.
+      const merged = cleanSnapshot(p, true, true);
+      if(!merged) throw new Error('Invalid progress structure');
       if(protectUnreadable){
         protectUnreadable = false; saveBroken = false; lastSaveError = null;
         loadIssue = readCorruptBackup();
@@ -1628,9 +1625,21 @@ const Store = (() => {
     state.totalCorrect = ok;
   }
 
-  /* 가져오기 코드는 사용자가 직접 붙여 넣는 외부 입력이다. 앱이 만든
-     상태의 핵심 표식과 자료형만 허용하고, 알려진 필드만 새 객체에 옮긴다. */
-  function cleanSnapshot(p, keepSession = false){
+  function cleanActiveSession(v){
+    if(!isMap(v) || !Array.isArray(v.queue) || !v.queue.length ||
+       !v.queue.every(row => Array.isArray(row) && typeof row[0] === 'string')) return null;
+    const out = structuredClone(v);
+    for(const key of ['opt','cfg','studyKinds','examAnswers','examFlags','hints'])
+      out[key] = copyMap(out[key]);
+    for(const key of ['wrongIds','answered','doneTasks'])
+      if(!Array.isArray(out[key])) out[key] = [];
+    if(!isMap(out.streakReward)) out.streakReward = null;
+    return out;
+  }
+
+  /* 저장소와 가져오기 코드는 모두 신뢰 경계다. 상태의 핵심 표식과
+     자료형만 허용하고, 알려진 필드만 새 객체에 옮긴다. */
+  function cleanSnapshot(p, keepSession = false, keepLocal = false){
     if(!isMap(p) || !isMap(p.cards) || !('xp' in p) || !('totalAnswered' in p)) return null;
     const out = structuredClone(DEFAULT);
     const limits = {
@@ -1718,8 +1727,12 @@ const Store = (() => {
       };
     }
     out.lastExamPaper = cleanExamPaper(p.lastExamPaper);
-    out.activeSession = keepSession && isMap(p.activeSession) ? structuredClone(p.activeSession) : null;
+    out.activeSession = keepSession ? cleanActiveSession(p.activeSession) : null;
     recountCards(out);
+    if(keepLocal){
+      out.lastProgressCopyAt = cleanTime(p.lastProgressCopyAt) || 0;
+      out.lastProgressCopyAnswered = Math.min(count(p.lastProgressCopyAnswered), out.totalAnswered);
+    }
     out.studySync = cleanStudySync(p.studySync, out);
     out.lv = levelInfo(out.xp).lv;
     return out;
@@ -1749,7 +1762,7 @@ const Store = (() => {
       // e4ce4c7에서 만든 기존 백업은 상태 객체 자체를 저장했다. 새 포장
       // 형식으로 바뀐 뒤에도 이미 만들어 둔 되돌리기를 잃지 않는다.
       const wrapped = isMap(raw) && raw.v === 1 && isMap(raw.state);
-      const state = cleanSnapshot(wrapped ? raw.state : raw, true);
+      const state = cleanSnapshot(wrapped ? raw.state : raw, true, true);
       if(!state) return null;
       return {
         reason:wrapped && raw.reason === 'reset' ? 'reset' : 'import',
@@ -2143,6 +2156,8 @@ const Store = (() => {
   }
 
   function reset(){ S = structuredClone(DEFAULT); save(); }
+
+  S = load();
 
   return {
     DATA_KEY:KEY, CORRUPT_KEY, LEASE_KEY, LEASE_TTL,

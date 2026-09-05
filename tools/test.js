@@ -1980,6 +1980,9 @@ t('이어하기 — 덮어쓰기 전 상태를 자동 백업하고 한 번 되�
   Store.record(QB.items[1].id, true);
   const sess = Engine.build('quest', { unit:QB.items[2].unit, subject:QB.items[2].subject });
   Store.saveSession(sess, { timerLeft:77 });
+  Store.s.lastProgressCopyAt = 1800000000000;
+  Store.s.lastProgressCopyAnswered = 1;
+  Store.save();
   const before = JSON.stringify(Store.s);
 
   const preview = Store.inspectData(incoming);
@@ -2085,6 +2088,40 @@ t('저장 복구 — 손상 원본을 복제하지 못하면 명시적 전환 �
   eq(told, 1, '보호 경고 횟수');
   ok(api.startFreshAfterCorruption(), '명시적 새 진도 전환 실패');
   ok(JSON.parse(rows[api.DATA_KEY]).cards, '전환 뒤 정상 진도 저장 없음');
+});
+
+t('저장 복구 — 문법이 맞아도 손상된 내부 구조는 허용 필드만 다시 구성한다', () => {
+  const id = QB.items[0].id;
+  const copiedAt = 1800000000000;
+  const raw = {
+    xp:'35.9', totalAnswered:999,
+    cards:{
+      [id]:{ n:999, ok:'2', ng:1, box:999, due:'잘못된 날짜', last:'2026-02-30' },
+      constructor:{ n:999, ok:999, ng:0, box:6, due:'2026-09-05' }
+    },
+    units:null, readCards:'잘못된 지도',
+    dayStats:{ '잘못된 날짜':{ n:100, ok:100 }, '2026-09-05':{ n:'4', ok:9 } },
+    answerLog:[null, { t:copiedAt, id, ok:true }], examLog:'잘못된 배열',
+    playedDays:['2026-09-05','잘못된 날짜'], marks:{ constructor:true },
+    inv:{ hint:'7', heart:-3, boost:'잘못된 수' },
+    settings:{ dark:true, sound:'문자열' }, daily:{ date:'잘못된 날짜', tasks:'잘못된 배열' },
+    lastProgressCopyAt:copiedAt, lastProgressCopyAnswered:2,
+    activeSession:{ v:3, queue:[null], wrongIds:{}, hints:'잘못된 지도' }
+  };
+  const { api } = isolatedStore(JSON.stringify(raw));
+  const card = api.s.cards[id];
+  eq([api.s.xp, api.s.totalAnswered, api.s.totalCorrect, card.n, card.ok, card.ng, card.box],
+    [35,3,2,3,2,1,6], '숫자·문항 기록 정규화');
+  eq([Object.keys(api.s.cards), api.s.dayStats['2026-09-05'], api.s.settings.dark,
+      api.s.settings.sound, api.s.inv, api.s.activeSession],
+    [[id],{ n:4, ok:4 },true,true,{ hint:7, heart:0, boost:0 },null],
+    '지도·배열·설정 정규화');
+  eq([api.s.lastProgressCopyAt, api.s.lastProgressCopyAnswered, api.corruptInfo()],
+    [copiedAt,2,null], '기기 로컬 보관 시점 유지');
+
+  const invalid = isolatedStore(JSON.stringify({ xp:3, totalAnswered:0, cards:null })).api;
+  ok(invalid.corruptInfo() && invalid.corruptInfo().backedUp,
+    '핵심 구조가 없는 저장값을 정상 진도로 오인');
 });
 
 t('저장 — 실패하면 알리고, 앱은 계속 돈다', () => {
