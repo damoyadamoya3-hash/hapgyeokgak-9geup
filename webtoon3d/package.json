@@ -1,0 +1,23 @@
+{
+  "name": "webtoon3d",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "웹캠 헤드 트래킹 + Off-Axis Projection 기반 웹툰 입체 뷰어",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^4.2.0",
+    "@mediapipe/tasks-vision": "^0.10.22",
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.185.4",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.9"
+  }
+}
