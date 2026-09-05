@@ -271,6 +271,66 @@ t('접근성 — 해설의 Enter·Space가 포커스된 버튼을 가로채지 �
   ok(/feedbackShortcutAllowed\(e\.target\)/.test(rd('js/app.js')), '키 입력 경로에 판별 함수가 연결되지 않음');
 });
 
+/* 실제 키 입력 핸들러를 실행해 답안 클릭과 기본 동작 취소를 함께 본다. */
+function keyboardHarness(){
+  const state = { active:true, modal:false, feedback:false, clicked:[] };
+  const choices = [0,1,2,3].map(i => ({ click(){ state.clicked.push(i); } }));
+  const sandbox = {
+    UI:{ $(selector){
+      if(selector === '#scr-play') return { classList:{ contains:() => state.active } };
+      if(selector === '.modal:not(.hidden)') return state.modal ? {} : null;
+      if(selector === '#feedback') return { classList:{ contains:() => !state.feedback } };
+      if(selector === '#q-choices') return { children:choices };
+    }, $$(){} },
+    document:{ addEventListener(){} }
+  };
+  sandbox.window = sandbox;
+  vm.runInNewContext(rd('js/app.js'), sandbox);
+  function key(key, extra = {}){
+    const event = { key, target:{ closest:() => null }, prevented:false,
+      preventDefault(){ this.prevented = true; }, ...extra };
+    sandbox.__app.handleLearningKeydown(event);
+    return event.prevented;
+  }
+  return { state, choices, key };
+}
+
+t('키보드 — 설정·다른 화면·입력 컨트롤에서 답안을 선택하지 않는다', () => {
+  const { state, key } = keyboardHarness();
+  state.modal = true;
+  for(const k of ['1','ArrowLeft','Enter','Backspace','f']) eq(key(k), false, '모달 기본 동작');
+  state.modal = false; state.active = false;
+  eq(key('1'), false, '다른 화면');
+  state.active = true;
+  for(const k of ['1','ArrowRight','Enter','Backspace','f'])
+    eq(key(k, { target:{ closest:() => ({}) } }), false, '컨트롤 기본 동작');
+  eq(state.clicked, [], '배경 답안 변경');
+});
+
+t('키보드 — 조합키·한글 조합·키 반복·이미 처리된 입력은 건너뛴다', () => {
+  const { state, key } = keyboardHarness();
+  for(const extra of [{ctrlKey:true},{altKey:true},{metaKey:true},{isComposing:true},
+                      {keyCode:229},{repeat:true},{defaultPrevented:true}])
+    eq(key('1', extra), false, '입력 격리');
+  state.feedback = true;
+  eq(key('Enter', { repeat:true }), false, '길게 누른 Enter의 다음 문제 건너뛰기');
+  eq(state.clicked, [], '우발적인 답안 선택');
+});
+
+t('키보드 — 읽기 영역의 숫자·OX·방향키는 한 번 선택하고 스크롤을 막는다', () => {
+  const { state, choices, key } = keyboardHarness();
+  for(const k of ['1','4','O','X','ArrowLeft','ArrowRight'])
+    eq(key(k), true, '풀이 키 기본 동작 취소');
+  eq(state.clicked, [0,3,0,1,0,1], '선택지 대응');
+  choices[0].disabled = true;
+  eq(key('1'), false, '비활성 답안');
+  eq(key('5'), false, '없는 답안');
+  eq(key('Tab'), false, '기본 포커스 이동');
+  state.feedback = true;
+  eq(key('2'), false, '해설 중 재채점 방지');
+  eq(state.clicked, [0,3,0,1,0,1], '추가 채점 없음');
+});
+
 /* ── 진행 중 세션 복구 ───────────────────────────────────── */
 t('세션 복구 — 문제 순서·선택지·점수를 그대로 되살린다', () => {
   fresh();

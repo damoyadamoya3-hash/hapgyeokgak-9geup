@@ -29,8 +29,43 @@
   function feedbackShortcutAllowed(target){
     if(!target || typeof target.closest !== 'function') return true;
     return !target.closest(
-      'button,a,input,select,textarea,summary,[contenteditable="true"],[role="button"],[role="link"]'
+      'button,a,input,select,textarea,summary,[contenteditable]:not([contenteditable="false"]),[role="button"],[role="link"],[role="textbox"]'
     );
+  }
+
+  /* 문서 전체에서 받는 풀이 단축키는 읽기 영역에만 적용한다. 설정의
+     날짜 입력, 버튼의 Enter, 브라우저 조합키와 한글 입력을 가로채면
+     사용자가 의도하지 않은 답안 선택·삭제·이동이 일어날 수 있다. */
+  function handleLearningKeydown(e){
+    if(e.defaultPrevented || e.isComposing || e.keyCode === 229 || e.repeat ||
+       e.ctrlKey || e.altKey || e.metaKey) return;
+    if(!$('#scr-play').classList.contains('active')) return;
+    if($('.modal:not(.hidden)')) return;
+    if(!feedbackShortcutAllowed(e.target)) return;
+    const fbOpen = !$('#feedback').classList.contains('hidden');
+    if(fbOpen && (e.key === 'Enter' || e.key === ' ')){
+      e.preventDefault(); next(); return;
+    }
+    if(fbOpen) return;
+    const box = $('#q-choices');
+    if(S && S.mode === 'exam'){
+      if(e.key === 'ArrowLeft'){ e.preventDefault(); examMove(-1); }
+      else if(e.key === 'ArrowRight'){ e.preventDefault(); examMove(1); }
+      else if(e.key === 'Enter'){ e.preventDefault(); openExamSheet(); }
+      else if(e.key === 'f' || e.key === 'F'){ e.preventDefault(); toggleExamFlag(); }
+      else if(e.key === 'Delete' || e.key === 'Backspace'){ e.preventDefault(); clearExamAnswer(); }
+      else if(/^[1-5]$/.test(e.key)){ pick(+e.key - 1); }
+      return;
+    }
+    if(e.key === 'o' || e.key === 'O' || e.key === 'ArrowLeft') pick(0);
+    else if(e.key === 'x' || e.key === 'X' || e.key === 'ArrowRight') pick(1);
+    else if(/^[1-5]$/.test(e.key)) pick(+e.key - 1);
+
+    function pick(index){
+      const choice = box.children[index];
+      if(!choice || choice.disabled) return;
+      e.preventDefault(); choice.click();
+    }
   }
 
   /* ── 부팅 ──────────────────────────────────────────── */
@@ -1011,29 +1046,7 @@
     });
 
     // 키보드 단축키
-    document.addEventListener('keydown', e => {
-      if(!$('#scr-play').classList.contains('active')) return;
-      if(!$('#modal-exam-sheet').classList.contains('hidden')) return;
-      const fbOpen = !$('#feedback').classList.contains('hidden');
-      if(fbOpen && (e.key === 'Enter' || e.key === ' ')){
-        if(!feedbackShortcutAllowed(e.target)) return;
-        e.preventDefault(); next(); return;
-      }
-      if(fbOpen) return;
-      const box = $('#q-choices');
-      if(S && S.mode === 'exam'){
-        if(e.key === 'ArrowLeft'){ e.preventDefault(); examMove(-1); }
-        else if(e.key === 'ArrowRight'){ e.preventDefault(); examMove(1); }
-        else if(e.key === 'Enter'){ e.preventDefault(); openExamSheet(); }
-        else if(e.key === 'f' || e.key === 'F'){ e.preventDefault(); toggleExamFlag(); }
-        else if(e.key === 'Delete' || e.key === 'Backspace'){ e.preventDefault(); clearExamAnswer(); }
-        else if(/^[1-5]$/.test(e.key)){ box.children[+e.key - 1]?.click(); }
-        return;
-      }
-      if(e.key === 'o' || e.key === 'O' || e.key === 'ArrowLeft'){ box.children[0]?.click(); }
-      else if(e.key === 'x' || e.key === 'X' || e.key === 'ArrowRight'){ box.children[1]?.click(); }
-      else if(/^[1-5]$/.test(e.key)){ box.children[+e.key - 1]?.click(); }
-    });
+    document.addEventListener('keydown', handleLearningKeydown);
 
     // OMR 답안지는 타이머를 멈추지 않는 실전 검토 화면이다.
     const examModal = $('#modal-exam-sheet');
@@ -1190,6 +1203,6 @@
     UI.setGuideHandler(guideStep);
     wire(); boot();
   });
-  window.__app = { start, feedbackShortcutAllowed, timerSpoken, crossedTimerMilestones,
+  window.__app = { start, feedbackShortcutAllowed, handleLearningKeydown, timerSpoken, crossedTimerMilestones,
     get session(){ return S; } };
 })();
