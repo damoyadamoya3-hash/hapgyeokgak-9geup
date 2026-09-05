@@ -927,6 +927,45 @@ t('복습 — 같은 날 오답 뒤 바로잡으면 다음 날부터 다시 확�
   eq([Store.s.cards[q.id].box, Store.s.cards[q.id].due], [1,shift(1)], '오답 회복 재예약');
 });
 
+t('복습 — 예정일 전 다른 날에 맞혀도 간격과 예정일을 밀지 않는다', () => {
+  fresh();
+  const q = QB.items[0];
+  Store.s.cards[q.id] = { n:4, ok:4, ng:0, box:4, due:shift(5), last:shift(-2) };
+  Store.save();
+  const due = Store.s.cards[q.id].due;
+  Store.record(q.id, true);
+  const c = Store.s.cards[q.id];
+  eq([c.n,c.ok,c.ng,c.box,c.due,c.last], [5,5,0,4,due,Store.today()], '조기 연습 기록');
+  eq([Store.s.totalAnswered,Store.s.totalCorrect,Store.s.dayStats[Store.today()].n],
+     [1,1,1], '조기 연습 풀이량');
+  ok(!Store.dueCards().includes(q.id), '아직 만기 전');
+});
+
+t('복습 — 매일 조기 연습해도 원래 만기에 한 단계만 승급한다', () => {
+  fresh();
+  const q = QB.items[0];
+  Store.s.cards[q.id] = { n:4, ok:4, ng:0, box:4, due:Store.today(), last:shift(-7) };
+  for(let days = -6; days < 0; days++){
+    Store.record(q.id, true, Date.now() + days * 86400000);
+    eq([Store.s.cards[q.id].box,Store.s.cards[q.id].due], [4,Store.today()], '만기 전 유지');
+  }
+  ok(Store.dueCards().includes(q.id), '조기 연습 후에도 원래 만기에 출제');
+  Store.record(q.id, true);
+  eq([Store.s.cards[q.id].box,Store.s.cards[q.id].due], [5,shift(15)], '만기 승급');
+});
+
+t('복습 — 최종 박스의 조기 정답은 유지 복습을 뒤로 미루지 않는다', () => {
+  fresh();
+  const q = QB.items[0], due = shift(1);
+  Store.s.cards[q.id] = { n:8, ok:8, ng:0, box:6, due, last:shift(-29) };
+  Store.record(q.id, true);
+  eq([Store.s.cards[q.id].box,Store.s.cards[q.id].due], [6,due], '30일 유지 복습 보존');
+  Store.record(q.id, false);
+  eq([Store.s.cards[q.id].box,Store.s.cards[q.id].due], [0,Store.today()], '조기 오답 재학습');
+  Store.record(q.id, true);
+  eq([Store.s.cards[q.id].box,Store.s.cards[q.id].due], [1,shift(1)], '오답 회복 후 다음 날 확인');
+});
+
 t('복습 — 늦게 복구한 과거 답안이 최신 복습 일정을 되돌리지 않는다', () => {
   fresh();
   const q = QB.items[0];

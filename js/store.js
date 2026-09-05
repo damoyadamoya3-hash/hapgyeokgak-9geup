@@ -660,11 +660,11 @@ const Store = (() => {
     const when = Number.isFinite(at.getTime()) ? at : new Date();
     const stamp = dateKey(when);
     const c = S.cards[qid] || { n:0, ok:0, ng:0, box:0, due:stamp, last:null };
-    /* 라이트너 상자는 시간 간격을 두고 기억을 다시 꺼냈다는 증거다. 같은 날
-       이미 정답으로 다음 복습일을 잡은 문항을 또 맞혔다고 1→2→4→7일로
-       연달아 올리면 몇 분의 반복을 장기기억으로 과대평가한다. 풀이 횟수와
-       정답률은 모두 남기되, 그날의 간격 승급은 한 번만 인정한다. */
-    const advancedToday = !!ok && c.last === stamp && c.due > stamp;
+    /* 예정일 전 정답은 연습 기록으로 남기되 간격 승급의 근거로 쓰지 않는다.
+       다른 모드에서 매일 같은 문항을 맞혀도 예정일이 계속 밀리지 않아야
+       약속한 간격의 복습이 돌아온다. 같은 날 반복 정답도 이 규칙에 포함된다.
+       오답은 예정일과 무관하게 즉시 재학습 대상으로 돌린다. */
+    const reviewDue = c.due <= stamp;
     c.n++; ok ? c.ok++ : c.ng++;
     // 늦게 복구한 모의고사보다 최신 학습 기록이 이미 있다면 횟수·정답률만
     // 합치고, 최신 라이트너 상자와 복습 예정일을 과거 상태로 되돌리지 않는다.
@@ -672,7 +672,7 @@ const Store = (() => {
       if(!ok){
         c.box = 0;
         c.due = stamp;
-      }else if(!advancedToday){
+      }else if(reviewDue){
         c.box = Math.min(c.box + 1, INTERVAL.length - 1);
         const due = new Date(when); due.setDate(due.getDate() + INTERVAL[c.box]);
         c.due = dateKey(due);

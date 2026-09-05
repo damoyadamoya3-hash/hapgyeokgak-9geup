@@ -997,10 +997,11 @@ const UI = (() => {
               <span class="bl">${n}</span>
             </div>`).join('')}
         </div>
-        <p class="st-note">왼쪽은 방금 틀렸거나 처음 본 문항, 오른쪽으로 갈수록 여러 번 연속으로 맞혀
-        복습 간격이 길어진 문항입니다. <b>오른쪽 막대가 두꺼워지는 것이 진짜 실력</b>이며,
+        <p class="st-note">왼쪽은 방금 틀렸거나 처음 본 문항, 오른쪽으로 갈수록 예정된 복습에서 맞혀
+        복습 간격이 길어진 문항입니다. 이 분포는 복습 상태이며 시험 점수를 뜻하지 않습니다.
         마지막 박스도 30일마다 다시 확인합니다. 같은 날 반복해서 맞힌 횟수는 정답률에는 남지만
-        복습 간격은 하루에 한 단계만 늘어납니다.</p>
+        복습 간격은 하루에 한 단계만 늘어납니다. 예정일 전 정답은 풀이 기록에
+        남지만 간격과 예정일을 늘리지 않습니다. 오답은 오늘 복습으로 돌아옵니다.</p>
       </div>
       ${disclaimer()}`;
 
@@ -1234,6 +1235,11 @@ const UI = (() => {
     const tip = $('#fb-tip');
     if(q.tip){ tip.innerHTML = '💡 ' + md(q.tip); tip.classList.remove('hidden'); }
     else tip.classList.add('hidden');
+    const review = $('#fb-review'), record = Store.s.cards[q.id];
+    review.classList.toggle('hidden', !record);
+    review.textContent = !record ? '' : record.due <= Store.today()
+      ? '🔁 오늘 다시 복습할 문항이에요.'
+      : `🔁 다음 복습: ${record.due} · 예정일 전 정답은 이 날짜를 유지해요.`;
     $('#btn-next').innerHTML = ((S.i + 1 >= S.queue.length && S.mode !== 'ox') ? '결과 보기 →' : '다음 →')
       + ' <kbd>Enter</kbd>';
 

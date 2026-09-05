@@ -319,6 +319,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 .fb-xp{margin-left:auto;font-size:14px;color:var(--gold-ink);font-family:var(--f-round)}
 .fb-exp{font-size:14.5px;line-height:1.75;color:var(--ink2);margin:9px 0 0;word-break:keep-all;white-space:pre-wrap}
 .fb-tip{margin-top:10px;background:rgba(242,194,0,.16);border-radius:12px;padding:10px 12px;font-size:13.5px;line-height:1.7}
+.fb-review{margin:10px 0 0;font-size:13px;line-height:1.6;color:var(--ink2);word-break:keep-all}
 .btn-primary{display:block;width:100%;margin-top:14px;background:linear-gradient(100deg,var(--brand),var(--brand2));
   color:#fff;font-size:17px;padding:14px;border-radius:16px;box-shadow:0 3px 0 var(--brand-sh);transition:transform .1s,box-shadow .1s}
 .btn-primary:active{transform:translateY(3px);box-shadow:0 1px 0 var(--brand-sh)}
